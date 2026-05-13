@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aioslsk — Interface Soulseek</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0f0f13;
+      --bg-secondary: #1a1a22;
+      --bg-tertiary: #24242e;
+      --border: #2e2e3a;
+      --text-primary: #e4e4ec;
+      --text-secondary: #8a8a9a;
+      --text-muted: #5a5a6a;
+      --accent: #6c5ce7;
+      --accent-hover: #7d6ef0;
+      --success: #00cec9;
+      --danger: #ff6b6b;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,.3);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    /* ===== Layout ===== */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 24px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius);
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ===== Connect Badge ===== */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .status-badge.connected {
+      color: var(--success);
+      border-color: rgba(0,206,201,.3);
+    }
+
+    .status-badge.connected .dot {
+      background: var(--success);
+    }
+
+    /* ===== Body ===== */
+    .body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      gap: 4px;
+    }
+
+    .sidebar-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-muted);
+      padding: 8px 12px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: default;
+      transition: background .15s, color .15s;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--bg-tertiary);
+      color: var(--accent);
+    }
+
+    .nav-item .icon {
+      width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* ===== Main content ===== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 32px;
+      overflow-y: auto;
+      background: var(--bg-primary);
+    }
+
+    .main.empty {
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-state {
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: .3;
+    }
+
+    .empty-state-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .empty-state-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 320px;
+    }
+
+    /* ===== Footer ===== */
+    .footer {
+      flex-shrink: 0;
+      padding: 8px 24px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-logo">S</div>
+      <span class="header-title">aioslsk</span>
+      <div class="header-actions">
+        <span class="status-badge">
+          <span class="dot"></span>
+          Déconnecté
+        </span>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="body">
+      <!-- Sidebar -->
+      <nav class="sidebar">
+        <div class="sidebar-label">Navigation</div>
+        <div class="nav-item active">
+          <span class="icon">⌕</span>
+          Recherche
+        </div>
+        <div class="nav-item">
+          <span class="icon">⬇</span>
+          Téléchargements
+        </div>
+        <div class="nav-item">
+          <span class="icon">⚙</span>
+          Connexion
+        </div>
+      </nav>
+
+      <!-- Main content -->
+      <main class="main empty">
+        <div class="empty-state">
+          <div class="empty-state-icon">◻</div>
+          <div class="empty-state-title">Contenu à venir</div>
+          <div class="empty-state-desc">
+            Connectez-vous au serveur Soulseek pour commencer à utiliser l'interface.
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>aioslsk Web Interface v0.1.0</span>
+      <span>Serveur hors ligne</span>
+    </footer>
+  </div>
+</body>
+</html>
