@@ -60,7 +60,7 @@ class RightZone(QFrame):
         self.setFrameShape(QFrame.NoFrame)
         self.setObjectName("rightZone")
 
-        self._collapsed = False
+        self._collapsed = True
 
         # ── Layout principal horizontal : [handle | contenu] ──
         main_layout = QHBoxLayout(self)

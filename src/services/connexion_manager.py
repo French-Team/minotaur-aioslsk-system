@@ -25,11 +25,59 @@ logger = logging.getLogger(__name__)
 
 # ── Utilitaires ─────────────────────────────────────────────────
 
-def _generer_identifiants(longueur: int = 10) -> tuple[str, str]:
-    """Génère un nom d'utilisateur et un mot de passe aléatoires."""
-    alphabet = string.ascii_lowercase + string.digits
-    username = "slsk_" + "".join(secrets.choice(alphabet) for _ in range(longueur))
-    password = "".join(secrets.choice(alphabet + string.ascii_uppercase) for _ in range(12))
+def _generer_identifiants() -> tuple[str, str]:
+    """Génère un nom d'utilisateur réaliste et un mot de passe aléatoires."""
+
+    # ── Banques de mots ─────────────────────────────────────────────
+    prenoms = [
+        "Alex", "Ben", "Max", "Leo", "Jay", "Kim", "Sam", "Jules",
+        "Tom", "Eli", "Zoe", "Mia", "Noa", "Lou", "Amy", "Eden",
+        "Sasha", "Charlie", "Romy", "Enzo", "Nina", "Hugo", "Lena",
+    ]
+    musiques = [
+        "Electro", "Techno", "Wave", "Beats", "Bass", "Mix",
+        "Groove", "Pulse", "Rhythm", "Sound", "Drop", "Loop",
+        "Vibes", "Flow", "Trance", "Pop", "Rock", "Jazz",
+        "Funk", "Soul", "Punk", "Blues", "House", "Disco",
+        "Reggae", "Metal", "Dub", "Step", "Swing", "Bop",
+    ]
+    adjectifs = [
+        "Cool", "Fast", "Wild", "Neo", "Retro", "Ultra", "Mega",
+        "Super", "Hyper", "Deep", "Dark", "Pure", "Acid", "Free",
+        "Chill", "Raw", "Smooth", "Electric", "Lunar", "Solar",
+    ]
+    styles = [
+        "Dance", "Techno", "Electro", "House", "Trance", "Dub",
+        "Funk", "Jazz", "Retro", "Synth", "Digital", "Audio",
+        "Sonic", "Wave", "Neo", "Acid", "Ambient", "Minimal",
+    ]
+
+    # ── Patterns de composition ──
+    patterns: list[tuple[str, ...]] = [
+        # Prénom + style musical
+        *[(p, m) for p in prenoms for m in musiques[:12]],
+        # Adjectif + style
+        *[(a, s) for a in adjectifs[:10] for s in styles],
+        # Deux styles (sans séparateur)
+        *[(s1, s2) for s1 in styles[:8] for s2 in musiques[:8] if s1 != s2],
+    ]
+
+    mot1, mot2 = secrets.choice(patterns)
+
+    # 30 % de chance d'ajouter un séparateur (tiret ou underscore)
+    if secrets.randbelow(100) < 30:
+        separateur = secrets.choice(["-", "_"])
+        username = f"{mot1}{separateur}{mot2}"
+    else:
+        username = f"{mot1}{mot2}"
+
+    # Parfois en minuscules (20 %)
+    if secrets.randbelow(100) < 20:
+        username = username.lower()
+
+    password = "".join(
+        secrets.choice(string.ascii_letters + string.digits) for _ in range(12)
+    )
     return username, password
 
 

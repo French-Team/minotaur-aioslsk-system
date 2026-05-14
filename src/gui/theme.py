@@ -1,51 +1,90 @@
 """
 Feuille de style globale (QSS) pour l'interface aioslsk.
+Toutes les couleurs sont centralisées dans COLORS pour faciliter la maintenance.
 """
 
-DARK_THEME = """
-/* ---- Fenêtre principale ---- */
-QMainWindow {
-    background-color: #0f0f13;
+# ── Palette de couleurs ──────────────────────────────────────────────────
+# Les placeholders @KEY@ dans le CSS sont remplacés automatiquement.
+COLORS = {
+    "BG_BTN": "#2e2e3a",
+    "BG_BTN_DISABLED": "#3a3a4a",
+    "BG_BTN_PRESSED": "#4a4a5a",
+    "BG_CENTER": "#111118",
+    "BG_DARK": "#0a0a0f",
+    "BG_HEADER": "#1c1c26",
+    "BG_HOVER": "#24242e",
+    "BG_MAIN": "#0f0f13",
+    "BG_PRESSED": "#1e1e28",
+    "BG_ROW_HOVER": "#1a1a28",
+    "BG_SIDE": "#16161e",
+    "BG_SURFACE": "#1a1a22",
+    "BG_SURFACE2": "#14141e",
+    "BORDER": "#2e2e3a",
+    "BORDER_CONFIG": "#3a3a5a",
+    "BORDER_HOVER": "#4a4a5a",
+    "BORDER_LIGHT": "#3a3a4a",
+    "DANGER": "#ff5252",
+    "DANGER_BG_HOVER": "#2e1a1a",
+    "DANGER_BG_PRESSED": "#1e1010",
+    "DANGER_HOVER": "#ff7070",
+    "DANGER_PRESSED": "#cc3333",
+    "DANGER_PRESSED2": "#d32f2f",
+    "PRIMARY": "#6c5ce7",
+    "PRIMARY_HOVER": "#7d6ef0",
+    "PRIMARY_HOVER2": "#7c6cf7",
+    "PRIMARY_PRESSED": "#5a4bd1",
+    "SUCCESS": "#00e676",
+    "TEXT_DARK": "#1a1a1a",
+    "TEXT_DISABLED": "#6a6a7a",
+    "TEXT_MUTED": "#5a5a6a",
+    "TEXT_PLACEHOLDER": "#3a3a4a",
+    "TEXT_PRIMARY": "#e4e4ec",
+    "TEXT_SECONDARY": "#8a8a9a",
+    "TEXT_TERTIARY": "#b0b0c0",
+    "TEXT_WHITE": "#ffffff",
+    "WARNING": "#ffab00",
 }
 
-/* ---- Zones du layout ---- */
+# ── Template CSS avec placeholders ─────────────────────────────────────────────────
+_DARK_THEME_TEMPLATE = """
+QMainWindow {
+    background-color: @BG_MAIN@;
+}
+
 #headerZone {
-    border: 1px solid #3a3a4a;
-    background-color: #1c1c26;
+    border: 1px solid @TEXT_PLACEHOLDER@;
+    background-color: @BG_HEADER@;
 }
 #leftZone {
-    border: 1px solid #3a3a4a;
-    background-color: #16161e;
+    border: 1px solid @TEXT_PLACEHOLDER@;
+    background-color: @BG_SIDE@;
 }
 #centerZone {
-    border: 1px solid #3a3a4a;
-    background-color: #111118;
+    border: 1px solid @TEXT_PLACEHOLDER@;
+    background-color: @BG_CENTER@;
 }
 #rightZone {
-    border: 1px solid #3a3a4a;
-    background-color: #16161e;
+    border: 1px solid @TEXT_PLACEHOLDER@;
+    background-color: @BG_SIDE@;
 }
 #footerZone {
-    border: 1px solid #3a3a4a;
-    background-color: #1c1c26;
+    border: 1px solid @TEXT_PLACEHOLDER@;
+    background-color: @BG_HEADER@;
 }
 
-/* ---- Grilles / containers ---- */
 QWidget {
-    color: #e4e4ec;
+    color: @TEXT_PRIMARY@;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* ---- Labels ---- */
 QLabel {
-    color: #e4e4ec;
+    color: @TEXT_PRIMARY@;
     background-color: transparent;
 }
 
-/* ---- Boutons ---- */
 QPushButton {
-    background-color: #6c5ce7;
-    color: #ffffff;
+    background-color: @PRIMARY@;
+    color: @TEXT_WHITE@;
     border: none;
     border-radius: 6px;
     padding: 8px 20px;
@@ -53,66 +92,63 @@ QPushButton {
     font-weight: 600;
 }
 QPushButton:hover {
-    background-color: #7d6ef0;
+    background-color: @PRIMARY_HOVER@;
 }
 QPushButton:pressed {
-    background-color: #5a4bd1;
+    background-color: @PRIMARY_PRESSED@;
 }
 QPushButton:disabled {
-    background-color: #3a3a4a;
-    color: #6a6a7a;
+    background-color: @TEXT_PLACEHOLDER@;
+    color: @TEXT_DISABLED@;
 }
 
-/* ---- Liste (sidebar) ---- */
 QListWidget {
-    background-color: #1a1a22;
+    background-color: @BG_SURFACE@;
     border: none;
-    border-right: 1px solid #2e2e3a;
+    border-right: 1px solid @BG_BTN@;
     outline: none;
     padding: 8px;
 }
 QListWidget::item {
-    color: #8a8a9a;
+    color: @TEXT_SECONDARY@;
     padding: 10px 14px;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 500;
 }
 QListWidget::item:selected {
-    background-color: #24242e;
-    color: #6c5ce7;
+    background-color: @BG_HOVER@;
+    color: @PRIMARY@;
 }
 QListWidget::item:hover:!selected {
-    background-color: #24242e;
-    color: #e4e4ec;
+    background-color: @BG_HOVER@;
+    color: @TEXT_PRIMARY@;
 }
 
-/* ---- Barre de menu ---- */
 QMenuBar {
-    background-color: #1a1a22;
-    border-bottom: 1px solid #2e2e3a;
-    color: #8a8a9a;
+    background-color: @BG_SURFACE@;
+    border-bottom: 1px solid @BG_BTN@;
+    color: @TEXT_SECONDARY@;
     font-size: 13px;
     padding: 2px;
 }
 QMenuBar::item:selected {
-    background-color: #24242e;
-    color: #e4e4ec;
+    background-color: @BG_HOVER@;
+    color: @TEXT_PRIMARY@;
 }
 QMenu {
-    background-color: #1a1a22;
-    border: 1px solid #2e2e3a;
-    color: #e4e4ec;
+    background-color: @BG_SURFACE@;
+    border: 1px solid @BG_BTN@;
+    color: @TEXT_PRIMARY@;
 }
 QMenu::item:selected {
-    background-color: #6c5ce7;
+    background-color: @PRIMARY@;
 }
 
-/* ---- Barre de statut ---- */
 QStatusBar {
-    background-color: #1a1a22;
-    border-top: 1px solid #2e2e3a;
-    color: #5a5a6a;
+    background-color: @BG_SURFACE@;
+    border-top: 1px solid @BG_BTN@;
+    color: @TEXT_MUTED@;
     font-size: 11px;
     padding: 4px 12px;
 }
@@ -120,7 +156,6 @@ QStatusBar::item {
     border: none;
 }
 
-/* ---- Sections retractables (collapsible) ---- */
 #collapsibleHeader {
     background-color: transparent;
     border: none;
@@ -129,83 +164,79 @@ QStatusBar::item {
     padding: 8px 12px;
     font-size: 12px;
     font-weight: 600;
-    color: #8a8a9a;
+    color: @TEXT_SECONDARY@;
 }
 #collapsibleHeader:hover {
-    background-color: #24242e;
-    color: #e4e4ec;
+    background-color: @BG_HOVER@;
+    color: @TEXT_PRIMARY@;
 }
 #collapsibleHeader:pressed {
-    background-color: #1e1e28;
+    background-color: @BG_PRESSED@;
 }
 #collapsibleContent {
     background-color: transparent;
     border: none;
 }
 
-/* ---- Handle de repli (panneau droit) ---- */
 #rightHandle {
-    background-color: #1a1a22;
+    background-color: @BG_SURFACE@;
     border: none;
-    border-right: 1px solid #2e2e3a;
+    border-right: 1px solid @BG_BTN@;
     border-radius: 0;
     min-height: 0;
 }
 #rightHandle:hover {
-    background-color: #24242e;
+    background-color: @BG_HOVER@;
 }
 #rightHandle:hover #handleArrow {
-    color: #6c5ce7;
+    color: @PRIMARY@;
 }
 
-/* ---- Handle de repli (panneau gauche) ---- *//* ---- Handle de repli (panneau gauche) ---- */
 #leftHandle {
-    background-color: #1a1a22;
+    background-color: @BG_SURFACE@;
     border: none;
-    border-left: 1px solid #2e2e3a;
+    border-left: 1px solid @BG_BTN@;
     border-radius: 0;
     min-height: 0;
 }
 #leftHandle:hover {
-    background-color: #24242e;
+    background-color: @BG_HOVER@;
 }
 #handleArrow {
-    color: #5a5a6a;
+    color: @TEXT_MUTED@;
     font-size: 10px;
     background-color: transparent;
     border: none;
     padding: 0;
 }
 #leftHandle:hover #handleArrow {
-    color: #6c5ce7;
+    color: @PRIMARY@;
 }
 
-/* ---- Boutons de navigation (footer) ---- */
 #footerNavButton {
     background-color: transparent;
-    color: #5a5a6a;
-    border: 1px solid #2e2e3a;
+    color: @TEXT_MUTED@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     padding: 6px 16px;
     font-size: 12px;
     font-weight: 500;
 }
 #footerNavButton:hover {
-    background-color: #24242e;
-    color: #e4e4ec;
-    border-color: #3a3a4a;
+    background-color: @BG_HOVER@;
+    color: @TEXT_PRIMARY@;
+    border-color: @TEXT_PLACEHOLDER@;
 }
 #footerNavButton:checked {
-    background-color: #24242e;
-    color: #6c5ce7;
-    border-color: #6c5ce7;
+    background-color: @BG_HOVER@;
+    color: @PRIMARY@;
+    border-color: @PRIMARY@;
     font-weight: 600;
 }
 
-/* ---- Boutons de navigation (panneau gauche) ---- *//* ---- Boutons de navigation (panneau gauche) ---- */
 #navButton {
     background-color: transparent;
-    color: #8a8a9a;
+    color: @TEXT_SECONDARY@;
     border: none;
     border-radius: 6px;
     padding: 10px 14px;
@@ -214,96 +245,150 @@ QStatusBar::item {
     text-align: left;
 }
 #navButton:hover {
-    background-color: #24242e;
-    color: #e4e4ec;
+    background-color: @BG_HOVER@;
+    color: @TEXT_PRIMARY@;
 }
 #navButton:checked {
-    background-color: #24242e;
-    color: #6c5ce7;
+    background-color: @BG_HOVER@;
+    color: @PRIMARY@;
     font-weight: 600;
 }
 
-/* ---- Content stack (zone centrale) ---- */
 #centerStack {
     border: none;
     background-color: transparent;
 }
 
-/* ---- Connexion header ---- */
 #connexionHeader {
-    background-color: #1a1a22;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
-    min-height: 40px;
+    min-height: 44px;
 }
 #connexionHeader:hover {
-    background-color: #24242e;
-    border-color: #6c5ce7;
+    background-color: @BG_HOVER@;
+    border-color: @PRIMARY@;
 }
 
-/* ---- Page de connexion ---- */
+#headerAvatar {
+    background-color: @TEXT_PLACEHOLDER@;
+    color: @TEXT_PRIMARY@;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 18px;
+    border: 2px solid @BG_BTN@;
+    min-width: 36px;
+    min-height: 36px;
+}
+
+#headerUsername {
+    color: @TEXT_PRIMARY@;
+    font-size: 12px;
+    font-weight: 700;
+    background: transparent;
+}
+
+#headerStatus {
+    font-size: 11px;
+    font-weight: 600;
+    color: @TEXT_MUTED@;
+    background: transparent;
+}
+
+#headerDisconnectBtn {
+    color: @DANGER@;
+    font-size: 11px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    text-decoration: none;
+}
+#headerDisconnectBtn:hover {
+    color: @DANGER_HOVER@;
+}
+#headerDisconnectBtn:pressed {
+    color: @DANGER_PRESSED@;
+}
+
 #connexionCard {
-    background-color: #16161e;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SIDE@;
+    border: 1px solid @BG_BTN@;
     border-radius: 10px;
 }
 #connexionInput {
-    background-color: #1a1a22;
-    color: #e4e4ec;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     padding: 10px 14px;
     font-size: 13px;
     font-weight: 500;
 }
 #connexionInput:focus {
-    border-color: #6c5ce7;
+    border-color: @PRIMARY@;
 }
 #connexionInput::placeholder {
-    color: #5a5a6a;
+    color: @TEXT_MUTED@;
 }
 #connexionBtn {
-    background-color: #6c5ce7;
-    color: #ffffff;
+    background-color: @PRIMARY@;
+    color: @TEXT_WHITE@;
     border: none;
     border-radius: 6px;
-    padding: 10px;
+    padding: 10px 24px;
     font-size: 13px;
     font-weight: 700;
     min-height: 20px;
 }
 #connexionBtn:hover {
-    background-color: #7d6ef0;
+    background-color: @PRIMARY_HOVER@;
 }
 #connexionBtn:pressed {
-    background-color: #5a4bd1;
+    background-color: @PRIMARY_PRESSED@;
 }
 #connexionBtnSecondary {
     background-color: transparent;
-    color: #6c5ce7;
-    border: 1px solid #6c5ce7;
+    color: @PRIMARY@;
+    border: 1px solid @PRIMARY@;
     border-radius: 6px;
-    padding: 10px;
+    padding: 10px 24px;
     font-size: 13px;
     font-weight: 600;
     min-height: 20px;
 }
 #connexionBtnSecondary:hover {
-    background-color: #24242e;
+    background-color: @BG_HOVER@;
 }
 #connexionBtnSecondary:pressed {
-    background-color: #1e1e28;
+    background-color: @BG_PRESSED@;
 }
 
-/* ---- Progression (multi-mode) ---- */
+#connexionBtnDanger {
+    background-color: transparent;
+    color: @DANGER@;
+    border: 1px solid @DANGER@;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 20px;
+}
+#connexionBtnDanger:hover {
+    background-color: @DANGER_BG_HOVER@;
+}
+#connexionBtnDanger:pressed {
+    background-color: @DANGER_BG_PRESSED@;
+}
+
 #progressionWidget {
-    background-color: #0a0a0f;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_DARK@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     min-height: 40px;
 }
 #progressionMode {
-    color: #8a8a9a;
+    color: @TEXT_SECONDARY@;
     font-size: 10px;
     font-weight: 600;
     background-color: transparent;
@@ -311,7 +396,7 @@ QStatusBar::item {
     padding: 0;
 }
 #progressionValue {
-    color: #e4e4ec;
+    color: @TEXT_PRIMARY@;
     font-size: 15px;
     font-weight: 700;
     background-color: transparent;
@@ -319,35 +404,34 @@ QStatusBar::item {
     padding: 0;
 }
 #progressionBar {
-    background-color: #1a1a22;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE@;
+    border: 1px solid @BG_BTN@;
     border-radius: 4px;
     min-height: 8px;
     max-height: 8px;
     text-align: center;
 }
 #progressionBar::chunk {
-    background-color: #6c5ce7;
+    background-color: @PRIMARY@;
     border-radius: 3px;
 }
 
-/* ---- Clients actifs (header + page) ---- */
 #clientsHeader {
-    background-color: #0a0a0f;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_DARK@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     min-height: 40px;
 }
 #clientsHeader:hover {
-    border: 1px solid #6c5ce7;
+    border: 1px solid @PRIMARY@;
 }
 #clientsHeaderTitle {
-    color: #6c5ce7;
+    color: @PRIMARY@;
     font-size: 11px;
     font-weight: 600;
 }
 #clientsHeaderStatut {
-    color: #e4e4ec;
+    color: @TEXT_PRIMARY@;
     font-size: 13px;
     font-weight: 500;
 }
@@ -355,48 +439,49 @@ QStatusBar::item {
     background-color: transparent;
 }
 #clientRow {
-    background-color: #14141e;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE2@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
 }
 #clientRow:hover {
-    background-color: #1a1a28;
-    border: 1px solid #4a4a5a;
+    background-color: @BG_ROW_HOVER@;
+    border: 1px solid @BG_BTN_PRESSED@;
 }
 #clientsActionBtn {
-    background-color: #2e2e3a;
-    color: #b0b0c0;
-    border: 1px solid #3a3a4a;
+    background-color: @BG_BTN@;
+    color: @TEXT_TERTIARY@;
+    border: 1px solid @TEXT_PLACEHOLDER@;
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 11px;
     font-weight: 500;
 }
 #clientsActionBtn:hover {
-    background-color: #3a3a4a;
-    color: #e4e4ec;
-    border: 1px solid #6c5ce7;
+    background-color: @TEXT_PLACEHOLDER@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @PRIMARY@;
 }
 #clientsActionBtn:pressed {
-    background-color: #4a4a5a;
+    background-color: @BG_BTN_PRESSED@;
 }
 #clientsActionBtnDanger {
-    background-color: #2e2e3a;
-    color: #ff5252;
-    border: 1px solid #3a3a4a;
+    background-color: @BG_BTN@;
+    color: @DANGER@;
+    border: 1px solid @TEXT_PLACEHOLDER@;
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 11px;
     font-weight: 500;
 }
 #clientsActionBtnDanger:hover {
-    background-color: #ff5252;
-    color: #ffffff;
-    border: 1px solid #ff5252;
+    background-color: @DANGER@;
+    color: @TEXT_WHITE@;
+    border: 1px solid @DANGER@;
 }
 #clientsActionBtnDanger:pressed {
-    background-color: #d32f2f;
+    background-color: @DANGER_PRESSED2@;
 }
+
 #clientsScroll {
     background-color: transparent;
     border: none;
@@ -405,23 +490,22 @@ QStatusBar::item {
     background-color: transparent;
 }
 
-/* ---- Téléchargements (header + page) ---- */
 #telechargementsHeader {
-    background-color: #0a0a0f;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_DARK@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     min-height: 40px;
 }
 #telechargementsHeader:hover {
-    border: 1px solid #6c5ce7;
+    border: 1px solid @PRIMARY@;
 }
 #telechargementsHeaderTitle {
-    color: #6c5ce7;
+    color: @PRIMARY@;
     font-size: 11px;
     font-weight: 600;
 }
 #telechargementsHeaderStatut {
-    color: #e4e4ec;
+    color: @TEXT_PRIMARY@;
     font-size: 13px;
     font-weight: 500;
 }
@@ -429,22 +513,22 @@ QStatusBar::item {
     background-color: transparent;
 }
 #downloadRow {
-    background-color: #14141e;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE2@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
 }
 #downloadRow:hover {
-    background-color: #1a1a28;
-    border: 1px solid #4a4a5a;
+    background-color: @BG_ROW_HOVER@;
+    border: 1px solid @BG_BTN_PRESSED@;
 }
 #downloadFileName {
-    color: #e4e4ec;
+    color: @TEXT_PRIMARY@;
     font-size: 13px;
     font-weight: 500;
 }
 #downloadProgress {
-    background-color: #1a1a22;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE@;
+    border: 1px solid @BG_BTN@;
     border-radius: 4px;
     min-height: 14px;
     max-height: 14px;
@@ -452,32 +536,32 @@ QStatusBar::item {
     font-size: 10px;
 }
 #downloadBtnCancel {
-    background-color: #2e2e3a;
-    color: #ff5252;
-    border: 1px solid #3a3a4a;
+    background-color: @BG_BTN@;
+    color: @DANGER@;
+    border: 1px solid @TEXT_PLACEHOLDER@;
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 11px;
     font-weight: 500;
 }
 #downloadBtnCancel:hover {
-    background-color: #ff5252;
-    color: #ffffff;
-    border: 1px solid #ff5252;
+    background-color: @DANGER@;
+    color: @TEXT_WHITE@;
+    border: 1px solid @DANGER@;
 }
 #downloadBtnRetry {
-    background-color: #2e2e3a;
-    color: #ffab00;
-    border: 1px solid #3a3a4a;
+    background-color: @BG_BTN@;
+    color: @WARNING@;
+    border: 1px solid @TEXT_PLACEHOLDER@;
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 11px;
     font-weight: 500;
 }
 #downloadBtnRetry:hover {
-    background-color: #ffab00;
-    color: #1a1a1a;
-    border: 1px solid #ffab00;
+    background-color: @WARNING@;
+    color: @TEXT_DARK@;
+    border: 1px solid @WARNING@;
 }
 #downloadScroll {
     background-color: transparent;
@@ -487,52 +571,51 @@ QStatusBar::item {
     background-color: transparent;
 }
 #downloadToolbar {
-    background-color: #14141e;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE2@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     padding: 6px;
 }
 #toolbarBtn {
-    background-color: #2e2e3a;
-    color: #b0b0c0;
-    border: 1px solid #3a3a4a;
+    background-color: @BG_BTN@;
+    color: @TEXT_TERTIARY@;
+    border: 1px solid @TEXT_PLACEHOLDER@;
     border-radius: 4px;
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 500;
 }
 #toolbarBtn:hover {
-    background-color: #3a3a4a;
-    color: #e4e4ec;
-    border: 1px solid #6c5ce7;
+    background-color: @TEXT_PLACEHOLDER@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @PRIMARY@;
 }
 #toolbarBtn:pressed {
-    background-color: #4a4a5a;
+    background-color: @BG_BTN_PRESSED@;
 }
 #toolbarBtnDanger {
-    background-color: #2e2e3a;
-    color: #ff5252;
-    border: 1px solid #3a3a4a;
+    background-color: @BG_BTN@;
+    color: @DANGER@;
+    border: 1px solid @TEXT_PLACEHOLDER@;
     border-radius: 4px;
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 500;
 }
 #toolbarBtnDanger:hover {
-    background-color: #ff5252;
-    color: #ffffff;
-    border: 1px solid #ff5252;
+    background-color: @DANGER@;
+    color: @TEXT_WHITE@;
+    border: 1px solid @DANGER@;
 }
 
-/* ---- Horloge digitale ---- */
 #clockWidget {
-    background-color: #0a0a0f;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_DARK@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
     padding: 4px;
 }
 #clockLabel {
-    color: #00e676;
+    color: @SUCCESS@;
     font-family: "Consolas", "Courier New", monospace;
     font-size: 18px;
     font-weight: 700;
@@ -541,17 +624,15 @@ QStatusBar::item {
     padding: 2px 8px;
 }
 
-/* ---- Tabs (rooms) ---- */
-/* ---- Tabs (rooms) ---- */
 #roomsTabs::pane {
-    background-color: #1a1a22;
-    border: 1px solid #6c5ce7;
+    background-color: @BG_SURFACE@;
+    border: 1px solid @PRIMARY@;
     border-radius: 0 0 6px 6px;
 }
 #roomsTabs QTabBar::tab {
-    background-color: #1a1a22;
-    color: #5a5a6a;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE@;
+    color: @TEXT_MUTED@;
+    border: 1px solid @BG_BTN@;
     border-bottom: none;
     border-radius: 0;
     padding: 8px 16px;
@@ -560,36 +641,29 @@ QStatusBar::item {
     margin-right: 2px;
 }
 #roomsTabs QTabBar::tab:selected {
-    background-color: #1a1a22;
-    color: #6c5ce7;
-    border-color: #6c5ce7;
+    background-color: @BG_SURFACE@;
+    color: @PRIMARY@;
+    border-color: @PRIMARY@;
 }
 #roomsTabs QTabBar::tab:hover:!selected {
-    background-color: #24242e;
-    color: #e4e4ec;
+    background-color: @BG_HOVER@;
+    color: @TEXT_PRIMARY@;
 }
 
-# ════════════════════════════════════════════════════════════════
-#  Pages de configuration
-# ════════════════════════════════════════════════════════════════
-
-/* Section de configuration */
 #configSection {
     background-color: transparent;
     border: none;
 }
 
-/* Ligne de configuration */
 #configRow {
-    background-color: #1a1a22;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE@;
+    border: 1px solid @BG_BTN@;
     border-radius: 6px;
 }
 #configRow:hover {
-    border-color: #3a3a5a;
+    border-color: @BORDER_CONFIG@;
 }
 
-/* Interrupteur (checkbox) */
 #configToggle {
     spacing: 0;
 }
@@ -597,73 +671,70 @@ QStatusBar::item {
     width: 36px;
     height: 20px;
     border-radius: 10px;
-    background-color: #3a3a4a;
-    border: 1px solid #2e2e3a;
+    background-color: @TEXT_PLACEHOLDER@;
+    border: 1px solid @BG_BTN@;
 }
 #configToggle::indicator:checked {
-    background-color: #6c5ce7;
-    border-color: #6c5ce7;
+    background-color: @PRIMARY@;
+    border-color: @PRIMARY@;
 }
 #configToggle::indicator:unchecked:hover {
-    background-color: #4a4a5a;
+    background-color: @BG_BTN_PRESSED@;
 }
 #configToggle::indicator:checked:hover {
-    background-color: #7c6cf7;
+    background-color: @PRIMARY_HOVER2@;
 }
 
-/* Champ de texte */
 #configEntry {
-    background-color: #14141e;
-    color: #e4e4ec;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE2@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @BG_BTN@;
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
 }
 #configEntry:focus {
-    border-color: #6c5ce7;
+    border-color: @PRIMARY@;
 }
 #configEntry::placeholder {
-    color: #3a3a4a;
+    color: @TEXT_PLACEHOLDER@;
 }
 
-/* Menu déroulant */
 #configCombo {
-    background-color: #14141e;
-    color: #e4e4ec;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE2@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @BG_BTN@;
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
     min-width: 120px;
 }
 #configCombo:focus {
-    border-color: #6c5ce7;
+    border-color: @PRIMARY@;
 }
 #configCombo::drop-down {
     border: none;
     width: 24px;
 }
 #configCombo QAbstractItemView {
-    background-color: #1a1a22;
-    color: #e4e4ec;
-    border: 1px solid #2e2e3a;
-    selection-background-color: #6c5ce7;
-    selection-color: #ffffff;
+    background-color: @BG_SURFACE@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @BG_BTN@;
+    selection-background-color: @PRIMARY@;
+    selection-color: @TEXT_WHITE@;
     outline: none;
 }
 
-/* Champ numérique */
 #configSpin {
-    background-color: #14141e;
-    color: #e4e4ec;
-    border: 1px solid #2e2e3a;
+    background-color: @BG_SURFACE2@;
+    color: @TEXT_PRIMARY@;
+    border: 1px solid @BG_BTN@;
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
 }
 #configSpin:focus {
-    border-color: #6c5ce7;
+    border-color: @PRIMARY@;
 }
 #configSpin::up-button, #configSpin::down-button {
     border: none;
@@ -677,43 +748,40 @@ QStatusBar::item {
     image: none;
 }
 
-/* Bouton réinitialisation */
 #configResetBtn {
     background-color: transparent;
-    color: #5a5a6a;
-    border: 1px solid #2e2e3a;
+    color: @TEXT_MUTED@;
+    border: 1px solid @BG_BTN@;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 11px;
     margin-top: 12px;
 }
 #configResetBtn:hover {
-    color: #ff5252;
-    border-color: #ff5252;
+    color: @DANGER@;
+    border-color: @DANGER@;
 }
 
-/* Zone scrollable */
 #configScroll {
     background-color: transparent;
     border: none;
 }
 
-/* ── Scrollbar fine ───────────────────────────────────────────── */
 QScrollBar:vertical {
     width: 6px;
     background: transparent;
     margin: 0;
 }
 QScrollBar::handle:vertical {
-    background: #3a3a4a;
+    background: @TEXT_PLACEHOLDER@;
     min-height: 30px;
     border-radius: 3px;
 }
 QScrollBar::handle:vertical:hover {
-    background: #6c5ce7;
+    background: @PRIMARY@;
 }
 QScrollBar::handle:vertical:pressed {
-    background: #5a4bd1;
+    background: @PRIMARY_PRESSED@;
 }
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical {
@@ -731,15 +799,15 @@ QScrollBar:horizontal {
     margin: 0;
 }
 QScrollBar::handle:horizontal {
-    background: #3a3a4a;
+    background: @TEXT_PLACEHOLDER@;
     min-width: 30px;
     border-radius: 3px;
 }
 QScrollBar::handle:horizontal:hover {
-    background: #6c5ce7;
+    background: @PRIMARY@;
 }
 QScrollBar::handle:horizontal:pressed {
-    background: #5a4bd1;
+    background: @PRIMARY_PRESSED@;
 }
 QScrollBar::add-line:horizontal,
 QScrollBar::sub-line:horizontal {
@@ -751,3 +819,8 @@ QScrollBar::sub-page:horizontal {
     background: none;
 }
 """
+
+# ── Génération du thème final ──────────────────────────────────────────────
+DARK_THEME = _DARK_THEME_TEMPLATE
+for _key, _value in COLORS.items():
+    DARK_THEME = DARK_THEME.replace(f"@{_key}@", _value)

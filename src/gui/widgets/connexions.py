@@ -11,10 +11,12 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -32,9 +34,10 @@ _LED_RED = "#ff5252"
 # ═════════════════════════════════════════════════════════════════
 
 class ConnexionHeaderWidget(QFrame):
-    """Bouton 'Connexion' avec voyant lumineux pour le header."""
+    """Widget header : avatar, username, statut et bouton déconnexion."""
 
     clicked = Signal()
+    disconnect_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -42,63 +45,138 @@ class ConnexionHeaderWidget(QFrame):
         self.setFrameShape(QFrame.StyledPanel)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(2)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Largeur = contenu, pas d'étalement
+        policy = self.sizePolicy()
+        policy.setHorizontalPolicy(QSizePolicy.Maximum)
+        self.setSizePolicy(policy)
 
-        # Ligne 1 — voyant + label
-        top = QHBoxLayout()
-        top.setSpacing(6)
-        top.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(8, 4, 8, 14)  # bottom = 14 pour ombre avatar
+        grid.setSpacing(4)
 
-        self._led = QLabel("●")
-        self._led.setObjectName("connexionLed")
-        self._led.setStyleSheet(
-            f"color: {_LED_OFF}; font-size: 14px; background: transparent;"
-        )
-        top.addWidget(self._led)
+        # ── Colonne 0 : Avatar ou initiale ──
+        self._avatar = QLabel()
+        self._avatar.setObjectName("headerAvatar")
+        self._avatar.setFixedSize(36, 36)
+        self._avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Ombre portée légère (parent = avatar pour éviter la destruction)
+        from PySide6.QtWidgets import QGraphicsDropShadowEffect
+        shadow = QGraphicsDropShadowEffect(self._avatar)
+        shadow.setBlurRadius(8)
+        shadow.setOffset(0, 1)
+        shadow.setColor(Qt.GlobalColor.black)
+        self._avatar.setGraphicsEffect(shadow)
+        grid.addWidget(self._avatar, 0, 0, 2, 1)  # row 0-1, col 0
 
-        label = QLabel("Connexion")
-        label.setObjectName("connexionHeaderLabel")
-        label.setStyleSheet(
-            "color: #e4e4ec; font-size: 11px; font-weight: 700;"
-            " background: transparent;"
-        )
-        top.addWidget(label)
-        layout.addLayout(top)
+        # ── Colonnes 1-2, ligne 0 : Username centré sur la largeur statut+déconnexion ──
+        self._username_label = QLabel("Déconnecté")
+        self._username_label.setObjectName("headerUsername")
+        self._username_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        grid.addWidget(self._username_label, 0, 1, 1, 2)
 
-        # Ligne 2 — état
-        self._status = QLabel("Déconnecté")
-        self._status.setObjectName("connexionHeaderStatus")
-        self._status.setStyleSheet(
-            "color: #5a5a6a; font-size: 10px; background: transparent;"
-        )
-        self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._status)
+        # ── Colonne 1, ligne 1 : Statut (badge QFrame) ──
+        self._badge = QFrame()
+        self._badge.setObjectName("headerStatusBadge")
+        badge_layout = QHBoxLayout(self._badge)
+        badge_layout.setContentsMargins(6, 2, 6, 2)
+        badge_layout.setSpacing(0)
+        self._status = QLabel("● Déconnecté")
+        self._status.setObjectName("headerStatus")
+        badge_layout.addWidget(self._status)
+        grid.addWidget(self._badge, 1, 1)
+
+        # ── Colonne 2, ligne 1 : Se déconnecter ──
+        self._disconnect_btn = QPushButton("Se déconnecter")
+        self._disconnect_btn.setObjectName("headerDisconnectBtn")
+        self._disconnect_btn.setFlat(True)
+        self._disconnect_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._disconnect_btn.clicked.connect(self._on_disconnect)
+        self._disconnect_btn.setVisible(False)
+        grid.addWidget(self._disconnect_btn, 1, 2)
+
+        # Pas de stretch — taille naturelle
+        grid.setColumnStretch(0, 0)
+        grid.setColumnStretch(1, 0)
+        grid.setColumnStretch(2, 0)
 
     # ── API publique ────────────────────────────────────────────
 
+    def set_username(self, username: str) -> None:
+        """Définit le nom d'utilisateur affiché et l'initiale dans l'avatar."""
+        self._username_label.setText(username)
+        # Initiale dans l'avatar (si pas de photo chargée)
+        initial = username[0].upper() if username else "?"
+        self._avatar.setText(initial)
+        self._avatar.setStyleSheet(
+            "background-color: #6c5ce7; color: #ffffff;"
+            " font-weight: 700; font-size: 15px; border-radius: 18px;"
+            " border: 2px solid #2e2e3a;"
+            " min-width: 36px; min-height: 36px;"
+        )
+
     def set_status(self, connected: bool) -> None:
-        """Met à jour le voyant et le texte de statut."""
+        """Met à jour le statut (badge) et la visibilité du bouton déconnexion."""
         if connected:
-            self._led.setStyleSheet(
-                f"color: {_LED_GREEN}; font-size: 14px; background: transparent;"
-            )
-            self._status.setText("Connecté")
+            self._status.setText("● Connecté")
             self._status.setStyleSheet(
-                "color: #00e676; font-size: 10px; background: transparent;"
+                "color: #00e676; font-size: 11px; font-weight: 600;"
+                " background: transparent;"
             )
+            self._badge.setStyleSheet(
+                "background-color: #00e67618;"
+                " border: 1px solid #00e67630;"
+                " border-radius: 10px;"
+            )
+            self._disconnect_btn.setVisible(True)
         else:
-            self._led.setStyleSheet(
-                f"color: {_LED_RED}; font-size: 14px; background: transparent;"
-            )
-            self._status.setText("Déconnecté")
+            self._status.setText("● Déconnecté")
             self._status.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px; background: transparent;"
+                "color: #5a5a6a; font-size: 11px; font-weight: 600;"
+                " background: transparent;"
             )
+            self._badge.setStyleSheet(
+                "background-color: #5a5a6a18;"
+                " border: 1px solid #5a5a6a30;"
+                " border-radius: 10px;"
+            )
+            self._disconnect_btn.setVisible(False)
+            self._username_label.setText("Déconnecté")
+            self._avatar.clear()
+            self._avatar.setStyleSheet("")
+
+    def set_photo(self, path: str) -> None:
+        """Charge une photo de profil circulaire depuis un chemin fichier."""
+        if not path:
+            return
+        from PySide6.QtGui import QPixmap, QPainter, QPainterPath
+        pix = QPixmap(path)
+        if not pix.isNull():
+            # Agrandir pour remplir le cercle (cover), puis rogner
+            scaled = pix.scaled(
+                36, 36,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            # Pixmap cible transparent
+            rounded = QPixmap(36, 36)
+            rounded.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(rounded)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, 36, 36)
+            painter.setClipPath(path)
+            # Centrer l'image dans le cercle
+            x = (36 - scaled.width()) // 2
+            y = (36 - scaled.height()) // 2
+            painter.drawPixmap(x, y, scaled)
+            painter.end()
+            self._avatar.setPixmap(rounded)
+            self._avatar.setStyleSheet("")  # plus besoin de border-radius
 
     # ── Événements ──────────────────────────────────────────────
+
+    def _on_disconnect(self) -> None:
+        self.disconnect_requested.emit()
 
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
         self.clicked.emit()
@@ -114,6 +192,7 @@ class ConnexionPage(QFrame):
 
     login_requested = Signal(str, str)   # (username, password)
     generate_requested = Signal()
+    disconnect_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -186,26 +265,26 @@ class ConnexionPage(QFrame):
         lay.addWidget(self._login_btn)
 
         # ── Séparateur + section nouveau compte ──
-        sep2 = QFrame()
-        sep2.setFrameShape(QFrame.HLine)
-        sep2.setStyleSheet("color: #2e2e3a;")
-        lay.addWidget(sep2)
+        self._sep2 = QFrame()
+        self._sep2.setFrameShape(QFrame.HLine)
+        self._sep2.setStyleSheet("color: #2e2e3a;")
+        lay.addWidget(self._sep2)
 
-        new_label = QLabel("Nouveau sur Soulseek ?")
-        new_label.setStyleSheet(
+        self._new_label = QLabel("Nouveau sur Soulseek ?")
+        self._new_label.setStyleSheet(
             "color: #8a8a9a; font-size: 12px; font-weight: 600;"
         )
-        new_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(new_label)
+        self._new_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self._new_label)
 
-        info = QLabel(
+        self._info_new = QLabel(
             "Générez un identifiant et un mot de passe "
             "pour créer votre compte sans pré-inscription."
         )
-        info.setStyleSheet("color: #5a5a6a; font-size: 11px;")
-        info.setWordWrap(True)
-        info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(info)
+        self._info_new.setStyleSheet("color: #5a5a6a; font-size: 11px;")
+        self._info_new.setWordWrap(True)
+        self._info_new.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self._info_new)
 
         self._generate_btn = QPushButton("Générer un compte")
         self._generate_btn.setObjectName("connexionBtnSecondary")
@@ -219,6 +298,14 @@ class ConnexionPage(QFrame):
         self._message.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._message.setWordWrap(True)
         lay.addWidget(self._message)
+
+        # ── Bouton déconnexion (caché par défaut) ──
+        self._disconnect_btn = QPushButton("Se déconnecter")
+        self._disconnect_btn.setObjectName("connexionBtnDanger")
+        self._disconnect_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._disconnect_btn.clicked.connect(self._on_disconnect)
+        self._disconnect_btn.setVisible(False)
+        lay.addWidget(self._disconnect_btn)
 
         outer.addWidget(card, 0, Qt.AlignmentFlag.AlignCenter)
 
@@ -236,10 +323,14 @@ class ConnexionPage(QFrame):
         self._page_status.setStyleSheet(
             "color: #00e676; font-size: 13px; font-weight: 600;"
         )
-        self._username.setEnabled(False)
-        self._password.setEnabled(False)
-        self._login_btn.setEnabled(False)
-        self._generate_btn.setEnabled(False)
+        self._username.setVisible(False)
+        self._password.setVisible(False)
+        self._login_btn.setVisible(False)
+        self._generate_btn.setVisible(False)
+        self._sep2.setVisible(False)
+        self._new_label.setVisible(False)
+        self._info_new.setVisible(False)
+        self._disconnect_btn.setVisible(True)
         self._set_message("", "")
 
     def set_disconnected(self) -> None:
@@ -251,10 +342,14 @@ class ConnexionPage(QFrame):
         self._page_status.setStyleSheet(
             "color: #5a5a6a; font-size: 13px; font-weight: 600;"
         )
-        self._username.setEnabled(True)
-        self._password.setEnabled(True)
-        self._login_btn.setEnabled(True)
-        self._generate_btn.setEnabled(True)
+        self._username.setVisible(True)
+        self._password.setVisible(True)
+        self._login_btn.setVisible(True)
+        self._generate_btn.setVisible(True)
+        self._sep2.setVisible(True)
+        self._new_label.setVisible(True)
+        self._info_new.setVisible(True)
+        self._disconnect_btn.setVisible(False)
 
     def set_generating(self, in_progress: bool) -> None:
         """Désactive le formulaire pendant la génération de compte."""
@@ -307,3 +402,6 @@ class ConnexionPage(QFrame):
 
     def _on_generate(self) -> None:
         self.generate_requested.emit()
+
+    def _on_disconnect(self) -> None:
+        self.disconnect_requested.emit()

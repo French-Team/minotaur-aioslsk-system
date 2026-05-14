@@ -7,7 +7,8 @@ dans la zone gauche (ou ailleurs).
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -82,8 +83,6 @@ def _transfer_statut_label(transfer: object) -> str:
 class CenterZone(QFrame):
     """Zone de contenu principal avec pages empilables."""
 
-    disconnect_requested = Signal()
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setFrameShape(QFrame.NoFrame)
@@ -148,32 +147,15 @@ class CenterZone(QFrame):
             self._stack.setCurrentWidget(page)
 
     def show_home(self, username: str) -> None:
-        """Affiche la page d'accueil avec les infos de l'utilisateur connecté."""
+        """Affiche la page d'accueil avec le nom de l'utilisateur connecté."""
         self._home_greeting.setText(f"Bienvenue, {username} !")
-        self._home_subtitle.setText("Vous êtes connecté au réseau Soulseek.")
-        # Met à jour les stats
-        for row in [self._home_stat_user, self._home_stat_status, self._home_stat_serveur]:
-            label = getattr(row, '_value_label', None)
-            if label is not None:
-                if row is self._home_stat_user:
-                    label.setText(username)
-                elif row is self._home_stat_status:
-                    label.setText("Connecté ✓")
-                    label.setStyleSheet("color: #00e676; font-size: 13px; background: transparent;")
-                elif row is self._home_stat_serveur:
-                    label.setText("Soulseek (slsk:// )")
+        self._home_subtitle.setText("Connecté au réseau Soulseek.")
         self.show_page("accueil")
 
     def show_connexion(self) -> None:
         """Affiche la page de connexion."""
-        # Réinitialise la page d'accueil pour le prochain utilisateur
         self._home_greeting.setText("Bienvenue sur aioslsk")
-        self._home_subtitle.setText("Vous êtes connecté au réseau Soulseek.")
-        for row in [self._home_stat_user, self._home_stat_status, self._home_stat_serveur]:
-            label = getattr(row, '_value_label', None)
-            if label is not None:
-                label.setText("—")
-                label.setStyleSheet("color: #e4e4ec; font-size: 12px; background: transparent;")
+        self._home_subtitle.setText("Connecté au réseau Soulseek.")
         self.show_page("connexion")
 
     def page(self, name: str) -> QWidget | None:
@@ -216,20 +198,13 @@ class CenterZone(QFrame):
         self._stack.addWidget(page)
 
     def _build_home_page(self) -> None:
-        """Page d'accueil / dashboard (affichée après connexion)."""
+        """Page d'accueil (affichée après connexion)."""
         page = QWidget()
         page.setObjectName("pageAccueil")
         outer = QVBoxLayout(page)
         outer.setContentsMargins(32, 32, 32, 32)
         outer.setSpacing(0)
-        outer.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
-
-        # ── Contenu centré avec largeur max ──
-        container = QWidget()
-        container.setFixedWidth(560)
-        lay = QVBoxLayout(container)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(20)
+        outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # ── Bannière de bienvenue ──
         welcome = QFrame()
@@ -237,21 +212,22 @@ class CenterZone(QFrame):
         welcome.setStyleSheet(
             "#homeWelcome {"
             "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 24px;"
+            "  border-radius: 12px; padding: 32px;"
             "}"
         )
         wl = QVBoxLayout(welcome)
         wl.setSpacing(4)
+        wl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._home_greeting = QLabel("Bienvenue sur aioslsk")
         self._home_greeting.setStyleSheet(
-            "color: #e4e4ec; font-size: 20px; font-weight: 700;"
+            "color: #e4e4ec; font-size: 22px; font-weight: 700;"
         )
         self._home_greeting.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wl.addWidget(self._home_greeting)
 
         self._home_subtitle = QLabel(
-            "Vous êtes connecté au réseau Soulseek."
+            "Connecté au réseau Soulseek."
         )
         self._home_subtitle.setStyleSheet(
             "color: #8a8a9a; font-size: 13px;"
@@ -259,156 +235,9 @@ class CenterZone(QFrame):
         self._home_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wl.addWidget(self._home_subtitle)
 
-        lay.addWidget(welcome)
-
-        # ── Grille d'actions rapides ──
-        actions_title = QLabel("Actions rapides")
-        actions_title.setStyleSheet(
-            "color: #5a5a6a; font-size: 11px; font-weight: 700;"
-            " letter-spacing: 1px;"
-        )
-        lay.addWidget(actions_title)
-
-        grid = QFrame()
-        grid.setStyleSheet(
-            "background: transparent; border: none;"
-        )
-        gl = QHBoxLayout(grid)
-        gl.setContentsMargins(0, 0, 0, 0)
-        gl.setSpacing(12)
-
-        cards_data = [
-            ("🔍", "Rechercher", "Chercher des fichiers\nsur le réseau", "Recherche"),
-            ("📥", "Téléchargements", "Voir vos fichiers\nen cours", "Téléchargement"),
-            ("👥", "Clients actifs", "Utilisateurs\nconnectés", "clients-actifs"),
-            ("⚙️", "Configuration", "Paramètres du\ncompte et réseau", "Général"),
-        ]
-
-        for icon, title_text, desc, page_name in cards_data:
-            card = self._create_action_card(icon, title_text, desc, page_name)
-            gl.addWidget(card)
-
-        lay.addWidget(grid)
-
-        # ── Stats ──
-        stats_title = QLabel("Informations")
-        stats_title.setStyleSheet(
-            "color: #5a5a6a; font-size: 11px; font-weight: 700;"
-            " letter-spacing: 1px;"
-        )
-        lay.addWidget(stats_title)
-
-        stats = QFrame()
-        stats.setObjectName("homeStats")
-        stats.setStyleSheet(
-            "#homeStats {"
-            "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 20px;"
-            "}"
-        )
-        sl = QVBoxLayout(stats)
-        sl.setSpacing(4)
-
-        self._home_stat_user = self._stat_row("👤", "Utilisateur")
-        sl.addWidget(self._home_stat_user)
-
-        self._home_stat_status = self._stat_row("🔌", "Statut")
-        sl.addWidget(self._home_stat_status)
-
-        self._home_stat_serveur = self._stat_row("🌐", "Serveur")
-        sl.addWidget(self._home_stat_serveur)
-
-        lay.addWidget(stats)
-
-        # ── Bouton déconnexion ──
-        self._home_disconnect_btn = QPushButton("Se déconnecter")
-        self._home_disconnect_btn.setObjectName("homeDisconnectBtn")
-        self._home_disconnect_btn.setStyleSheet(
-            "#homeDisconnectBtn {"
-            "  background: #2a1a1a; color: #ff5252;"
-            "  border: 1px solid #3a2020; border-radius: 8px;"
-            "  padding: 10px 20px; font-size: 13px; font-weight: 600;"
-            "}"
-            "#homeDisconnectBtn:hover {"
-            "  background: #3a2020; border-color: #ff5252;"
-            "}"
-        )
-        self._home_disconnect_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._home_disconnect_btn.clicked.connect(self.disconnect_requested.emit)
-        lay.addWidget(self._home_disconnect_btn)
-
-        outer.addWidget(container, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        outer.addWidget(welcome, 0, Qt.AlignmentFlag.AlignCenter)
         self._pages["accueil"] = page
         self._stack.addWidget(page)
-
-    def _create_action_card(self, icon: str, title: str, desc: str, page_name: str) -> QWidget:
-        """Crée une carte d'action rapide cliquable."""
-        card = QFrame()
-        card.setObjectName("homeActionCard")
-        card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.setStyleSheet(
-            "#homeActionCard {"
-            "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 10px; padding: 16px;"
-            "}"
-            "#homeActionCard:hover {"
-            "  background: #252538; border-color: #6c5ce7;"
-            "}"
-        )
-        cl = QVBoxLayout(card)
-        cl.setContentsMargins(12, 12, 12, 12)
-        cl.setSpacing(6)
-        cl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        ic = QLabel(icon)
-        ic.setStyleSheet("font-size: 24px; background: transparent;")
-        ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cl.addWidget(ic)
-
-        t = QLabel(title)
-        t.setStyleSheet("color: #c4c4d0; font-size: 12px; font-weight: 700; background: transparent;")
-        t.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cl.addWidget(t)
-
-        d = QLabel(desc)
-        d.setStyleSheet("color: #6a6a7a; font-size: 10px; background: transparent;")
-        d.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        d.setWordWrap(True)
-        cl.addWidget(d)
-
-        # Click navigation
-        card.mousePressEvent = lambda e, pn=page_name: self.show_page(pn)  # type: ignore[method-assign]
-
-        return card
-
-    def _stat_row(self, icon: str, label: str) -> QFrame:
-        """Crée une ligne d'information avec icône et label."""
-        row = QFrame()
-        row.setStyleSheet("background: transparent;")
-        rl = QHBoxLayout(row)
-        rl.setContentsMargins(0, 4, 0, 4)
-        rl.setSpacing(10)
-
-        ic = QLabel(icon)
-        ic.setStyleSheet("font-size: 16px; background: transparent;")
-        ic.setFixedWidth(24)
-        ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        rl.addWidget(ic)
-
-        lb = QLabel(label)
-        lb.setStyleSheet("color: #8a8a9a; font-size: 12px; font-weight: 600; background: transparent;")
-        lb.setFixedWidth(100)
-        rl.addWidget(lb)
-
-        val = QLabel("—")
-        val.setStyleSheet("color: #e4e4ec; font-size: 12px; background: transparent;")
-        rl.addWidget(val)
-        rl.addStretch(1)
-
-        # Stocker la référence pour la mettre à jour plus tard
-        setattr(row, '_value_label', val)
-
-        return row
 
     def _build_config_pages(self) -> None:
         """Construit les pages de configuration avec leurs options."""
@@ -432,14 +261,31 @@ class CenterZone(QFrame):
             description="Description affichée sur votre profil public Soulseek. "
                        "Visible par les autres utilisateurs.",
         ))
-        section_profil.add(ConfigFilePicker(
+        photo_picker = ConfigFilePicker(
             "Photo de profil",
             "general.photo_profil",
             placeholder="Aucune image sélectionnée",
             file_filter="Images (*.png *.jpg *.jpeg *.gif *.bmp)",
             description="Image affichée sur votre profil public. "
                        "Formats supportés : PNG, JPG, GIF, BMP.",
-        ))
+        )
+        section_profil.add(photo_picker)
+
+        # ── Aperçu photo ──
+        preview = QLabel()
+        preview.setObjectName("photoPreview")
+        preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        preview.setFixedHeight(120)
+        preview.setStyleSheet(
+            "padding: 8px; background: #16161e; border: 1px solid #2e2e3a;"
+            " border-radius: 6px;"
+        )
+        preview.setVisible(False)
+        self._photo_preview = preview
+        self._update_photo_preview(photo_picker.file_path)
+        photo_picker.changed.connect(self._update_photo_preview)
+        section_profil.add(preview)
+
         general.add(section_profil)
 
         section_interets = ConfigSection("Centres d'intérêt")
@@ -870,12 +716,14 @@ class CenterZone(QFrame):
         title.setStyleSheet(
             "color: #6c5ce7; font-size: 16px; font-weight: 700;"
         )
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(title)
 
         placeholder = QLabel(
             f"Contenu de la page {name}\n"
             "(à venir)"
         )
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder.setStyleSheet("color: #3a3a4a; font-size: 12px;")
         lay.addWidget(placeholder)
 
@@ -922,6 +770,24 @@ class CenterZone(QFrame):
                 evt.message.content[:80] if hasattr(evt.message, 'content') else '?',
             )
         )
+
+    # ── Aperçu photo de profil ──────────────────────────────────
+
+    def _update_photo_preview(self, path: str) -> None:
+        """Met à jour l'aperçu de la photo de profil."""
+        path = path.strip() if path else ""
+        pix = QPixmap(path) if path else QPixmap()
+        if not pix.isNull():
+            scaled = pix.scaled(
+                200, 110,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self._photo_preview.setPixmap(scaled)
+            self._photo_preview.setVisible(True)
+        else:
+            self._photo_preview.clear()
+            self._photo_preview.setVisible(False)
 
     # ── Handlers de transfert ───────────────────────────────────
 

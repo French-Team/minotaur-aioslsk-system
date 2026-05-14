@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from src.gui.layout.entry import LayoutEntry
 from src.gui.theme import DARK_THEME
+from src.services.app_config import get as cfg_get
 from src.services.connexion_manager import ConnexionManager
 
 logger = logging.getLogger(__name__)
@@ -91,10 +92,21 @@ class MainWindow(QMainWindow):
 
         # Manager → UI (header)
         self._connexion_manager.connected.connect(
-            lambda username: connexion_header.set_status(True)
+            lambda username: (
+                connexion_header.set_username(username),
+                connexion_header.set_status(True),
+                connexion_header.set_photo(
+                    cfg_get("general.photo_profil")  # type: ignore[arg-type]
+                ),
+            )
         )
         self._connexion_manager.disconnected.connect(
             lambda: connexion_header.set_status(False)
+        )
+
+        # Bouton "Se déconnecter" du header
+        connexion_header.disconnect_requested.connect(
+            self._connexion_manager.disconnect
         )
 
         # Manager → barre de statut
@@ -114,8 +126,8 @@ class MainWindow(QMainWindow):
             lambda: center.show_connexion()
         )
 
-        # Bouton "Se déconnecter" de la page d'accueil
-        center.disconnect_requested.connect(
+        # Bouton "Se déconnecter" de la page de connexion
+        connexion_page.disconnect_requested.connect(
             self._connexion_manager.disconnect
         )
 

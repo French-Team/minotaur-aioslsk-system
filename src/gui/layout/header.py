@@ -14,7 +14,7 @@ Colonnes :
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QWidget
 
 from src.gui.widgets.clock import ClockWidget
@@ -95,7 +95,7 @@ class HeaderZone(QFrame):
         # Connexion — colonne 0, rows 1-2
         self._connexion = ConnexionHeaderWidget()
         self._connexion.clicked.connect(lambda: self.page_changed.emit("connexion"))
-        self._grid.addWidget(self._connexion, 1, 0, 2, 1)
+        self._grid.addWidget(self._connexion, 1, 0, 2, 1, Qt.AlignmentFlag.AlignLeft)
 
         # Clients actifs — colonne 1, rows 1-2
         self._clients = ClientsHeaderWidget()

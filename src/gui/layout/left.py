@@ -81,7 +81,7 @@ class LeftZone(QFrame):
         self.setFrameShape(QFrame.NoFrame)
         self.setObjectName("leftZone")
 
-        self._collapsed = False
+        self._collapsed = True
 
         # ── Layout principal horizontal : [contenu | handle] ──
         main_layout = QHBoxLayout(self)
