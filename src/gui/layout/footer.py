@@ -57,6 +57,9 @@ class FooterZone(QFrame):
 
         layout.addStretch(1)  # centrage
 
+        # Footer masqué par défaut — visible seulement quand connecté
+        self.setVisible(False)
+
     # ── API publique ─────────────────────────────────────────────
 
     @property

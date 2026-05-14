@@ -101,6 +101,16 @@ class LeftZone(QFrame):
         inner.setContentsMargins(8, 8, 8, 8)
         inner.setSpacing(4)
 
+        # ── Bouton Accueil (visible seulement quand connecté) ──
+        self._home_btn = _NavButton("🏠  Accueil")
+        self._home_btn.setVisible(False)
+        self._home_btn.clicked.connect(
+            lambda: self._on_button("accueil")
+        )
+        inner.addWidget(self._home_btn)
+
+        inner.addSpacing(12)
+
         title = QLabel("CONFIGURATIONS")
         title.setStyleSheet("color: #6c5ce7; font-size: 12px; font-weight: 700;")
         inner.addWidget(title)
@@ -140,8 +150,25 @@ class LeftZone(QFrame):
             return self._active_button.text()
         return None
 
+    @property
+    def home_button_visible(self) -> bool:
+        """Le bouton Accueil est-il visible ?"""
+        return self._home_btn.isVisible()
+
+    @home_button_visible.setter
+    def home_button_visible(self, visible: bool) -> None:
+        """Affiche ou masque le bouton Accueil."""
+        self._home_btn.setVisible(visible)
+
     def set_active(self, name: str) -> None:
         """Active le bouton correspondant sans émettre le signal."""
+        # Gérer le bouton Accueil (pas dans _buttons)
+        if name == "accueil":
+            if self._active_button:
+                self._active_button.setChecked(False)
+            self._home_btn.setChecked(True)
+            self._active_button = self._home_btn
+            return
         btn = self._buttons.get(name)
         if btn is not None and btn is not self._active_button:
             if self._active_button:
@@ -151,6 +178,8 @@ class LeftZone(QFrame):
 
     def page_button(self, name: str) -> _NavButton | None:
         """Retourne le bouton d'une page par son nom."""
+        if name == "accueil":
+            return self._home_btn
         return self._buttons.get(name)
 
     def toggle(self) -> None:

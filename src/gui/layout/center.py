@@ -31,6 +31,7 @@ from src.gui.widgets.config import (
     ConfigToggle,
 )
 from src.gui.widgets.connexions import ConnexionPage
+from src.gui.widgets.home import HomePage
 from src.gui.widgets.telechargements import TelechargementsPage
 from src.services.soulseek_client import soulseek_service
 
@@ -148,14 +149,12 @@ class CenterZone(QFrame):
 
     def show_home(self, username: str) -> None:
         """Affiche la page d'accueil avec le nom de l'utilisateur connecté."""
-        self._home_greeting.setText(f"Bienvenue, {username} !")
-        self._home_subtitle.setText("Connecté au réseau Soulseek.")
+        self._home_page.set_greeting(username)
         self.show_page("accueil")
 
     def show_connexion(self) -> None:
         """Affiche la page de connexion."""
-        self._home_greeting.setText("Bienvenue sur aioslsk")
-        self._home_subtitle.setText("Connecté au réseau Soulseek.")
+        self._home_page.set_greeting_default()
         self.show_page("connexion")
 
     def page(self, name: str) -> QWidget | None:
@@ -199,45 +198,12 @@ class CenterZone(QFrame):
 
     def _build_home_page(self) -> None:
         """Page d'accueil (affichée après connexion)."""
-        page = QWidget()
-        page.setObjectName("pageAccueil")
-        outer = QVBoxLayout(page)
-        outer.setContentsMargins(32, 32, 32, 32)
-        outer.setSpacing(0)
-        outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # ── Bannière de bienvenue ──
-        welcome = QFrame()
-        welcome.setObjectName("homeWelcome")
-        welcome.setStyleSheet(
-            "#homeWelcome {"
-            "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 32px;"
-            "}"
-        )
-        wl = QVBoxLayout(welcome)
-        wl.setSpacing(4)
-        wl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self._home_greeting = QLabel("Bienvenue sur aioslsk")
-        self._home_greeting.setStyleSheet(
-            "color: #e4e4ec; font-size: 22px; font-weight: 700;"
-        )
-        self._home_greeting.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        wl.addWidget(self._home_greeting)
-
-        self._home_subtitle = QLabel(
-            "Connecté au réseau Soulseek."
-        )
-        self._home_subtitle.setStyleSheet(
-            "color: #8a8a9a; font-size: 13px;"
-        )
-        self._home_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        wl.addWidget(self._home_subtitle)
-
-        outer.addWidget(welcome, 0, Qt.AlignmentFlag.AlignCenter)
+        page = HomePage()
+        self._home_page = page
         self._pages["accueil"] = page
         self._stack.addWidget(page)
+
+
 
     def _build_config_pages(self) -> None:
         """Construit les pages de configuration avec leurs options."""

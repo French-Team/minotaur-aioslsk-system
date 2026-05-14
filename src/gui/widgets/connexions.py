@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.theme_fragments.colors import COLORS
+
 
 # ── Couleurs du voyant ──────────────────────────────────────────
 
@@ -34,10 +36,9 @@ _LED_RED = "#ff5252"
 # ═════════════════════════════════════════════════════════════════
 
 class ConnexionHeaderWidget(QFrame):
-    """Widget header : avatar, username, statut et bouton déconnexion."""
+    """Widget header : avatar + username, visible uniquement quand connecté."""
 
     clicked = Signal()
-    disconnect_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -59,52 +60,30 @@ class ConnexionHeaderWidget(QFrame):
         self._avatar.setObjectName("headerAvatar")
         self._avatar.setFixedSize(36, 36)
         self._avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Ombre portée légère (parent = avatar pour éviter la destruction)
+        # Ombre portée légère
         from PySide6.QtWidgets import QGraphicsDropShadowEffect
         shadow = QGraphicsDropShadowEffect(self._avatar)
         shadow.setBlurRadius(8)
         shadow.setOffset(0, 1)
         shadow.setColor(Qt.GlobalColor.black)
         self._avatar.setGraphicsEffect(shadow)
-        grid.addWidget(self._avatar, 0, 0, 2, 1)  # row 0-1, col 0
+        grid.addWidget(self._avatar, 0, 0, 2, 1)
 
-        # ── Colonnes 1-2, ligne 0 : Username centré sur la largeur statut+déconnexion ──
-        self._username_label = QLabel("Déconnecté")
+        # ── Colonne 1 : Username ──
+        self._username_label = QLabel("")
         self._username_label.setObjectName("headerUsername")
         self._username_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        grid.addWidget(self._username_label, 0, 1, 1, 2)
-
-        # ── Colonne 1, ligne 1 : Statut (badge QFrame) ──
-        self._badge = QFrame()
-        self._badge.setObjectName("headerStatusBadge")
-        badge_layout = QHBoxLayout(self._badge)
-        badge_layout.setContentsMargins(6, 2, 6, 2)
-        badge_layout.setSpacing(0)
-        self._status = QLabel("● Déconnecté")
-        self._status.setObjectName("headerStatus")
-        badge_layout.addWidget(self._status)
-        grid.addWidget(self._badge, 1, 1)
-
-        # ── Colonne 2, ligne 1 : Se déconnecter ──
-        self._disconnect_btn = QPushButton("Se déconnecter")
-        self._disconnect_btn.setObjectName("headerDisconnectBtn")
-        self._disconnect_btn.setFlat(True)
-        self._disconnect_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._disconnect_btn.clicked.connect(self._on_disconnect)
-        self._disconnect_btn.setVisible(False)
-        grid.addWidget(self._disconnect_btn, 1, 2)
+        grid.addWidget(self._username_label, 0, 1, 1, 1)
 
         # Pas de stretch — taille naturelle
         grid.setColumnStretch(0, 0)
         grid.setColumnStretch(1, 0)
-        grid.setColumnStretch(2, 0)
 
     # ── API publique ────────────────────────────────────────────
 
     def set_username(self, username: str) -> None:
-        """Définit le nom d'utilisateur affiché et l'initiale dans l'avatar."""
+        """Définit le nom d'utilisateur et l'initiale dans l'avatar."""
         self._username_label.setText(username)
-        # Initiale dans l'avatar (si pas de photo chargée)
         initial = username[0].upper() if username else "?"
         self._avatar.setText(initial)
         self._avatar.setStyleSheet(
@@ -114,36 +93,6 @@ class ConnexionHeaderWidget(QFrame):
             " min-width: 36px; min-height: 36px;"
         )
 
-    def set_status(self, connected: bool) -> None:
-        """Met à jour le statut (badge) et la visibilité du bouton déconnexion."""
-        if connected:
-            self._status.setText("● Connecté")
-            self._status.setStyleSheet(
-                "color: #00e676; font-size: 11px; font-weight: 600;"
-                " background: transparent;"
-            )
-            self._badge.setStyleSheet(
-                "background-color: #00e67618;"
-                " border: 1px solid #00e67630;"
-                " border-radius: 10px;"
-            )
-            self._disconnect_btn.setVisible(True)
-        else:
-            self._status.setText("● Déconnecté")
-            self._status.setStyleSheet(
-                "color: #5a5a6a; font-size: 11px; font-weight: 600;"
-                " background: transparent;"
-            )
-            self._badge.setStyleSheet(
-                "background-color: #5a5a6a18;"
-                " border: 1px solid #5a5a6a30;"
-                " border-radius: 10px;"
-            )
-            self._disconnect_btn.setVisible(False)
-            self._username_label.setText("Déconnecté")
-            self._avatar.clear()
-            self._avatar.setStyleSheet("")
-
     def set_photo(self, path: str) -> None:
         """Charge une photo de profil circulaire depuis un chemin fichier."""
         if not path:
@@ -151,13 +100,11 @@ class ConnexionHeaderWidget(QFrame):
         from PySide6.QtGui import QPixmap, QPainter, QPainterPath
         pix = QPixmap(path)
         if not pix.isNull():
-            # Agrandir pour remplir le cercle (cover), puis rogner
             scaled = pix.scaled(
                 36, 36,
                 Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                 Qt.TransformationMode.SmoothTransformation,
             )
-            # Pixmap cible transparent
             rounded = QPixmap(36, 36)
             rounded.fill(Qt.GlobalColor.transparent)
             painter = QPainter(rounded)
@@ -165,18 +112,14 @@ class ConnexionHeaderWidget(QFrame):
             path = QPainterPath()
             path.addEllipse(0, 0, 36, 36)
             painter.setClipPath(path)
-            # Centrer l'image dans le cercle
             x = (36 - scaled.width()) // 2
             y = (36 - scaled.height()) // 2
             painter.drawPixmap(x, y, scaled)
             painter.end()
             self._avatar.setPixmap(rounded)
-            self._avatar.setStyleSheet("")  # plus besoin de border-radius
+            self._avatar.setStyleSheet("")
 
     # ── Événements ──────────────────────────────────────────────
-
-    def _on_disconnect(self) -> None:
-        self.disconnect_requested.emit()
 
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
         self.clicked.emit()

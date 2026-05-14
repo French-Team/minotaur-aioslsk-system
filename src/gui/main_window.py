@@ -90,23 +90,27 @@ class MainWindow(QMainWindow):
             connexion_page.set_generating
         )
 
-        # Manager → UI (header)
+        # Manager → UI (header + footer + navigation)
+        header = self._layout.header
+        footer = self._layout.footer
+        left = self._layout.left
         self._connexion_manager.connected.connect(
             lambda username: (
+                header.setVisible(True),
+                footer.setVisible(True),
+                setattr(left, "home_button_visible", True),
                 connexion_header.set_username(username),
-                connexion_header.set_status(True),
                 connexion_header.set_photo(
                     cfg_get("general.photo_profil")  # type: ignore[arg-type]
                 ),
             )
         )
         self._connexion_manager.disconnected.connect(
-            lambda: connexion_header.set_status(False)
-        )
-
-        # Bouton "Se déconnecter" du header
-        connexion_header.disconnect_requested.connect(
-            self._connexion_manager.disconnect
+            lambda: (
+                header.setVisible(False),
+                footer.setVisible(False),
+                setattr(left, "home_button_visible", False),
+            )
         )
 
         # Manager → barre de statut
