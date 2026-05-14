@@ -28,6 +28,13 @@ env/
 # Environment variables
 .env
 
+# Private and test directories
+.private/
+.tests/
+
+# Configuration files
+app_config.json
+
 # IDE
 .vscode/
 .idea/

@@ -23,9 +23,13 @@ _WIDTH_COLLAPSED = 20
 
 _SECTIONS = [
     "Général",
+    "Partages",
     "Réseau",
     "Recherche",
     "Téléchargement",
+    "Utilisateurs",
+    "Salons",
+    "Debug",
 ]
 
 

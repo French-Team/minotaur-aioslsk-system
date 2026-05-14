@@ -21,22 +21,63 @@ _CONFIG_FILE = Path(__file__).resolve().parent.parent.parent / "app_config.json"
 # ── Valeurs par défaut ───────────────────────────────────────────
 _DEFAULTS: dict[str, Any] = {
     # ═══ Général ═══
-    "general.langue": "fr",
-    "general.demarrage_minimise": False,
+    "general.scan_on_start": True,  # Scanner les partages au démarrage
+    "general.description_profil": "",  # Description du profil utilisateur
+    "general.photo_profil": "",  # Chemin vers la photo de profil
+    "general.interets_aimes": "",  # Centres d'intérêt appréciés (séparés par des virgules)
+    "general.interets_detestes": "",  # Centres d'intérêt détestés (séparés par des virgules)
 
     # ═══ Réseau ═══
     "reseau.upnp": False,
     "reseau.port_ecoute": 60000,
-    "reseau.proxy": "",
+    "reseau.port_obfusque": 60001,
+    "reseau.obfuscation_p2p": False,
+    "reseau.mode_connexion_peer": "race",
+    "reseau.limite_upload_kbps": 0,
+    "reseau.limite_download_kbps": 0,
+    "reseau.reconnexion_auto": False,
+    "reseau.reconnexion_timeout": 10,
+    "reseau.hote_serveur": "server.slsknet.org",  # Hôte du serveur Soulseek
+    "reseau.port_serveur": 2416,  # Port du serveur Soulseek
+    "reseau.mode_erreur_ecoute": "clear",  # Mode d'erreur d'écoute (clear|any|all)
+    "reseau.duree_bail_upnp": 21600,  # Durée de bail UPnP (secondes)
+    "reseau.intervalle_upnp": 600,  # Intervalle de vérification UPnP (secondes)
+    "reseau.timeout_upnp": 10,  # Timeout de découverte UPnP (secondes)
 
     # ═══ Recherche ═══
-    "recherche.filtre_min_resultats": 0,
-    "recherche.mots_exclus": "",
+    "recherche.nb_resultats_max": 100,  # Nombre maximum de résultats par recherche
+    "recherche.nb_max_memoire": 500,  # Nombre maximum de résultats stockés en mémoire
+    "recherche.stocker_resultats": True,  # Stocker les résultats de recherche localement
+    "recherche.timeout_requete": 0,  # Timeout des requêtes de recherche (0 = pas de timeout)
+    "recherche.timeout_souhaits": -1,  # Timeout des requêtes de souhaits (-1 = désactivé)
+    "recherche.souhaits": "",  # Souhaits de recherche (séparés par des virgules)
 
     # ═══ Téléchargement ═══
-    "telechargement.dossier_destination": "~/Downloads/Soulseek",
-    "telechargement.limite_vitesse": 0,       # 0 = illimité
-    "telechargement.max_simultanes": 3,
+    "telechargement.slots_upload": 2,  # Slots d'upload simultanés
+    "telechargement.dossier_destination": "",  # Dossier de destination des téléchargements
+    "telechargement.intervalle_rapport": 250,  # Intervalle de rapport de progression (ms)
+
+    # ═══ Utilisateurs ═══
+    "utilisateurs.liste_amis": "",  # Liste d'amis (séparés par des virgules)
+    "utilisateurs.liste_bloques": "",  # Utilisateurs bloqués (séparés par des virgules)
+
+    # ═══ Partages ═══
+    "partages.dossier_1_chemin": "",  # Chemin du 1er dossier partagé
+    "partages.dossier_1_mode": "everyone",  # Mode de partage du 1er dossier (everyone|friends|users)
+    "partages.dossier_1_utilisateurs": "",  # Utilisateurs autorisés pour le 1er dossier (séparés par des virgules)
+    "partages.dossier_2_chemin": "",  # Chemin du 2e dossier partagé
+    "partages.dossier_2_mode": "everyone",  # Mode de partage du 2e dossier (everyone|friends|users)
+    "partages.dossier_2_utilisateurs": "",  # Utilisateurs autorisés pour le 2e dossier (séparés par des virgules)
+
+    # ═══ Salons ═══
+    "salons.auto_join": True,  # Rejoindre les salons automatiquement au démarrage
+    "salons.invitations_privees": True,  # Accepter les invitations aux salons privés
+    "salons.favoris": "",  # Salons favoris à rejoindre automatiquement (séparés par des virgules)
+
+    # ═══ Debug ═══
+    "debug.search_for_parent": False,  # Rechercher un parent lors de la connexion
+    "debug.ip_overrides": "",  # Surcharges IP (format JSON: {"username": "ip"})
+    "debug.log_connection_count": False,  # Journaliser le nombre de connexions
 }
 
 # ── Singleton interne ────────────────────────────────────────────

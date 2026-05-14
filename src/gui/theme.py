@@ -568,4 +568,186 @@ QStatusBar::item {
     background-color: #24242e;
     color: #e4e4ec;
 }
+
+# ════════════════════════════════════════════════════════════════
+#  Pages de configuration
+# ════════════════════════════════════════════════════════════════
+
+/* Section de configuration */
+#configSection {
+    background-color: transparent;
+    border: none;
+}
+
+/* Ligne de configuration */
+#configRow {
+    background-color: #1a1a22;
+    border: 1px solid #2e2e3a;
+    border-radius: 6px;
+}
+#configRow:hover {
+    border-color: #3a3a5a;
+}
+
+/* Interrupteur (checkbox) */
+#configToggle {
+    spacing: 0;
+}
+#configToggle::indicator {
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background-color: #3a3a4a;
+    border: 1px solid #2e2e3a;
+}
+#configToggle::indicator:checked {
+    background-color: #6c5ce7;
+    border-color: #6c5ce7;
+}
+#configToggle::indicator:unchecked:hover {
+    background-color: #4a4a5a;
+}
+#configToggle::indicator:checked:hover {
+    background-color: #7c6cf7;
+}
+
+/* Champ de texte */
+#configEntry {
+    background-color: #14141e;
+    color: #e4e4ec;
+    border: 1px solid #2e2e3a;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+#configEntry:focus {
+    border-color: #6c5ce7;
+}
+#configEntry::placeholder {
+    color: #3a3a4a;
+}
+
+/* Menu déroulant */
+#configCombo {
+    background-color: #14141e;
+    color: #e4e4ec;
+    border: 1px solid #2e2e3a;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 120px;
+}
+#configCombo:focus {
+    border-color: #6c5ce7;
+}
+#configCombo::drop-down {
+    border: none;
+    width: 24px;
+}
+#configCombo QAbstractItemView {
+    background-color: #1a1a22;
+    color: #e4e4ec;
+    border: 1px solid #2e2e3a;
+    selection-background-color: #6c5ce7;
+    selection-color: #ffffff;
+    outline: none;
+}
+
+/* Champ numérique */
+#configSpin {
+    background-color: #14141e;
+    color: #e4e4ec;
+    border: 1px solid #2e2e3a;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+#configSpin:focus {
+    border-color: #6c5ce7;
+}
+#configSpin::up-button, #configSpin::down-button {
+    border: none;
+    background-color: transparent;
+    width: 16px;
+}
+#configSpin::up-arrow {
+    image: none;
+}
+#configSpin::down-arrow {
+    image: none;
+}
+
+/* Bouton réinitialisation */
+#configResetBtn {
+    background-color: transparent;
+    color: #5a5a6a;
+    border: 1px solid #2e2e3a;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 11px;
+    margin-top: 12px;
+}
+#configResetBtn:hover {
+    color: #ff5252;
+    border-color: #ff5252;
+}
+
+/* Zone scrollable */
+#configScroll {
+    background-color: transparent;
+    border: none;
+}
+
+/* ── Scrollbar fine ───────────────────────────────────────────── */
+QScrollBar:vertical {
+    width: 6px;
+    background: transparent;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #3a3a4a;
+    min-height: 30px;
+    border-radius: 3px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #6c5ce7;
+}
+QScrollBar::handle:vertical:pressed {
+    background: #5a4bd1;
+}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+    background: none;
+}
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QScrollBar:horizontal {
+    height: 6px;
+    background: transparent;
+    margin: 0;
+}
+QScrollBar::handle:horizontal {
+    background: #3a3a4a;
+    min-width: 30px;
+    border-radius: 3px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #6c5ce7;
+}
+QScrollBar::handle:horizontal:pressed {
+    background: #5a4bd1;
+}
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0;
+    background: none;
+}
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: none;
+}
 """

@@ -78,10 +78,7 @@ class MainWindow(QMainWindow):
             self._connexion_manager.generate_account
         )
 
-        # Manager → UI (page de connexion)
-        self._connexion_manager.connected.connect(
-            connexion_page.set_connected
-        )
+        # Manager → UI (page de connexion) — déjà géré dans les lambdas navigation ci-dessous
         self._connexion_manager.disconnected.connect(
             connexion_page.set_disconnected
         )
@@ -103,6 +100,23 @@ class MainWindow(QMainWindow):
         # Manager → barre de statut
         self._connexion_manager.status_changed.connect(
             self._status_label.setText
+        )
+
+        # Navigation automatique : connexion → accueil, déconnexion → connexion
+        center = self._layout.center
+        self._connexion_manager.connected.connect(
+            lambda username: (
+                connexion_page.set_connected(username),
+                center.show_home(username),
+            )
+        )
+        self._connexion_manager.disconnected.connect(
+            lambda: center.show_connexion()
+        )
+
+        # Bouton "Se déconnecter" de la page d'accueil
+        center.disconnect_requested.connect(
+            self._connexion_manager.disconnect
         )
 
     def _build_menu(self) -> None:

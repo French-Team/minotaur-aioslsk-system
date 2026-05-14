@@ -443,6 +443,283 @@ class ConfigSpin(QFrame):
 
 
 # ═════════════════════════════════════════════════════════════════
+#  ConfigFilePicker — sélecteur de fichier
+# ═════════════════════════════════════════════════════════════════
+
+
+class ConfigFilePicker(QFrame):
+    """Ligne de configuration avec label + sélecteur de fichier.
+
+    Affiche le chemin du fichier sélectionné dans un champ en lecture
+    seule et propose un bouton "Parcourir…" ouvrant une boîte de
+    dialogue. Utile pour les photos de profil, dossiers, etc.
+
+    Le chemin est persisté automatiquement dans ``app_config``.
+    """
+
+    changed = Signal(str)
+
+    def __init__(
+        self,
+        label: str,
+        config_key: str,
+        placeholder: str = "",
+        file_filter: str = "Tous les fichiers (*)",
+        description: str = "",
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("configRow")
+        self._config_key = config_key
+        self._file_filter = file_filter
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(12)
+
+        # ── Label + description ──
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(0)
+
+        self._label = QLabel(label)
+        self._label.setObjectName("configLabel")
+        self._label.setStyleSheet(
+            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
+        )
+        text_layout.addWidget(self._label)
+
+        if description:
+            self._desc = QLabel(description)
+            self._desc.setObjectName("configDesc")
+            self._desc.setStyleSheet(
+                "color: #5a5a6a; font-size: 10px;"
+            )
+            text_layout.addWidget(self._desc)
+
+        layout.addLayout(text_layout, 1)
+
+        # ── Champ chemin (lecture seule) + bouton Parcourir ──
+        entry_layout = QHBoxLayout()
+        entry_layout.setSpacing(4)
+
+        self._path = QLineEdit()
+        self._path.setObjectName("configFilePicker")
+        self._path.setReadOnly(True)
+        self._path.setPlaceholderText(placeholder)
+
+        # Valeur initiale
+        initial = app_config.get(config_key, "")
+        self._path.setText(str(initial) if initial else "")
+
+        self._browse_btn = QPushButton("Parcourir…")
+        self._browse_btn.setObjectName("configBrowseBtn")
+        self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._browse_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #2e2e3a;"
+            "  color: #e4e4ec;"
+            "  border: 1px solid #3e3e4a;"
+            "  border-radius: 4px;"
+            "  padding: 4px 12px;"
+            "  font-size: 11px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #3e3e4a;"
+            "}"
+        )
+        self._browse_btn.clicked.connect(self._on_browse)
+
+        # Bouton effacer
+        self._clear_btn = QPushButton("✕")
+        self._clear_btn.setObjectName("configClearBtn")
+        self._clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._clear_btn.setFixedWidth(24)
+        self._clear_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent;"
+            "  color: #5a5a6a;"
+            "  border: none;"
+            "  font-size: 12px;"
+            "}"
+            "QPushButton:hover {"
+            "  color: #e74c3c;"
+            "}"
+        )
+        self._clear_btn.clicked.connect(self._on_clear)
+
+        entry_layout.addWidget(self._path, 1)
+        entry_layout.addWidget(self._clear_btn)
+        entry_layout.addWidget(self._browse_btn)
+
+        layout.addLayout(entry_layout)
+
+    # ── API publique ─────────────────────────────────────────────
+
+    @property
+    def file_path(self) -> str:
+        return self._path.text()
+
+    def set_file_path(self, path: str) -> None:
+        self._path.setText(path)
+        app_config.set(self._config_key, path)
+        self.changed.emit(path)
+
+    @property
+    def config_key(self) -> str:
+        return self._config_key
+
+    # ── Interne ─────────────────────────────────────────────────
+
+    def _on_browse(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Sélectionner un fichier",
+            self._path.text() or "",
+            self._file_filter,
+        )
+        if path:
+            self.set_file_path(path)
+
+    def _on_clear(self) -> None:
+        self.set_file_path("")
+
+
+class ConfigDirectoryPicker(QFrame):
+    """Ligne de configuration avec label + sélecteur de dossier.
+
+    Similaire à ``ConfigFilePicker`` mais ouvre une boîte de
+    dialogue de sélection de dossier via ``QFileDialog.getExistingDirectory``.
+    """
+
+    changed = Signal(str)
+
+    def __init__(
+        self,
+        label: str,
+        config_key: str,
+        placeholder: str = "",
+        description: str = "",
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("configRow")
+        self._config_key = config_key
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(12)
+
+        # ── Label + description ──
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(0)
+
+        self._label = QLabel(label)
+        self._label.setObjectName("configLabel")
+        self._label.setStyleSheet(
+            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
+        )
+        text_layout.addWidget(self._label)
+
+        if description:
+            self._desc = QLabel(description)
+            self._desc.setObjectName("configDesc")
+            self._desc.setStyleSheet(
+                "color: #5a5a6a; font-size: 10px;"
+            )
+            text_layout.addWidget(self._desc)
+
+        layout.addLayout(text_layout, 1)
+
+        # ── Champ chemin (lecture seule) + bouton Parcourir ──
+        entry_layout = QHBoxLayout()
+        entry_layout.setSpacing(4)
+
+        self._path = QLineEdit()
+        self._path.setObjectName("configFilePicker")
+        self._path.setReadOnly(True)
+        self._path.setPlaceholderText(placeholder)
+
+        # Valeur initiale
+        initial = app_config.get(config_key, "")
+        self._path.setText(str(initial) if initial else "")
+
+        self._browse_btn = QPushButton("Parcourir…")
+        self._browse_btn.setObjectName("configBrowseBtn")
+        self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._browse_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #2e2e3a;"
+            "  color: #e4e4ec;"
+            "  border: 1px solid #3e3e4a;"
+            "  border-radius: 4px;"
+            "  padding: 4px 12px;"
+            "  font-size: 11px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #3e3e4a;"
+            "}"
+        )
+        self._browse_btn.clicked.connect(self._on_browse)
+
+        # Bouton effacer
+        self._clear_btn = QPushButton("✕")
+        self._clear_btn.setObjectName("configClearBtn")
+        self._clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._clear_btn.setFixedWidth(24)
+        self._clear_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent;"
+            "  color: #5a5a6a;"
+            "  border: none;"
+            "  font-size: 12px;"
+            "}"
+            "QPushButton:hover {"
+            "  color: #e74c3c;"
+            "}"
+        )
+        self._clear_btn.clicked.connect(self._on_clear)
+
+        entry_layout.addWidget(self._path, 1)
+        entry_layout.addWidget(self._clear_btn)
+        entry_layout.addWidget(self._browse_btn)
+
+        layout.addLayout(entry_layout)
+
+    # ── API publique ─────────────────────────────────────────────
+
+    @property
+    def directory(self) -> str:
+        return self._path.text()
+
+    def set_directory(self, path: str) -> None:
+        self._path.setText(path)
+        app_config.set(self._config_key, path)
+        self.changed.emit(path)
+
+    @property
+    def config_key(self) -> str:
+        return self._config_key
+
+    # ── Interne ─────────────────────────────────────────────────
+
+    def _on_browse(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Sélectionner un dossier",
+            self._path.text() or "",
+        )
+        if path:
+            self.set_directory(path)
+
+    def _on_clear(self) -> None:
+        self.set_directory("")
+
+
+# ═════════════════════════════════════════════════════════════════
 #  ConfigResetBtn — bouton de réinitialisation
 # ═════════════════════════════════════════════════════════════════
 
@@ -532,3 +809,12 @@ class ConfigPage(QFrame):
         """Ajoute un widget (ConfigSection, ConfigResetBtn, etc.)."""
         # Insérer avant le stretch
         self._layout.insertWidget(self._layout.count() - 1, widget)
+
+    def add_placeholder(self, text: str) -> None:
+        """Ajoute un message placeholder (quand aucune option n'est encore disponible)."""
+        placeholder = QLabel(text)
+        placeholder.setObjectName("configPlaceholder")
+        placeholder.setStyleSheet(
+            "color: #3a3a4a; font-size: 12px; padding: 16px;"
+        )
+        self._layout.insertWidget(self._layout.count() - 1, placeholder)
