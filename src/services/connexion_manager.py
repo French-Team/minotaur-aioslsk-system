@@ -18,6 +18,7 @@ from threading import Event
 from PySide6.QtCore import QObject, QThread, Signal
 
 from src.services.error_translator import traduire, afficher
+import src.services.app_config as app_config
 from src.services.soulseek_client import SoulseekService
 
 logger = logging.getLogger(__name__)
@@ -157,6 +158,9 @@ class ConnexionManager(QObject):
         self._async_thread.start()
         self._async_thread.wait_ready()
 
+        # Ticket de la dernière recherche en cours (None si aucune)
+        self._current_search_ticket: int | None = None
+
         # Transférer les signaux du service
         self._service.search_result_received.connect(
             self.search_result_received.emit
@@ -183,8 +187,64 @@ class ConnexionManager(QObject):
         if not self.is_connected:
             self.error_occurred.emit("Pas connecté à Soulseek")
             return
+        self._current_search_ticket = None
         self.status_changed.emit(f"Recherche : {query}")
         self._async_thread.run_coro(self._do_search(query))
+
+    def search_user(self, username: str, query: str) -> None:
+        """Recherche les fichiers d'un utilisateur spécifique.
+
+        Appel non-bloquant depuis le thread UI.
+        Les résultats arrivent via ``search_result_received``.
+        """
+        if not self.is_connected:
+            self.error_occurred.emit("Pas connecté à Soulseek")
+            return
+        self._current_search_ticket = None
+        self.status_changed.emit(f"Recherche chez {username} : {query}")
+        self._async_thread.run_coro(self._do_search_user(username, query))
+
+    def search_room(self, room: str, query: str) -> None:
+        """Recherche dans un salon spécifique.
+
+        Appel non-bloquant depuis le thread UI.
+        Les résultats arrivent via ``search_result_received``.
+        """
+        if not self.is_connected:
+            self.error_occurred.emit("Pas connecté à Soulseek")
+            return
+        self._current_search_ticket = None
+        self.status_changed.emit(f"Recherche dans #{room} : {query}")
+        self._async_thread.run_coro(self._do_search_room(room, query))
+
+    def stop_search(self) -> None:
+        """Annule la recherche en cours.
+
+        Appel non-bloquant depuis le thread UI.
+        Si ``_current_search_ticket`` est None, ne fait rien.
+        """
+        if self._current_search_ticket is None:
+            logger.info("stop_search appelé mais aucune recherche active")
+            return
+        self._async_thread.run_coro(self._do_stop_search())
+
+    def block_user(self, username: str) -> None:
+        """Ajoute un utilisateur à la liste noire.
+
+        Met à jour la configuration persistante.
+        Au prochain redémarrage, l'utilisateur sera bloqué.
+        """
+        bloque = app_config.get("utilisateurs.liste_bloques", "")
+        if username in bloque:
+            logger.info("Utilisateur déjà bloqué : %s", username)
+            return
+        if bloque:
+            bloque += f", {username}"
+        else:
+            bloque = username
+        app_config.set("utilisateurs.liste_bloques", bloque)
+        logger.info("Utilisateur bloqué : %s", username)
+        self.status_changed.emit(f"🚫 Utilisateur {username} bloqué")
 
     def login(self, username: str, password: str) -> None:
         """Connecte au serveur Soulseek.
@@ -266,12 +326,59 @@ class ConnexionManager(QObject):
             if client is None:
                 self.error_occurred.emit("Client non initialisé")
                 return
-            await client.searches.search(query)
-            logger.info("Recherche lancée : '%s'", query)
+            request = await client.searches.search(query)
+            self._current_search_ticket = request.ticket
+            logger.info("Recherche lancée : '%s' (ticket %s)", query, request.ticket)
         except Exception as e:
             message, _ = traduire(e)
             logger.error(afficher(e))
             self.error_occurred.emit(f"Erreur de recherche : {message}")
+
+    async def _do_search_user(self, username: str, query: str) -> None:
+        """Recherche les fichiers d'un utilisateur spécifique."""
+        try:
+            client = self._service.client
+            if client is None:
+                self.error_occurred.emit("Client non initialisé")
+                return
+            request = await client.searches.search_user(username, query)
+            self._current_search_ticket = request.ticket
+            logger.info("Recherche chez %s : '%s' (ticket %s)", username, query, request.ticket)
+        except Exception as e:
+            message, _ = traduire(e)
+            logger.error(afficher(e))
+            self.error_occurred.emit(f"Erreur de recherche utilisateur : {message}")
+
+    async def _do_search_room(self, room: str, query: str) -> None:
+        """Recherche dans un salon spécifique."""
+        try:
+            client = self._service.client
+            if client is None:
+                self.error_occurred.emit("Client non initialisé")
+                return
+            request = await client.searches.search_room(room, query)
+            self._current_search_ticket = request.ticket
+            logger.info("Recherche dans #%s : '%s' (ticket %s)", room, query, request.ticket)
+        except Exception as e:
+            message, _ = traduire(e)
+            logger.error(afficher(e))
+            self.error_occurred.emit(f"Erreur de recherche dans le salon : {message}")
+
+    async def _do_stop_search(self) -> None:
+        """Annule la recherche en cours dans le thread asyncio."""
+        ticket = self._current_search_ticket
+        if ticket is None:
+            return
+        try:
+            client = self._service.client
+            if client is None:
+                return
+            await client.searches.remove_request(ticket)
+            self._current_search_ticket = None
+            logger.info("Recherche annulée (ticket %s)", ticket)
+        except Exception as e:
+            message, _ = traduire(e)
+            logger.warning("Erreur lors de l'annulation: %s", message)
 
     async def _do_disconnect(self) -> None:
         """Déconnecte du serveur."""

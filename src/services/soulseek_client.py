@@ -89,12 +89,29 @@ def _parse_blocked(raw: str) -> dict[str, BlockingFlag]:
 
 
 def _parse_wishlist(raw: str) -> list["WishlistSettingEntry"]:
-    """Convertit une chaîne CSV ("query1, query2") en liste WishlistSettingEntry.
+    """Convertit une chaîne JSON ou CSV en liste WishlistSettingEntry.
 
-    Chaque entrée est activée par défaut.
+    Format JSON : ``[{"query": "...", "enabled": true}, ...]``
+    Format CSV (fallback) : ``"query1, query2"``
+
+    Chaque entrée est activée par défaut en format CSV.
     """
     if not raw or not raw.strip():
         return []
+
+    # Format JSON structuré
+    if raw.strip().startswith("["):
+        try:
+            items: list[dict] = json.loads(raw)
+            return [
+                WishlistSettingEntry(query=item["query"], enabled=item.get("enabled", True))
+                for item in items
+                if item.get("query", "").strip()
+            ]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+
+    # Fallback CSV (backward compatibility)
     parts = raw.split(",")
     return [
         WishlistSettingEntry(query=item.strip(), enabled=True)

@@ -22,64 +22,7 @@
           "action": "restore_history"
         }
       ],
-      "timestamp": "2026-05-14T17:33:05.330587"
-    },
-    {
-      "type": "user",
-      "text": "bonjour",
-      "timestamp": "2026-05-14T17:33:50.770143"
-    },
-    {
-      "type": "bot",
-      "icon": "👋",
-      "text": "Salut ! Comment vas-tu aujourd'hui ? N'hésite pas à me dire ce que tu veux faire. Je suis là pour t'aider ! 😊",
-      "suggestions": [
-        {
-          "label": "🔍 Chercher",
-          "action": "chercher"
-        },
-        {
-          "label": "📥 Téléchargements",
-          "action": "telechargement"
-        },
-        {
-          "label": "❓ Aide",
-          "action": "aide"
-        },
-        {
-          "label": "🏠 Retour",
-          "action": "welcome"
-        }
-      ],
-      "timestamp": "2026-05-14T17:33:50.772616"
-    },
-    {
-      "type": "user",
-      "text": "rechercher des music",
-      "timestamp": "2026-05-14T17:34:04.089346"
-    },
-    {
-      "type": "bot",
-      "icon": "🔍",
-      "text": "Bien sûr ! Le bot <b>Recherche</b> est spécialisé dans la recherche de fichiers sur Soulseek. Je t'envoie vers lui !",
-      "suggestions": [
-        {
-          "label": "🔍 Oui, cherche !",
-          "action": "chercher"
-        },
-        {
-          "label": "🏠 Accueil",
-          "action": "welcome"
-        }
-      ],
-      "timestamp": "2026-05-14T17:34:04.092132"
-    },
-    {
-      "type": "bot",
-      "icon": "➡️",
-      "text": "Je t'emmène vers le bot <b>Recherche</b> … 🔄",
-      "suggestions": null,
-      "timestamp": "2026-05-14T17:34:04.709363"
+      "timestamp": "2026-05-14T22:50:26.931421"
     }
   ]
 }

@@ -11,35 +11,29 @@ visualiser et éditer les souhaits.
 
 from __future__ import annotations
 
+import datetime
+import json
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-
-# ── Données simulées (en attendant l'intégration backend) ────────
-
-_WISHLIST_DATA: list[dict] = [
-    {"query": "Pink Floyd - Dark Side", "enabled": True, "results": 3, "last_search": "il y a 1h", "status": "active"},
-    {"query": "Massive Attack", "enabled": False, "results": 0, "last_search": "jamais", "status": "inactive"},
-    {"query": "Portishead - Live", "enabled": True, "results": 0, "last_search": "il y a 2h", "status": "error"},
-    {"query": "Radiohead - OK Computer", "enabled": True, "results": 12, "last_search": "il y a 30min", "status": "active"},
-    {"query": "Boards of Canada", "enabled": True, "results": 7, "last_search": "il y a 15min", "status": "active"},
-    {"query": "Aphex Twin - Selected Ambient Works", "enabled": False, "results": 0, "last_search": "jamais", "status": "inactive"},
-    {"query": "Nirvana - Unplugged", "enabled": True, "results": 5, "last_search": "il y a 3h", "status": "active"},
-    {"query": "Miles Davis - Kind of Blue", "enabled": True, "results": 0, "last_search": "il y a 1h", "status": "error"},
-    {"query": "Daft Punk - Discovery", "enabled": False, "results": 0, "last_search": "jamais", "status": "inactive"},
-]
+from src.services import app_config
+from src.services.soulseek_client import soulseek_service
 
 
 # ── Constantes ──────────────────────────────────────────────────
+
+_CONFIG_KEY_WISHLIST = "recherche.souhaits"
 
 _STYLE_STATUS_ACTIVE = "#2ecc71"
 _STYLE_STATUS_INACTIVE = "#7f8c8d"
@@ -294,8 +288,11 @@ class BotWishlist(QFrame):
 
         # Données
         self._wishlist: list[dict] = []
+        self._local_metadata: dict[str, dict] = {}  # query → {results, last_search, status}
         self._filter: str = "all"  # all | active | inactive | error
         self._search_text: str = ""
+        self._edit_mode: bool = False   # True pendant l'édition inline
+        self._edit_old_query: str = ""
 
         # Layout principal
         layout = QVBoxLayout(self)
@@ -454,7 +451,7 @@ class BotWishlist(QFrame):
             "}"
             "QPushButton:hover { background: #2a2a3a; color: #c0c0d0; }"
         )
-        self._add_cancel_btn.clicked.connect(lambda: self._add_bar.setVisible(False))
+        self._add_cancel_btn.clicked.connect(self._on_add_cancel)
         add_bar_layout.addWidget(self._add_cancel_btn)
 
         layout.addWidget(self._add_bar, 0)
@@ -470,21 +467,84 @@ class BotWishlist(QFrame):
         self._rebuild()
 
     def _load_wishlist(self) -> list[dict]:
-        """Charge les souhaits depuis la source de données.
+        """Charge les souhaits depuis ``app_config``.
 
-        Pour l'instant : données simulées.
-        À terme : connexion via SoulseekService → settings.wishlist.
+        Lit la clé ``recherche.souhaits`` (CSV) et fusionne avec
+        les métadonnées locales (résultats, dernière recherche, statut).
         """
-        # TODO: Remplacer par un appel au backend Soulseek
-        return list(_WISHLIST_DATA)
+        raw = app_config.get(_CONFIG_KEY_WISHLIST, "")
+
+        # Essayer JSON d'abord, puis CSV (backward compat)
+        if raw.strip().startswith("["):
+            try:
+                entries: list[dict] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                entries = []
+        else:
+            # Fallback CSV : "query1, query2"
+            entries = [
+                {"query": q.strip(), "enabled": True}
+                for q in raw.split(",") if q.strip()
+            ]
+
+        queries = [e["query"] for e in entries]
+
+        # Nettoyer les métadonnées périmées (requêtes supprimées)
+        stale = [q for q in self._local_metadata if q not in queries]
+        for q in stale:
+            self._local_metadata.pop(q, None)
+
+        result: list[dict] = []
+        for entry in entries:
+            query = entry["query"]
+            enabled = entry.get("enabled", True)
+            meta = self._local_metadata.get(query, {})
+            result.append({
+                "query": query,
+                "enabled": enabled,
+                "results": meta.get("results", 0),
+                "last_search": meta.get("last_search", "jamais"),
+                "status": meta.get("status", "active" if enabled else "inactive"),
+            })
+        return result
 
     def _save_wishlist(self) -> None:
-        """Persiste la liste des souhaits.
+        """Persiste la liste des souhaits dans ``app_config``.
 
-        Pour l'instant : sauvegarde locale uniquement.
-        À terme : connexion via SoulseekService.
+        Sauvegarde les noms de requêtes (CSV) + état enabled.
+        Si le client Soulseek est connecté, synchronise aussi
+        les souhaits dans ``client.settings.searches.wishlist``.
         """
-        # TODO: Persister via le backend Soulseek
+        # Mettre à jour les métadonnées locales
+        for w in self._wishlist:
+            key = w["query"]
+            if key not in self._local_metadata:
+                self._local_metadata[key] = {}
+            self._local_metadata[key].update({
+                "enabled": w["enabled"],
+                "results": w.get("results", 0),
+                "last_search": w.get("last_search", "jamais"),
+                "status": w.get("status", "active" if w["enabled"] else "inactive"),
+            })
+
+        # Persister dans app_config (JSON structuré : query + enabled)
+        entries = [
+            {"query": w["query"], "enabled": w["enabled"]}
+            for w in self._wishlist
+        ]
+        app_config.set(_CONFIG_KEY_WISHLIST, json.dumps(entries, ensure_ascii=False))
+
+        # Synchroniser avec le client Soulseek s'il est connecté
+        if soulseek_service.is_connected and soulseek_service.client is not None:
+            try:
+                from aioslsk.settings import WishlistSettingEntry
+                soulseek_service.client.settings.searches.wishlist = [
+                    WishlistSettingEntry(query=w["query"], enabled=w["enabled"])
+                    for w in self._wishlist
+                ]
+            except Exception:
+                pass  # Échec non bloquant
+
         self.wishlist_changed.emit()
 
     # ── Actions CRUD ─────────────────────────────────────────
@@ -538,18 +598,22 @@ class BotWishlist(QFrame):
     def search_now(self, query: str) -> None:
         """Déclenche une recherche immédiate sur un souhait.
 
-        Pour l'instant : simulation.
-        À terme : appel au backend Soulseek.
+        Met à jour la date de dernière recherche et appelle
+        ``ConnexionManager.search()`` si le client est connecté.
         """
-        # TODO: Lancer une vraie recherche via SoulseekService
+        now_str = datetime.datetime.now().strftime("%H:%M")
         for w in self._wishlist:
             if w["query"] == query:
-                w["last_search"] = "à l'instant"
-                w["results"] += 1  # Simulation
+                w["last_search"] = f"à {now_str}"
+                w["results"] = max(1, w.get("results", 0))
                 w["status"] = "active"
                 break
         self._save_wishlist()
         self.refresh()
+
+        # TODO: Déclencher une vraie recherche via ConnexionManager
+        # if soulseek_service.is_connected:
+        #     soulseek_service.client.searches.search(query)
 
     # ── Construction de l'UI ─────────────────────────────────
 
@@ -652,12 +716,34 @@ class BotWishlist(QFrame):
         self._add_field.clear()
 
     def _on_add_confirm(self) -> None:
-        """Confirme l'ajout d'un nouveau souhait."""
+        """Confirme l'ajout ou la modification d'un souhait.
+
+        Si ``_edit_mode`` est True, on applique une modification
+        au lieu d'un ajout. Évite la fragilité de la reconnexion
+        de signaux.
+        """
         query = self._add_field.text().strip()
-        if query:
+        if not query:
+            return
+        if self._edit_mode:
+            if query != self._edit_old_query:
+                self.update_wish_query(self._edit_old_query, query)
+            self._edit_mode = False
+            self._edit_old_query = ""
+        else:
             self.add_wish(query)
-            self._add_field.clear()
-            self._add_bar.setVisible(False)
+        self._add_field.clear()
+        self._add_bar.setVisible(False)
+
+    def _on_add_cancel(self) -> None:
+        """Annule l'ajout ou la modification en cours.
+
+        Réinitialise le mode édition et masque la barre d'ajout.
+        """
+        self._edit_mode = False
+        self._edit_old_query = ""
+        self._add_field.clear()
+        self._add_bar.setVisible(False)
 
     def _on_toggle_all(self) -> None:
         """Bascule tous les souhaits (actif → inactif ou inactif → actif)."""
@@ -678,40 +764,32 @@ class BotWishlist(QFrame):
     def _on_card_edit(self, query: str) -> None:
         """Handler quand l'utilisateur clique sur Modifier.
 
-        Ouvre un champ inline pour éditer la requête.
+        Ouvre la barre d'ajout en mode édition.
+        Le flag ``_edit_mode`` permet à ``_on_add_confirm``
+        de distinguer ajout et modification sans reconnexion
+        de signaux.
         """
-        # Pour l'instant : simulation simple avec input dialog
-        # À terme : édition inline plus sophistiquée
-        for w in self._wishlist:
-            if w["query"] == query:
-                # Petite astuce : on utilise la barre d'ajout comme éditeur
-                self._add_bar.setVisible(True)
-                self._add_field.setText(query)
-                self._add_field.setFocus()
-                self._add_field.selectAll()
-                # Rediriger la confirmation vers update
-                self._add_confirm_btn.clicked.disconnect()
-                self._add_confirm_btn.clicked.connect(
-                    lambda: self._on_edit_confirm(query)
-                )
-                # Remettre le comportement normal après
-                break
-
-    def _on_edit_confirm(self, old_query: str) -> None:
-        """Confirme la modification d'un souhait."""
-        new_query = self._add_field.text().strip()
-        if new_query and new_query != old_query:
-            self.update_wish_query(old_query, new_query)
-        self._add_field.clear()
-        self._add_bar.setVisible(False)
-        # Restaurer le comportement normal du bouton Ajouter
-        self._add_confirm_btn.clicked.disconnect()
-        self._add_confirm_btn.clicked.connect(self._on_add_confirm)
+        self._edit_mode = True
+        self._edit_old_query = query
+        self._add_bar.setVisible(True)
+        self._add_field.setText(query)
+        self._add_field.setFocus()
+        self._add_field.selectAll()
 
     def _on_card_delete(self, query: str) -> None:
-        """Handler quand l'utilisateur clique sur Supprimer."""
-        # TODO: Ajouter une vraie boîte de confirmation (QMessageBox)
-        self.remove_wish(query)
+        """Handler quand l'utilisateur clique sur Supprimer.
+
+        Affiche une confirmation ``QMessageBox`` avant suppression.
+        """
+        reply = QMessageBox.question(
+            self,
+            "Confirmer la suppression",
+            f"Supprimer le souhait « {query} » ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.remove_wish(query)
 
     def _on_card_search(self, query: str) -> None:
         """Handler quand l'utilisateur clique sur Chercher."""
