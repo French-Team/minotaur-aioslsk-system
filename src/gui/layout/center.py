@@ -31,6 +31,9 @@ from src.gui.widgets.config import (
     ConfigToggle,
 )
 from src.gui.widgets.connexions import ConnexionPage
+from src.gui.widgets.bots.bot_accueil import BotAccueil
+from src.gui.widgets.bots.bot_wishlist import BotWishlist
+from src.gui.widgets.bots.bot_recherche import BotRecherche
 from src.gui.widgets.home import HomePage
 from src.gui.widgets.telechargements import TelechargementsPage
 from src.services.soulseek_client import soulseek_service
@@ -116,12 +119,9 @@ class CenterZone(QFrame):
         # Pages de configuration — remplies avec les vraies options
         self._build_config_pages()
 
-        # Pages du footer (12 bots)
+        # Pages du footer (bots)
         for name in (
-            "Accueil",
-            "Recherche",
             "Téléchargement",
-            "Wishlist",
             "Bibliothèque",
             "Utilisateurs",
             "Surveillance",
@@ -132,6 +132,15 @@ class CenterZone(QFrame):
             "Aide",
         ):
             self._build_menu_page(name)
+
+        # Page Recherche (tableau de bord dédié)
+        self._build_recherche_page()
+
+        # Page Wishlist (tableau de bord dédié)
+        self._build_wishlist_page()
+
+        # Page du bot Accueil (hub conversationnel)
+        self._build_accueil_page()
 
         # Connexion des signaux d'événements Soulseek
         self._connect_event_signals()
@@ -153,6 +162,12 @@ class CenterZone(QFrame):
             if page is widget:
                 return name
         return None
+
+    def set_connexion_manager(self, manager: object) -> None:
+        """Transmet le gestionnaire de connexion aux bots qui en ont besoin."""
+        recherche = self._pages.get("Recherche")
+        if isinstance(recherche, BotRecherche):
+            recherche.set_connexion_manager(manager)
 
     def show_page(self, name: str) -> None:
         """Affiche la page demandée par son nom."""
@@ -216,7 +231,25 @@ class CenterZone(QFrame):
         self._pages["accueil"] = page
         self._stack.addWidget(page)
 
+    def _build_accueil_page(self) -> None:
+        """Page du bot Accueil — hub conversationnel avec chat simulé."""
+        page = BotAccueil()
+        self._bot_accueil = page
+        self._pages["Accueil"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
 
+    def _build_wishlist_page(self) -> None:
+        """Page Wishlist — tableau de bord des souhaits automatiques."""
+        page = BotWishlist()
+        self._pages["Wishlist"] = page
+        self._stack.addWidget(page)
+
+    def _build_recherche_page(self) -> None:
+        """Page Recherche — barre de recherche + résultats."""
+        page = BotRecherche()
+        self._pages["Recherche"] = page
+        self._stack.addWidget(page)
 
     def _build_config_pages(self) -> None:
         """Construit les pages de configuration avec leurs options."""

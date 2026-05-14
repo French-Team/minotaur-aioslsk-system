@@ -135,6 +135,9 @@ class MainWindow(QMainWindow):
             self._connexion_manager.disconnect
         )
 
+        # Transmettre le gestionnaire aux bots (Recherche, etc.)
+        center.set_connexion_manager(self._connexion_manager)
+
     def _build_menu(self) -> None:
         """Construit la barre de menus."""
         menubar = self.menuBar()

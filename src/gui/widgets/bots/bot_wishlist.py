@@ -1,0 +1,718 @@
+"""
+Bot Wishlist — tableau de bord des souhaits automatiques Soulseek.
+
+Permet de visualiser, ajouter, modifier, supprimer et superviser les
+souhaits de recherche (wishlist) configurés sur Soulseek.
+
+Ce n'est PAS un chatbot — l'utilisateur ne discute pas avec ce bot.
+Les interactions se font via le bot Accueil et cette page sert à
+visualiser et éditer les souhaits.
+"""
+
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
+
+
+# ── Données simulées (en attendant l'intégration backend) ────────
+
+_WISHLIST_DATA: list[dict] = [
+    {"query": "Pink Floyd - Dark Side", "enabled": True, "results": 3, "last_search": "il y a 1h", "status": "active"},
+    {"query": "Massive Attack", "enabled": False, "results": 0, "last_search": "jamais", "status": "inactive"},
+    {"query": "Portishead - Live", "enabled": True, "results": 0, "last_search": "il y a 2h", "status": "error"},
+    {"query": "Radiohead - OK Computer", "enabled": True, "results": 12, "last_search": "il y a 30min", "status": "active"},
+    {"query": "Boards of Canada", "enabled": True, "results": 7, "last_search": "il y a 15min", "status": "active"},
+    {"query": "Aphex Twin - Selected Ambient Works", "enabled": False, "results": 0, "last_search": "jamais", "status": "inactive"},
+    {"query": "Nirvana - Unplugged", "enabled": True, "results": 5, "last_search": "il y a 3h", "status": "active"},
+    {"query": "Miles Davis - Kind of Blue", "enabled": True, "results": 0, "last_search": "il y a 1h", "status": "error"},
+    {"query": "Daft Punk - Discovery", "enabled": False, "results": 0, "last_search": "jamais", "status": "inactive"},
+]
+
+
+# ── Constantes ──────────────────────────────────────────────────
+
+_STYLE_STATUS_ACTIVE = "#2ecc71"
+_STYLE_STATUS_INACTIVE = "#7f8c8d"
+_STYLE_STATUS_ERROR = "#e74c3c"
+
+_LABEL_STATUS: dict[str, str] = {
+    "active": "🟢 Actif",
+    "inactive": "⚪ Inactif",
+    "error": "❌ Erreur",
+}
+
+_COLOR_STATUS: dict[str, str] = {
+    "active": _STYLE_STATUS_ACTIVE,
+    "inactive": _STYLE_STATUS_INACTIVE,
+    "error": _STYLE_STATUS_ERROR,
+}
+
+
+# ── Carte d'un souhait individuel ───────────────────────────────
+
+
+class WishlistCard(QFrame):
+    """Carte affichant un souhait individuel avec ses infos et actions."""
+
+    toggled = Signal(str, bool)       # (query, new_enabled)
+    edit_requested = Signal(str)       # (query)
+    delete_requested = Signal(str)     # (query)
+    search_now_requested = Signal(str)  # (query)
+
+    def __init__(self, data: dict, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._query = data["query"]
+        self._enabled = data["enabled"]
+
+        status = data.get("status", "active" if self._enabled else "inactive")
+        color = _COLOR_STATUS.get(status, _STYLE_STATUS_INACTIVE)
+
+        self.setObjectName("wishlistCard")
+        border_color = color
+        self.setStyleSheet(
+            f"#wishlistCard {{"
+            f"  background: #1e1e2e; border: 1px solid {border_color}44;"
+            f"  border-radius: 8px; padding: 12px;"
+            f"}}"
+            f"#wishlistCard:hover {{"
+            f"  border-color: {border_color};"
+            f"}}"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(4)
+
+        # ── Ligne 1 : Statut + Requête ──
+        row1 = QHBoxLayout()
+        row1.setSpacing(8)
+
+        # Statut (toggle)
+        self._toggle_btn = QPushButton(_LABEL_STATUS.get(status, "⚪ Inactif"))
+        self._toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._toggle_btn.setFixedHeight(26)
+        self._toggle_btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: {color}22; color: {color};"
+            f"  border: 1px solid {color}; border-radius: 13px;"
+            f"  padding: 2px 12px; font-size: 11px; font-weight: 600;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: {color}44;"
+            f"}}"
+        )
+        self._toggle_btn.clicked.connect(self._on_toggle)
+        row1.addWidget(self._toggle_btn)
+
+        # Requête
+        query_lbl = QLabel(f"<b>{data['query']}</b>")
+        query_lbl.setWordWrap(True)
+        query_lbl.setTextFormat(Qt.TextFormat.RichText)
+        query_lbl.setStyleSheet(
+            "color: #e4e4ec; font-size: 14px; background: transparent; border: none;"
+        )
+        row1.addWidget(query_lbl, 1)
+
+        layout.addLayout(row1)
+
+        # ── Ligne 2 : Métadonnées ──
+        row2 = QHBoxLayout()
+        row2.setSpacing(16)
+
+        results_icon = "📅" if data.get("results", 0) > 0 else "📭"
+        meta_text = (
+            f"{results_icon} {data.get('results', 0)} résultat(s) "
+            f"• Dernière : {data.get('last_search', 'jamais')}"
+        )
+        meta_lbl = QLabel(meta_text)
+        meta_lbl.setStyleSheet(
+            "color: #7a7a8a; font-size: 12px; background: transparent; border: none;"
+        )
+        row2.addWidget(meta_lbl)
+
+        # Fréquence (lecture seule, globale)
+        freq_lbl = QLabel("🔄 Fréquence : globale")
+        freq_lbl.setStyleSheet(
+            "color: #5a5a6a; font-size: 11px; background: transparent; border: none;"
+        )
+        row2.addWidget(freq_lbl)
+
+        row2.addStretch(1)
+        layout.addLayout(row2)
+
+        # ── Ligne 3 : Boutons d'action ──
+        row3 = QHBoxLayout()
+        row3.setSpacing(6)
+
+        self._edit_btn = _ActionButton("✏️ Modifier", "#3498db")
+        self._edit_btn.clicked.connect(lambda: self.edit_requested.emit(self._query))
+        row3.addWidget(self._edit_btn)
+
+        self._search_btn = _ActionButton("🔍 Chercher", "#2ecc71")
+        self._search_btn.clicked.connect(lambda: self.search_now_requested.emit(self._query))
+        row3.addWidget(self._search_btn)
+
+        row3.addStretch(1)
+
+        self._delete_btn = _ActionButton("🗑️ Supprimer", "#e74c3c")
+        self._delete_btn.clicked.connect(lambda: self.delete_requested.emit(self._query))
+        row3.addWidget(self._delete_btn)
+
+        layout.addLayout(row3)
+
+    def _on_toggle(self) -> None:
+        """Bascule l'état actif/inactif du souhait."""
+        self._enabled = not self._enabled
+        status = "active" if self._enabled else "inactive"
+        color = _COLOR_STATUS[status]
+        self._toggle_btn.setText(_LABEL_STATUS[status])
+        self._toggle_btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: {color}22; color: {color};"
+            f"  border: 1px solid {color}; border-radius: 13px;"
+            f"  padding: 2px 12px; font-size: 11px; font-weight: 600;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: {color}44;"
+            f"}}"
+        )
+        self.toggled.emit(self._query, self._enabled)
+
+
+class _ActionButton(QPushButton):
+    """Petit bouton d'action stylisé."""
+
+    def __init__(self, text: str, color: str, parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: transparent; color: {color};"
+            f"  border: 1px solid {color}44; border-radius: 10px;"
+            f"  padding: 4px 10px; font-size: 11px;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: {color}22; border-color: {color};"
+            f"}}"
+        )
+
+
+# ── Filtres ─────────────────────────────────────────────────────
+
+
+class _FilterButton(QPushButton):
+    """Bouton de filtre (Tous / Actifs / Inactifs / Erreurs)."""
+
+    def __init__(self, text: str, parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setCheckable(True)
+        self.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent; color: #7a7a8a;"
+            "  border: 1px solid #3a3a4a; border-radius: 14px;"
+            "  padding: 6px 14px; font-size: 11px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #2a2a3a; color: #c0c0d0;"
+            "}"
+            "QPushButton:checked {"
+            "  background: #6c5ce744; color: #6c5ce7;"
+            "  border-color: #6c5ce7;"
+            "}"
+        )
+
+
+# ── Statistiques ────────────────────────────────────────────────
+
+
+class _StatCard(QFrame):
+    """Petite carte de statistique (ex: '5 actifs')."""
+
+    def __init__(self, value: str | int, label: str, color: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("statCard")
+        self.setStyleSheet(
+            f"#statCard {{"
+            f"  background: {color}11; border: 1px solid {color}33;"
+            f"  border-radius: 8px; padding: 10px;"
+            f"}}"
+        )
+        self.setFixedWidth(120)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(2)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        value_lbl = QLabel(str(value))
+        value_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        value_lbl.setStyleSheet(
+            f"color: {color}; font-size: 22px; font-weight: 700;"
+            f" background: transparent; border: none;"
+        )
+        layout.addWidget(value_lbl)
+
+        label_lbl = QLabel(label)
+        label_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label_lbl.setStyleSheet(
+            "color: #7a7a8a; font-size: 11px;"
+            " background: transparent; border: none;"
+        )
+        layout.addWidget(label_lbl)
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Bot Wishlist — Tableau de bord principal
+# ═════════════════════════════════════════════════════════════════
+
+
+class BotWishlist(QFrame):
+    """Bot Wishlist — tableau de bord des souhaits automatiques Soulseek.
+
+    Signaux
+    -------
+    wishlist_changed : Signal()
+        Émis quand la liste des souhaits est modifiée (ajout, suppression, toggle).
+    """
+
+    wishlist_changed = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("botWishlist")
+
+        # Données
+        self._wishlist: list[dict] = []
+        self._filter: str = "all"  # all | active | inactive | error
+        self._search_text: str = ""
+
+        # Layout principal
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 8)
+        layout.setSpacing(0)
+
+        # ── 1. En-tête ──
+        header = QLabel("📋 Wishlist — Souhaits automatiques")
+        header.setStyleSheet(
+            "color: #6c5ce7; font-size: 18px; font-weight: 700;"
+            " padding: 0 0 12px 0;"
+        )
+        layout.addWidget(header)
+
+        # ── 2. Résumé (stats) ──
+        self._stats_widget = QWidget()
+        self._stats_widget.setObjectName("statsWidget")
+        self._stats_widget.setStyleSheet("#statsWidget { background: transparent; }")
+        self._stats_layout = QHBoxLayout(self._stats_widget)
+        self._stats_layout.setContentsMargins(0, 0, 0, 12)
+        self._stats_layout.setSpacing(8)
+        layout.addWidget(self._stats_widget)
+
+        # ── 3. Barre d'outils ──
+        toolbar = QWidget()
+        toolbar.setObjectName("toolbar")
+        toolbar.setStyleSheet("#toolbar { background: transparent; }")
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(0, 0, 0, 10)
+        toolbar_layout.setSpacing(8)
+
+        # Champ de recherche
+        self._search_field = QLineEdit()
+        self._search_field.setPlaceholderText("🔍 Rechercher un souhait…")
+        self._search_field.setStyleSheet(
+            "QLineEdit {"
+            "  background: #1e1e2e; color: #e4e4ec;"
+            "  border: 1px solid #3a3a4a; border-radius: 10px;"
+            "  padding: 6px 12px; font-size: 12px; max-width: 220px;"
+            "}"
+            "QLineEdit:focus { border-color: #6c5ce7; }"
+        )
+        self._search_field.textChanged.connect(self._on_search)
+        toolbar_layout.addWidget(self._search_field)
+
+        # Filtres
+        self._filter_buttons: dict[str, _FilterButton] = {}
+        for f_id, f_label in [
+            ("all", "📋 Tous"),
+            ("active", "🟢 Actifs"),
+            ("inactive", "⚪ Inactifs"),
+            ("error", "❌ Erreurs"),
+        ]:
+            btn = _FilterButton(f_label)
+            btn.clicked.connect(lambda checked=False, fid=f_id: self._apply_filter(fid))
+            self._filter_buttons[f_id] = btn
+            toolbar_layout.addWidget(btn)
+
+        # Bouton "Tout cocher/décocher"
+        self._toggle_all_btn = QPushButton("🔄 Tout basculer")
+        self._toggle_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._toggle_all_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent; color: #7a7a8a;"
+            "  border: 1px solid #3a3a4a; border-radius: 10px;"
+            "  padding: 6px 12px; font-size: 11px;"
+            "}"
+            "QPushButton:hover { background: #2a2a3a; color: #c0c0d0; }"
+        )
+        self._toggle_all_btn.clicked.connect(self._on_toggle_all)
+        toolbar_layout.addWidget(self._toggle_all_btn)
+
+        toolbar_layout.addStretch(1)
+
+        # Bouton Ajouter
+        self._add_btn = QPushButton("➕ Ajouter un souhait")
+        self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._add_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #6c5ce7; color: white;"
+            "  border: none; border-radius: 10px;"
+            "  padding: 6px 16px; font-size: 12px; font-weight: 600;"
+            "}"
+            "QPushButton:hover { background: #7c6cf7; }"
+            "QPushButton:pressed { background: #5b4cd6; }"
+        )
+        self._add_btn.clicked.connect(self._on_add_click)
+        toolbar_layout.addWidget(self._add_btn)
+
+        layout.addWidget(toolbar)
+
+        # ── 4. Zone scrollable de la liste ──
+        self._list_widget = QWidget()
+        self._list_widget.setObjectName("wishlistList")
+        self._list_widget.setStyleSheet("#wishlistList { background: transparent; }")
+        self._list_layout = QVBoxLayout(self._list_widget)
+        self._list_layout.setContentsMargins(0, 0, 0, 0)
+        self._list_layout.setSpacing(6)
+        self._list_layout.addStretch(1)
+
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidget(self._list_widget)
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self._scroll_area.setStyleSheet("QScrollArea { background: transparent; }")
+
+        layout.addWidget(self._scroll_area, 1)
+
+        # ── 5. Barre d'ajout rapide (cachée par défaut) ──
+        self._add_bar = QWidget()
+        self._add_bar.setObjectName("addBar")
+        self._add_bar.setStyleSheet("#addBar { background: transparent; }")
+        self._add_bar.setVisible(False)
+        add_bar_layout = QHBoxLayout(self._add_bar)
+        add_bar_layout.setContentsMargins(0, 8, 0, 0)
+        add_bar_layout.setSpacing(6)
+
+        self._add_field = QLineEdit()
+        self._add_field.setPlaceholderText("Nouveau souhait (ex: 'Pink Floyd')…")
+        self._add_field.setStyleSheet(
+            "QLineEdit {"
+            "  background: #1e1e2e; color: #e4e4ec;"
+            "  border: 1px solid #6c5ce7; border-radius: 10px;"
+            "  padding: 8px 14px; font-size: 13px;"
+            "}"
+        )
+        self._add_field.returnPressed.connect(self._on_add_confirm)
+        add_bar_layout.addWidget(self._add_field, 1)
+
+        self._add_confirm_btn = QPushButton("Ajouter")
+        self._add_confirm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._add_confirm_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #6c5ce7; color: white;"
+            "  border: none; border-radius: 10px;"
+            "  padding: 8px 16px; font-size: 13px; font-weight: 600;"
+            "}"
+            "QPushButton:hover { background: #7c6cf7; }"
+        )
+        self._add_confirm_btn.clicked.connect(self._on_add_confirm)
+        add_bar_layout.addWidget(self._add_confirm_btn)
+
+        self._add_cancel_btn = QPushButton("Annuler")
+        self._add_cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._add_cancel_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: transparent; color: #7a7a8a;"
+            "  border: 1px solid #3a3a4a; border-radius: 10px;"
+            "  padding: 8px 12px; font-size: 13px;"
+            "}"
+            "QPushButton:hover { background: #2a2a3a; color: #c0c0d0; }"
+        )
+        self._add_cancel_btn.clicked.connect(lambda: self._add_bar.setVisible(False))
+        add_bar_layout.addWidget(self._add_cancel_btn)
+
+        layout.addWidget(self._add_bar, 0)
+
+        # ── Chargement initial des données ──
+        self.refresh()
+
+    # ── Gestion des données ──────────────────────────────────
+
+    def refresh(self) -> None:
+        """Recharge la liste des souhaits et rafraîchit l'affichage."""
+        self._wishlist = self._load_wishlist()
+        self._rebuild()
+
+    def _load_wishlist(self) -> list[dict]:
+        """Charge les souhaits depuis la source de données.
+
+        Pour l'instant : données simulées.
+        À terme : connexion via SoulseekService → settings.wishlist.
+        """
+        # TODO: Remplacer par un appel au backend Soulseek
+        return list(_WISHLIST_DATA)
+
+    def _save_wishlist(self) -> None:
+        """Persiste la liste des souhaits.
+
+        Pour l'instant : sauvegarde locale uniquement.
+        À terme : connexion via SoulseekService.
+        """
+        # TODO: Persister via le backend Soulseek
+        self.wishlist_changed.emit()
+
+    # ── Actions CRUD ─────────────────────────────────────────
+
+    def add_wish(self, query: str) -> None:
+        """Ajoute un nouveau souhait à la liste."""
+        query = query.strip()
+        if not query:
+            return
+        # Vérifier les doublons
+        if any(w["query"].lower() == query.lower() for w in self._wishlist):
+            return
+        self._wishlist.append({
+            "query": query,
+            "enabled": True,
+            "results": 0,
+            "last_search": "jamais",
+            "status": "active",
+        })
+        self._save_wishlist()
+        self.refresh()
+
+    def remove_wish(self, query: str) -> None:
+        """Supprime un souhait de la liste."""
+        self._wishlist = [w for w in self._wishlist if w["query"] != query]
+        self._save_wishlist()
+        self.refresh()
+
+    def toggle_wish(self, query: str, enabled: bool) -> None:
+        """Active ou désactive un souhait."""
+        for w in self._wishlist:
+            if w["query"] == query:
+                w["enabled"] = enabled
+                w["status"] = "active" if enabled else "inactive"
+                break
+        self._save_wishlist()
+        self.refresh()
+
+    def update_wish_query(self, old_query: str, new_query: str) -> None:
+        """Modifie la requête d'un souhait."""
+        new_query = new_query.strip()
+        if not new_query:
+            return
+        for w in self._wishlist:
+            if w["query"] == old_query:
+                w["query"] = new_query
+                break
+        self._save_wishlist()
+        self.refresh()
+
+    def search_now(self, query: str) -> None:
+        """Déclenche une recherche immédiate sur un souhait.
+
+        Pour l'instant : simulation.
+        À terme : appel au backend Soulseek.
+        """
+        # TODO: Lancer une vraie recherche via SoulseekService
+        for w in self._wishlist:
+            if w["query"] == query:
+                w["last_search"] = "à l'instant"
+                w["results"] += 1  # Simulation
+                w["status"] = "active"
+                break
+        self._save_wishlist()
+        self.refresh()
+
+    # ── Construction de l'UI ─────────────────────────────────
+
+    def _rebuild(self) -> None:
+        """Reconstruit toute l'interface à partir de self._wishlist."""
+        self._build_stats()
+        self._build_list()
+
+    def _build_stats(self) -> None:
+        """Met à jour les cartes de statistiques."""
+        # Vider les stats existantes
+        while self._stats_layout.count():
+            item = self._stats_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        total = len(self._wishlist)
+        active = sum(1 for w in self._wishlist if w.get("status") == "active")
+        inactive = sum(1 for w in self._wishlist if w.get("status") == "inactive")
+        errors = sum(1 for w in self._wishlist if w.get("status") == "error")
+
+        self._stats_layout.addWidget(_StatCard(total, "Total", "#6c5ce7"))
+        self._stats_layout.addWidget(_StatCard(active, "Actifs", _STYLE_STATUS_ACTIVE))
+        self._stats_layout.addWidget(_StatCard(inactive, "Inactifs", _STYLE_STATUS_INACTIVE))
+        self._stats_layout.addWidget(_StatCard(errors, "Erreurs", _STYLE_STATUS_ERROR))
+        self._stats_layout.addStretch(1)
+
+    def _build_list(self) -> None:
+        """Reconstruit la liste des cartes de souhaits."""
+        # Vider la liste (sauf le stretch)
+        while self._list_layout.count() > 1:
+            item = self._list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Filtrer
+        filtered = self._get_filtered_wishlist()
+
+        if not filtered:
+            empty_lbl = QLabel(
+                "Aucun souhait trouvé.\n"
+                "Clique sur « ➕ Ajouter un souhait » pour en créer un."
+            )
+            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_lbl.setStyleSheet(
+                "color: #5a5a6a; font-size: 13px; padding: 40px;"
+                " background: transparent;"
+            )
+            self._list_layout.insertWidget(0, empty_lbl)
+            return
+
+        for data in filtered:
+            card = WishlistCard(data)
+            card.toggled.connect(self._on_card_toggled)
+            card.edit_requested.connect(self._on_card_edit)
+            card.delete_requested.connect(self._on_card_delete)
+            card.search_now_requested.connect(self._on_card_search)
+            self._list_layout.insertWidget(self._list_layout.count() - 1, card)
+
+    def _get_filtered_wishlist(self) -> list[dict]:
+        """Retourne la liste filtrée selon le filtre actif et la recherche."""
+        result = list(self._wishlist)
+
+        # Filtre par statut
+        if self._filter == "active":
+            result = [w for w in result if w.get("status") == "active"]
+        elif self._filter == "inactive":
+            result = [w for w in result if w.get("status") == "inactive"]
+        elif self._filter == "error":
+            result = [w for w in result if w.get("status") == "error"]
+
+        # Filtre textuel
+        if self._search_text:
+            text = self._search_text.lower()
+            result = [
+                w for w in result
+                if text in w["query"].lower()
+            ]
+
+        return result
+
+    # ── Handlers UI ──────────────────────────────────────────
+
+    def _apply_filter(self, filter_id: str) -> None:
+        """Applique un filtre et met à jour l'état des boutons."""
+        self._filter = filter_id
+        for fid, btn in self._filter_buttons.items():
+            btn.setChecked(fid == filter_id)
+        self._build_list()
+
+    def _on_search(self, text: str) -> None:
+        """Handler quand l'utilisateur tape dans le champ de recherche."""
+        self._search_text = text
+        self._build_list()
+
+    def _on_add_click(self) -> None:
+        """Affiche la barre d'ajout rapide."""
+        self._add_bar.setVisible(True)
+        self._add_field.setFocus()
+        self._add_field.clear()
+
+    def _on_add_confirm(self) -> None:
+        """Confirme l'ajout d'un nouveau souhait."""
+        query = self._add_field.text().strip()
+        if query:
+            self.add_wish(query)
+            self._add_field.clear()
+            self._add_bar.setVisible(False)
+
+    def _on_toggle_all(self) -> None:
+        """Bascule tous les souhaits (actif → inactif ou inactif → actif)."""
+        active_count = sum(1 for w in self._wishlist if w.get("status") == "active")
+        target_status = "inactive" if active_count > len(self._wishlist) / 2 else "active"
+        for w in self._wishlist:
+            w["enabled"] = target_status == "active"
+            w["status"] = target_status
+        self._save_wishlist()
+        self.refresh()
+
+    # ── Handlers des cartes ──────────────────────────────────
+
+    def _on_card_toggled(self, query: str, enabled: bool) -> None:
+        """Handler quand une carte est activée/désactivée."""
+        self.toggle_wish(query, enabled)
+
+    def _on_card_edit(self, query: str) -> None:
+        """Handler quand l'utilisateur clique sur Modifier.
+
+        Ouvre un champ inline pour éditer la requête.
+        """
+        # Pour l'instant : simulation simple avec input dialog
+        # À terme : édition inline plus sophistiquée
+        for w in self._wishlist:
+            if w["query"] == query:
+                # Petite astuce : on utilise la barre d'ajout comme éditeur
+                self._add_bar.setVisible(True)
+                self._add_field.setText(query)
+                self._add_field.setFocus()
+                self._add_field.selectAll()
+                # Rediriger la confirmation vers update
+                self._add_confirm_btn.clicked.disconnect()
+                self._add_confirm_btn.clicked.connect(
+                    lambda: self._on_edit_confirm(query)
+                )
+                # Remettre le comportement normal après
+                break
+
+    def _on_edit_confirm(self, old_query: str) -> None:
+        """Confirme la modification d'un souhait."""
+        new_query = self._add_field.text().strip()
+        if new_query and new_query != old_query:
+            self.update_wish_query(old_query, new_query)
+        self._add_field.clear()
+        self._add_bar.setVisible(False)
+        # Restaurer le comportement normal du bouton Ajouter
+        self._add_confirm_btn.clicked.disconnect()
+        self._add_confirm_btn.clicked.connect(self._on_add_confirm)
+
+    def _on_card_delete(self, query: str) -> None:
+        """Handler quand l'utilisateur clique sur Supprimer."""
+        # TODO: Ajouter une vraie boîte de confirmation (QMessageBox)
+        self.remove_wish(query)
+
+    def _on_card_search(self, query: str) -> None:
+        """Handler quand l'utilisateur clique sur Chercher."""
+        self.search_now(query)

@@ -147,6 +147,7 @@ class ConnexionManager(QObject):
     error_occurred = Signal(str)
     generating = Signal(bool)
     status_changed = Signal(str)
+    search_result_received = Signal(object)  # SearchResultEvent
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -155,6 +156,11 @@ class ConnexionManager(QObject):
         self._async_thread = _AsyncEventLoopThread(self)
         self._async_thread.start()
         self._async_thread.wait_ready()
+
+        # Transférer les signaux du service
+        self._service.search_result_received.connect(
+            self.search_result_received.emit
+        )
 
         logger.info("ConnexionManager prêt (thread asyncio lancé)")
 
@@ -167,6 +173,18 @@ class ConnexionManager(QObject):
     @property
     def username(self) -> str:
         return self._service.username
+
+    def search(self, query: str) -> None:
+        """Lance une recherche Soulseek.
+
+        Appel non-bloquant depuis le thread UI.
+        Les résultats arrivent via ``search_result_received``.
+        """
+        if not self.is_connected:
+            self.error_occurred.emit("Pas connecté à Soulseek")
+            return
+        self.status_changed.emit(f"Recherche : {query}")
+        self._async_thread.run_coro(self._do_search(query))
 
     def login(self, username: str, password: str) -> None:
         """Connecte au serveur Soulseek.
@@ -240,6 +258,20 @@ class ConnexionManager(QObject):
             logger.error(afficher(e))
             self.error_occurred.emit(message)
             self.generating.emit(False)
+
+    async def _do_search(self, query: str) -> None:
+        """Exécute une recherche dans le thread asyncio."""
+        try:
+            client = self._service.client
+            if client is None:
+                self.error_occurred.emit("Client non initialisé")
+                return
+            await client.searches.search(query)
+            logger.info("Recherche lancée : '%s'", query)
+        except Exception as e:
+            message, _ = traduire(e)
+            logger.error(afficher(e))
+            self.error_occurred.emit(f"Erreur de recherche : {message}")
 
     async def _do_disconnect(self) -> None:
         """Déconnecte du serveur."""

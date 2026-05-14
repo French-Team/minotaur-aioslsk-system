@@ -1,7 +1,8 @@
 # Spec — Bot Accueil
 
-> **Mission :** Hub central conversationnel — accueillir l'utilisateur, discuter de l'app,
-> déléguer aux autres bots, rediriger vers l'aide.
+> **Mission :** Assistant conversationnel — hub central qui accueille l'utilisateur,
+> discute de l'app, comprend les demandes en langage naturel, et délègue aux
+> autres bots via un dictionnaire de connaissances.
 
 ---
 
@@ -10,398 +11,454 @@
 | Principe | Valeur |
 |----------|--------|
 | **Nature** | Nouvelle page de bot, PAS l'ancienne `HomePage` |
-| **Rôle** | Assistant conversationnel — interface en chat simulé |
+| **Rôle** | Chatbot conversationnel avec champ de saisie libre |
 | **Personnalité** | Amical et décontracté (tutoiement, ton chaleureux) |
 | **Visibilité** | UNIQUEMENT quand l'utilisateur est connecté à Soulseek |
-| **Canal d'entrée** | Footer → `page_changed("accueil")` → `CenterZone.show_page("accueil")` |
+| **Canal d'entrée** | Footer → `page_changed("Accueil")` → `CenterZone.show_page("Accueil")` |
+| **Interaction** | Saisie libre **et** boutons de suggestion (hybride) |
 
 ---
 
-## 2. Interface — Chat Simulé
+## 2. Architecture des fichiers
 
-### 2.1 Structure visuelle
+| Fichier | Rôle |
+|---------|------|
+| `src/gui/widgets/bots/bot_accueil.py` | Classe principale `BotAccueil(QFrame)` + sous-composants UI |
+| `src/gui/widgets/bots/bot_accueil_knowledge.py` | Dictionnaire `KNOWLEDGE` avec toutes les entrées de dialogue |
+| `src/gui/widgets/bots/__init__.py` | Export de `BotAccueil` |
+| `src/data/bot_accueil_history.json` | Persistance de l'historique des conversations (créé auto) |
+
+---
+
+## 3. Interface — Chatbot
+
+### 3.1 Structure visuelle
 
 ```
 ┌────────────────────────────────────────┐
-│  ↑ zone de messages (scrollable)      │
-│  ┌──────────────────────────────────┐ │
-│  │ 🖐️ Salut ! Je suis le bot       │ │
-│  │ Accueil. Comment puis-je        │ │
-│  │ t'aider aujourd'hui ?           │ │
-│  └──────────────────────────────────┘ │
-│  ┌──────────────────────────────────┐ │
-│  │ 🔍 Tu veux chercher un fichier  │ │
-│  │ sur Soulseek ?                  │ │
-│  └──────────────────────────────────┘ │
-│  ...                                   │
+│  ┌──────────────────────────────────┐  │
+│  │ 🖐️ Salut ! Je suis le bot      │  │
+│  │ Accueil... Que veux-tu faire ?  │  │  ← MessageCard (bot)
+│  └──────────────────────────────────┘  │
+│  ┌──────────────────────────────────┐  │
+│  │ 👤 je veux chercher un fichier  │  │  ← UserMessageCard (utilisateur)
+│  └──────────────────────────────────┘  │
+│  ┌──────────────────────────────────┐  │
+│  │ 🔍 Bien sûr ! Le bot Recherche  │  │
+│  │ est spécialisé... Je t'envoie   │  │
+│  └──────────────────────────────────┘  │
 │                                        │
-│  ─── zone de suggestions ──────────   │
-│  [🔍 Chercher] [📥 DL] [❓ Aide]     │
-│  [📚 Bibliothèque] [👤 Amis]         │
+│  ─── suggestions ─────────────────    │
+│  [🔍 Oui, cherche !] [🏠 Accueil]     │
+│  ─── input bar ────────────────────   │
+│  ┌──────────────────[🗑️ Vider][Envoyer] │
+│  │ Écris ton message ici…           │ │
+│  └──────────────────────────────────┘ │
 └────────────────────────────────────────┘
 ```
 
-### 2.2 Éléments de l'interface
+### 3.2 Éléments de l'interface (ordre du layout)
 
-| Élément | Description |
-|---------|-------------|
-| **Zone de messages** | `QScrollArea` vertical, messages empilés du bas vers le haut |
-| **Messages du bot** | Cartes avec icône arrondies, fond `#2a2a3a`, bordure subtile |
-| **Message de bienvenue** | Fixe, affiché à l'arrivée sur la page — salut avec présentation du bot |
-| **Zone de suggestions** | Boutons en bas du chat, alignés horizontalement, changent selon le contexte |
-| **Barre de défilement** | Auto-scroll vers le bas quand un nouveau message arrive |
+1. **Zone de messages** (`QScrollArea`, stretch 1) — messages empilés du bas vers le haut
+2. **Barre de suggestions** (`QWidget`, hauteur fixe) — boutons dynamiques uniquement
+3. **Barre de saisie** (`QWidget`, hauteur fixe) — `QLineEdit` + bouton `Envoyer` + bouton `🗑️ Vider`
 
-### 2.3 Cartes de message (style)
+### 3.3 Cartes de message
 
-Chaque message du bot est une **carte** avec :
-- Une icône/avatar à gauche (👋, 🔍, 📥, etc.)
-- Un fond de carte arrondi (`border-radius: 8px`)
-- Texte en blanc cassé `#e4e4ec`
-- Largeur max 80% du conteneur, alignée à gauche
-- Pas de bulles utilisateur (l'utilisateur ne tape pas)
+#### MessageCard (bot)
 
----
+| Propriété | Valeur |
+|-----------|--------|
+| Fond | `#2a2a3a` |
+| Bordure | `1px solid #3a3a4a` |
+| Border-radius | `8px` |
+| Padding | `12px` |
+| Icône | Emoji 24px dans cercle 36×36 |
+| Texte | `#e4e4ec` — `RichText` (supporte `<b>`, `<br>`) |
+| Largeur max | 100% du conteneur |
 
-## 3. Suggestions & Navigation
+#### UserMessageCard (utilisateur)
 
-### 3.1 Le bot choisit les suggestions
+| Propriété | Valeur |
+|-----------|--------|
+| Fond | `#1e1e2e` |
+| Bordure | `1px solid #3a3a5a` |
+| Border-radius | `8px` |
+| Alignement | **Gauche** |
+| Icône | 👤 16px |
+| Texte | `#a0a0d0` — italic, RichText |
+| Style distinct | Plus sombre que les messages du bot |
 
-Ce n'est PAS un menu fixe. Le bot affiche dynamiquement des suggestions
-sous forme de boutons en bas de l'écran. Exemples :
+### 3.4 Barre de saisie
 
-| Contexte | Suggestions affichées |
-|----------|----------------------|
-| **Arrivée sur le bot** | 🔍 Chercher un fichier, 📥 Voir les DL, ❓ Aide |
-| **Après « Chercher »** | Par titre, Par utilisateur, Par filtre avancé → [Aller vers Recherche] |
-| **Après « Aide »** | Configuration, Utilisation des bots, → [Aller vers Aide] |
-| **Fin de conversation** | 🔍 Autre recherche, 📚 Bibliothèque, 👤 Amis |
+| Élément | Style |
+|---------|-------|
+| `QLineEdit` | Fond `#1e1e2e`, bordure `#3a3a4a`, border-radius `12px`, placeholder "Écris ton message ici…" |
+| Focus | Bordure `#6c5ce7` (violet) |
+| Bouton `Envoyer` | Fond `#6c5ce7`, hover `#7c6cf7`, pressed `#5b4cd6`, disabled `#3a3a4a` |
+| Déclencheur | `returnPressed` **ou** clic sur `Envoyer` |
 
-### 3.2 Délégation automatique vers un autre bot
+### 3.5 Bouton 🗑️ Vider le chat (permanent)
 
-Quand l'utilisateur clique sur une suggestion qui implique un autre bot :
-
-1. **Message du bot Accueil** : « Je t'emmène vers le bot Recherche ! 🔍 »
-2. **Pause de 1 à 2 secondes** (via `QTimer.singleShot`)
-3. **Changement de page** : `self.page_changed.emit("recherche")` → `CenterZone.show_page()`
-
-La classe `BotAccueil` expose un signal `page_changed = Signal(str)` pour la navigation,
-comme les autres composants (Footer, Header, LeftPanel).
-
-### 3.3 Messages pré-formatés (pas de saisie libre)
-
-L'utilisateur interagit UNIQUEMENT via les boutons de suggestion cliquables.
-Pas de champ de texte / saisie libre. C'est un chat simulé.
+- Situé dans la **barre de saisie**, à droite du bouton Envoyer
+- **Toujours visible** — pas dépendant des suggestions (ne disparaît pas quand on clique sur une suggestion)
+- Fond transparent `#5a5a6a`, bordure `#3a3a4a`, `border-radius: 12px`
+- **Hover :** fond `#2a2a3a`, texte `#e4e4ec`, **bordure rouge `#e74c3c`** pour signaler l'action destructive
+- Appelle `_on_clear_history()` → `clear_history()` → vide les messages + sauvegarde JSON vide → re-affiche bienvenue
 
 ---
 
-## 4. Messages & Arborescence
+## 4. Dictionnaire de connaissances (KNOWLEDGE)
 
-### 4.1 Message de bienvenue
+### 4.1 Structure d'une entrée
 
-```
-🖐️ Salut ! Je suis le bot Accueil, 
-ton assistant personnel sur Soulseek. 
-
-Je suis là pour t'aider à utiliser l'appli, 
-trouver des fichiers, gérer tes téléchargements,
-et te guider vers le bon bot selon tes besoins.
-
-Que veux-tu faire ?
-```
-
-Suggestions après bienvenue : `[🔍 Chercher] [📥 Téléchargements] [❓ Aide]`
-
-### 4.2 Arborescence des dialogues
-
-```
-Accueil
-├── 🔍 Chercher un fichier
-│   ├── → Message : « Je t'emmène vers le bot Recherche… »
-│   └── → Redirection vers bot Recherche
-│
-├── 📥 Gérer les téléchargements
-│   ├── → Message : « Direction le bot Téléchargement ! »
-│   └── → Redirection vers bot Téléchargement
-│
-├── 📚 Bibliothèque & fichiers
-│   ├── → Message : « Je te laisse avec le bot Bibliothèque. »
-│   └── → Redirection vers bot Bibliothèque
-│
-├── 👤 Gérer mes contacts
-│   ├── → Message : « Je te redirige vers les utilisateurs. »
-│   └── → Redirection vers bot Utilisateurs
-│
-├── ❓ Aide & explications
-│   ├── Comment utiliser les bots ?
-│   ├── Configuration de l'appli
-│   ├── → Message : « Le bot Aide va prendre le relais. »
-│   └── → Redirection vers bot Aide
-│
-├── ⚙️ Configuration
-│   ├── → Message : « Je te laisse avec l'Assistant. »
-│   └── → Redirection vers bot Assistant
-│
-└── ℹ️ À propos de l'Armée des 12 Bots
-    └── → Affiche un message décrivant les 12 bots
+```python
+KNOWLEDGE: dict[str, dict] = {
+    "chercher": {
+        "keywords": ["chercher", "recherche", "trouver", ...],
+        "icon": "🔍",
+        "response": "Bien sûr ! Le bot <b>Recherche</b>...",
+        "actions": [                         # optionnel
+            {"type": "navigate", "bot": "Recherche"},
+        ],
+        "suggestions": [                     # optionnel
+            {"label": "🔍 Oui, cherche !", "action": "chercher"},
+        ],
+    },
+}
 ```
 
-### 4.3 Suggestions génériques (toujours accessibles)
+| Clé | Type | Obligatoire | Description |
+|-----|------|-------------|-------------|
+| `keywords` | `list[str]` | Oui | Mots-clés déclencheurs (matché insensiblement) |
+| `icon` | `str` | Oui | Emoji affiché dans la carte de réponse |
+| `response` | `str` | Oui | Texte de réponse (support RichText : `<b>`, `<br>`) |
+| `actions` | `list[dict]` | Non | Actions à exécuter **après** la réponse (delay 600ms) |
+| `suggestions` | `list[dict]` | Non | Boutons de suggestion affichés après la réponse |
 
-Les suggestions suivantes devraient être accessibles depuis n'importe quel état :
-- `🔍 Chercher` → toujours visible
-- `❓ Aide` → toujours visible
-- `🏠 Accueil` → retour au message de bienvenue
+### 4.2 Types d'actions (combo actions)
+
+| Type | Paramètres | Effet |
+|------|------------|-------|
+| `message` | `icon`, `text`, `suggestions` | Ajoute un message bot supplémentaire (400ms après) |
+| `navigate` | `bot`, `icon` | Message redirection → 1.5s → `page_changed.emit(bot)` |
+| `delay` | `ms` | Attend N millisecondes avant l'action suivante |
+| `suggestions` | `items` | Remplace les suggestions sans message |
+
+### 4.3 Exemple de combo action (entrée "aide")
+
+```python
+"aide": {
+    "keywords": ["aide", "help", "comment", "problème", ...],
+    "icon": "❓",
+    "response": "Tu as besoin d'explications...",
+    "actions": [
+        {"type": "navigate", "bot": "Aide"},  # redirige vers le bot Aide
+    ],
+    "suggestions": [
+        {"label": "❓ Aide-moi !", "action": "aide"},
+        {"label": "🏠 Accueil", "action": "welcome"},
+    ],
+}
+```
+
+### 4.4 Catalogue complet des entrées (18 entrées)
+
+| ID | Type | Keywords | Actions | Suggestions |
+|----|------|----------|---------|-------------|
+| `chercher` | → Bot | chercher, recherche, trouver, fichier… | navigate → Recherche | Chercher, Accueil |
+| `telechargement` | → Bot | téléchargement, dl, download… | navigate → Téléchargement | DL, Accueil |
+| `aide` | → Bot | aide, help, comment, problème… | navigate → Aide | Aide, Accueil |
+| `bibliotheque` | → Bot | bibliothèque, explorer, dossier… | navigate → Bibliothèque | Explorer, Accueil |
+| `utilisateurs` | → Bot | utilisateurs, amis, contact… | navigate → Utilisateurs | Contacts, Accueil |
+| `wishlist` | → Bot | wishlist, souhait, automatique… | navigate → Wishlist | Wishlist, Accueil |
+| `surveillance` | → Bot | surveillance, alerte, notification… | navigate → Surveillance | Alertes, Accueil |
+| `planificateur` | → Bot | planificateur, tâche, automatisation… | navigate → Planificateur | Planifier, Accueil |
+| `nettoyage` | → Bot | nettoyage, organiser, ranger… | navigate → Nettoyage | Nettoyer, Accueil |
+| `statistiques` | → Bot | statistiques, stats, dashboard… | navigate → Statistiques | Stats, Accueil |
+| `assistant` | → Bot | assistant, config, paramètre… | navigate → Assistant | Configurer, Accueil |
+| `bonjour` | Général | bonjour, salut, hey, hello… | — | Chercher, DL, Aide, Retour |
+| `merci` | Général | merci, thanks, super, génial… | — | Chercher, Aide, Accueil |
+| `qui_es_tu` | Général | qui es-tu, présentation, armée… | — | 12 bots, Chercher, Aide, Accueil |
+| `soulseek` | Général | soulseek, slsk, p2p, réseau… | — | Chercher, Aide, Accueil |
+| `quoi_de_neuf` | Général | quoi de neuf, nouveau, actu… | — | Surveillance, Stats, Accueil |
+| `fallback` | Fallback | *(match jamais par mot-clé)* | — | Chercher, DL, Aide, About, Accueil |
+| `fallback_insulte` | Fallback | connard, idiot, merde, fuck… | — | Désolé, Aide |
 
 ---
 
-## 5. Données & Persistance
+## 5. Moteur de matching d'intention
 
-### 5.1 Historique des conversations
+### 5.1 `_match_intent(text: str) -> str | None`
 
-**Stockage :** Fichier `data/conversations/accueil.json` ou `data/bot_accueil_history.json`
+```python
+def _match_intent(self, text: str) -> str | None:
+```
 
-**Contenu :**
+**Algorithme :**
+1. Normalise le texte (lowercase, strip)
+2. Extrait les mots de ≥ 3 caractères
+3. Pour chaque entrée `KNOWLEDGE` :
+   - Match exact du keyword dans le texte : **+3 points**
+   - Match partiel (un mot ≥ 3 car. commence par le keyword ou vice-versa) : **+1 point**
+4. Retourne l'ID avec le **meilleur score**
+5. Si **best_score < 3** → retourne `None` (fallback)
+
+### 5.2 Parcours d'une interaction utilisateur
+
+```
+Utilisateur tape → _on_user_input()
+  ├─ 1. add_user_message(text)        → affiche UserMessageCard
+  ├─ 2. _match_intent(text)           → trouve l'intention
+  ├─ 3. Si match :
+  │     ├─ add_message(icon, response, suggestions)  → MessageCard
+  │     └─ si actions : QTimer 600ms → _execute_actions(actions)
+  └─ 4. Si aucun match (fallback) :
+        └─ add_message("Je n'ai pas bien compris...", suggestions)
+```
+
+### 5.3 Fallback
+
+- **Entrée `fallback`** : réutilisée par `_on_user_input` quand aucun match atteint le seuil
+- **Entrée `fallback_insulte`** : match les insultes (connard, idiot, merde…) → réponse diplomatique
+- Les deux fallbacks offrent des suggestions pour remettre l'utilisateur sur la bonne voie
+
+---
+
+## 6. Exécuteur d'actions (combos)
+
+### 6.1 `_execute_actions(actions: list[dict])`
+
+Exécute une séquence d'actions enchaînées via `QTimer.singleShot` :
+
+```
+_run_step(0)
+  ├─ action[0]: "message"   → add_message() → timer 400ms → _run_step(1)
+  ├─ action[1]: "delay"     → timer N ms    → _run_step(2)
+  ├─ action[2]: "navigate"  → navigate_to() → STOP (gère son propre timer)
+  ├─ action[3]: "suggestions" → set_suggestions() → timer 100ms → _run_step(4)
+  └─ action[4]: "message"   → add_message() → timer 400ms → _run_step(5)
+```
+
+**Notes :**
+- `navigate` est terminal (appelle son propre `QTimer.singleShot(1500)` interne)
+- `delay` capture correctement `index` via `lambda idx=index: _run_step(idx + 1)`
+- Les autres actions passent `index + 1` directement
+
+---
+
+## 7. Navigation vers un autre bot
+
+### 7.1 `navigate_to(bot_name: str, icon: str = "➡️")`
+
+1. Ajoute un message : `"Je t'emmène vers le bot <b>{bot_name}</b> … 🔄"`
+2. Vide les suggestions (`_clear_suggestions`)
+3. `QTimer.singleShot(1500, ...)` → `self.page_changed.emit(bot_name)`
+
+### 7.2 Noms de bots supportés (dans le routeur)
+
+| Action | Bot cible | Signal |
+|--------|-----------|--------|
+| `search` | `Recherche` | `page_changed.emit("Recherche")` |
+| `downloads` | `Téléchargement` | `page_changed.emit("Téléchargement")` |
+| `help` | `Aide` | `page_changed.emit("Aide")` |
+| `library` | `Bibliothèque` | `page_changed.emit("Bibliothèque")` |
+| `users` | `Utilisateurs` | `page_changed.emit("Utilisateurs")` |
+| `wishlist` | `Wishlist` | `page_changed.emit("Wishlist")` |
+| `surveillance` | `Surveillance` | `page_changed.emit("Surveillance")` |
+| `planificateur` | `Planificateur` | `page_changed.emit("Planificateur")` |
+| `nettoyage` | `Nettoyage` | `page_changed.emit("Nettoyage")` |
+| `stats` | `Statistiques` | `page_changed.emit("Statistiques")` |
+| `config` | `Assistant` | `page_changed.emit("Assistant")` |
+| `about` | *(interne)* | `_show_about()` |
+| `welcome` | *(interne)* | `_show_welcome()` |
+| `clear_history` | *(interne)* | `_on_clear_history()` → `clear_history()` |
+| `restore_history` | *(interne)* | `_on_restore_history()` → `_restore_history()` |
+
+---
+
+## 8. Persistance de l'historique
+
+### 8.1 Stockage
+
+- **Fichier :** `data/bot_accueil_history.json` (relatif à la racine du projet, dossier `src/`)
+- **Création automatique** du dossier parent dans `__init__` (`mkdir(parents=True, exist_ok=True)`)
+- **Format :**
+
 ```json
 {
-  "sessions": [
+  "messages": [
     {
-      "date": "2026-05-14T14:30:00",
-      "messages": [
-        { "type": "bot", "icon": "🖐️", "text": "Salut ! ...", "suggestions": [...] },
-        { "type": "action", "text": "user_clicked_chercher" },
-        { "type": "bot", "icon": "🔍", "text": "Je t'emmène vers le bot Recherche...", "suggestions": [...] }
-      ]
+      "type": "bot",
+      "icon": "🖐️",
+      "text": "Salut ! Je suis le bot <b>Accueil</b>...",
+      "suggestions": [
+        {"label": "🔍 Chercher un fichier", "action": "search"}
+      ],
+      "timestamp": "2026-05-14T14:30:00"
+    },
+    {
+      "type": "user",
+      "text": "je veux chercher un fichier",
+      "timestamp": "2026-05-14T14:30:05"
     }
   ]
 }
 ```
 
-**Format de chaque message :**
-```python
-{
-    "type": "bot" | "action" | "redirect",
-    "icon": str,          # emoji pour la carte
-    "text": str,          # texte du message
-    "suggestions": [      # boutons affichés après ce message
-        {"label": "🔍 Chercher", "action": "search"},
-        {"label": "❓ Aide", "action": "help"}
-    ],
-    "timestamp": str      # ISO datetime
-}
-```
+### 8.2 Méthodes
 
-**Comportement :**
-- Chargé au démarrage du bot (dans `__init__` ou au premier `show`)
-- Affiché dans la zone de chat comme historique
-- Sauvegardé quand un nouveau message est ajouté
-- Optionnel : bouton « Effacer l'historique » dans la zone de suggestions
+| Méthode | Quand | Effet |
+|---------|-------|-------|
+| `_check_history_exists()` | Dans `_show_welcome()` | Vérifie si le fichier JSON existe et a une taille > 10 octets → définit `self._has_history` |
+| `_restore_history()` | Bouton "📜 Conversation précédente" | Lit le fichier **avant** de vider l'écran, restaure tous les messages et les suggestions du dernier message |
+| `_save_history()` | Après chaque `add_message()` ou `add_user_message()` | Sauvegarde l'état actuel de `self._messages` dans le fichier JSON |
+| `clear_history()` | Bouton 🗑️ Vider | Vide `_messages`, supprime tous les widgets, **sauvegarde** le JSON vide, affiche bienvenue |
+| `_on_restore_history()` | Routeur `restore_history` | Appelle `_restore_history()` |
+| `_on_clear_history()` | Routeur `clear_history` | Appelle `clear_history()` |
+
+### 8.3 Comportement au démarrage
+
+- **`__init__` NE charge pas l'historique** — le chat repart toujours **à zéro** avec `_show_welcome()`
+- L'historique est **toujours sauvegardé** (via `_save_history()` dans `add_message()` / `add_user_message()`)
+- Si un historique non vide existe, le message de bienvenue propose **"📜 Conversation précédente"**
+- Cliquer sur ce bouton → `_restore_history()` :
+  1. Lit d'abord le fichier JSON dans une variable locale
+  2. Vérifie qu'il y a des messages
+  3. Vide l'écran **sans** appeler `_save_history()` (pour ne pas écraser les données)
+  4. Rejou tous les messages (bot + user) dans l'ordre
+  5. Restaure les suggestions du dernier message
+- ⚠️ **Bug fix critique** : `_restore_history()` lit le fichier **AVANT** de vider l'écran, pour éviter que `clear_history()` → `_save_history()` écrase le fichier avec `{"messages": []}`
+
+### 8.4 Gestion des erreurs
+
+- `json.JSONDecodeError` → fichier corrompu → historique réinitialisé (retour au message de bienvenue)
+- `KeyError` → message mal formé → historique réinitialisé
+- `OSError` → écriture impossible → ignoré silencieusement
 
 ---
 
-## 6. Architecture Technique
+## 9. Intégration dans CenterZone
 
-### 6.1 Fichier
+### 9.1 `center.py`
 
-**Emplacement :** `src/gui/widgets/bots/bot_accueil.py`
-
-### 6.2 Classe
-
-```python
-class BotAccueil(QFrame):
-    """Bot Accueil — hub conversationnel avec chat simulé."""
-
-    page_changed = Signal(str)  # émet le nom du bot cible pour la navigation
-```
-
-### 6.3 Structure interne
-
-```python
-class BotAccueil(QFrame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("botAccueil")
-
-        # Layout principal
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        # Zone de messages (QScrollArea)
-        self._messages_area = QScrollArea()
-        self._messages_widget = QWidget()
-        self._messages_layout = QVBoxLayout(self._messages_widget)
-        # ... config scroll area
-
-        # Zone de suggestions (en bas, fixe)
-        self._suggestions_bar = QWidget()
-        self._suggestions_layout = QHBoxLayout(self._suggestions_bar)
-        # ... boutons de suggestions
-
-        layout.addWidget(self._messages_area, 1)  # stretch 1
-        layout.addWidget(self._suggestions_bar, 0)  # hauteur fixe
-
-        # Charger l'historique
-        self._load_history()
-
-        # Afficher le message de bienvenue (si historique vide)
-        if not self._messages:
-            self._show_welcome()
-
-    # Signaux
-    page_changed = Signal(str)
-
-    # Méthodes principales
-    def add_message(self, icon: str, text: str, suggestions: list[dict]) -> None
-    def set_suggestions(self, suggestions: list[dict]) -> None
-    def navigate_to(self, bot_name: str) -> None  # message + timer + navigation
-
-    # Arborescence dialogues
-    def _show_welcome(self) -> None
-    def _on_suggestion_clicked(self, action: str) -> None
-
-    # Persistance
-    def _load_history(self) -> None
-    def _save_history(self) -> None
-    def clear_history(self) -> None
-
-    # Suggestions dynamiques
-    def _get_generic_suggestions(self) -> list[dict]
-```
-
-### 6.4 Intégration dans CenterZone
-
-**Dans `center.py` (`__init__`)** :
 ```python
 from src.gui.widgets.bots.bot_accueil import BotAccueil
 
-# Dans la section des pages construites (vers ligne 108) :
-self._bot_accueil = BotAccueil()
-self._pages["accueil"] = self._bot_accueil
-self._stack.addWidget(self._bot_accueil)
+class CenterZone(QFrame):
+    def __init__(self, ...):
+        # ...
+        # "Accueil" et "Recherche" retirés de la boucle générique des bots
+        for name in ("Téléchargement", "Bibliothèque", ...):
+            self._build_menu_page(name)
 
-# Connecter le signal de navigation
-self._bot_accueil.page_changed.connect(self.show_page)
+        self._build_accueil_page()     # construit BotAccueil séparément
+        self._build_recherche_page()   # construit BotRecherche séparément
+        self._build_home_page()        # HomePage pour post-connexion
+
+    def _build_accueil_page(self) -> None:
+        page = BotAccueil()
+        page.page_changed.connect(self.show_page)
+        self._pages["Accueil"] = page
+        self._stack.addWidget(page)
 ```
 
-**Supprimer ou conserver `_build_home_page` ?**
-- `_build_home_page` reste pour la `HomePage` actuelle (page d'accueil de l'app, avant connexion)
-- `BotAccueil` REMPLACE la page `"accueil"` dans le dictionnaire `_pages`
-- `show_home()` continue d'appeler `show_page("accueil")` mais affiche maintenant `BotAccueil`
-- Si besoin : `show_home()` pourrait aussi réinitialiser le chat et re-afficher le message de bienvenue
+### 9.2 Pages (deux pages distinctes)
+
+| Clé | Composant | Usage |
+|-----|-----------|-------|
+| `"accueil"` (minuscule) | `HomePage` | Page post-connexion actuelle (bannière de bienvenue) |
+| `"Accueil"` (majuscule) | `BotAccueil` | Nouveau chatbot, accessible depuis le footer |
 
 ---
 
-## 7. Règles & Contraintes
+## 10. Contraintes techniques
 
-### 7.1 Ce que le bot Accueil PEUT faire
-
-- Afficher des messages avec icônes et texte
-- Proposer des boutons de suggestion contextuels
-- Attendre 1-2s puis rediriger vers un autre bot
-- Charger/sauvegarder l'historique des conversations
-- Connaître le nom de l'utilisateur connecté (via `set_greeting` ou équivalent)
-
-### 7.2 Ce que le bot Accueil NE fait PAS
-
-- Pas de saisie libre / champ de texte
-- Pas de recherche directe sur Soulseek
-- Pas de téléchargement / gestion de fichiers
-- Pas de stats en temps réel (ça, c'est pour le bot Statistiques)
-
-### 7.3 Contraintes techniques
-
-- Utiliser `QTimer.singleShot` pour le délai avant redirection
-- L'historique persistant doit gérer le cas où le fichier est corrompu
-- Pas de dépendances lourdes (garder PySide6 + json uniquement)
-- Les suggestions doivent avoir un `action` unique pour la logique de routage
+- **Dépendances** : PySide6 uniquement (QtCore, QtWidgets) + `json` + `datetime` + `pathlib`
+- **Pas de dépendances externes** (pas d'API, pas de LLM, pas de réseau)
+- **Tous les dialogues sont pré-formatés** dans le dictionnaire `KNOWLEDGE`
+- **Le matching est purement lexical** (mots-clés, pas d'IA)
+- **Signal `page_changed`** compatible avec les autres composants (Header, Footer, LeftPanel)
+- **L'input field se vide** après chaque envoi et reste focusé
 
 ---
 
-## 8. Arborescence des actions
+## 11. Règles & Comportement
 
-```python
-# Routeur de suggestions
-_ACTIONS = {
-    "welcome":        _show_welcome,
-    "search":         lambda: self.navigate_to("recherche", "🔍"),
-    "downloads":      lambda: self.navigate_to("telechargement", "📥"),
-    "library":        lambda: self.navigate_to("bibliotheque", "📚"),
-    "users":          lambda: self.navigate_to("utilisateurs", "👤"),
-    "help":           lambda: self.navigate_to("aide", "❓"),
-    "config":         lambda: self.navigate_to("assistant", "⚙️"),
-    "about":          _show_about,
-}
+### 11.1 Ce que le bot PEUT faire
+
+- Comprendre des demandes en langage naturel (matching par mots-clés)
+- Afficher des messages avec icônes et texte formaté (RichText)
+- Proposer des suggestions contextuelles
+- Exécuter des combos d'actions (message → delay → navigate)
+- Rediriger vers n'importe quel autre bot après 1.5s
+- Sauvegarder et restaurer l'historique des conversations
+- Gérer les insultes avec diplomatie
+
+### 11.2 Ce que le bot NE fait PAS
+
+- Pas de recherche directe sur Soulseek (délègue au bot Recherche)
+- Pas de téléchargement / gestion de fichiers (délègue au bot Téléchargement)
+- Pas de stats en temps réel (délègue au bot Statistiques)
+- Pas d'API externe ou d'IA générative
+- Pas de connexion à Soulseek directement
+
+### 11.3 Messages clés
+
+**Message de bienvenue :**
 ```
+🖐️ Salut ! Je suis le bot Accueil, ton assistant personnel sur Soulseek.
 
----
-
-## 9. Messages clés (catalogue)
-
-### Message de bienvenue
-```
-🖐️ Salut ! Je suis le bot Accueil, 
-ton assistant personnel sur Soulseek. 
-
-Je suis là pour t'aider à utiliser l'appli, 
-trouver des fichiers, gérer tes téléchargements,
-et te guider vers le bon bot selon tes besoins.
+Je suis là pour t'aider à utiliser l'appli, trouver des fichiers,
+gérer tes téléchargements, et te guider vers le bon bot selon
+tes besoins.
 
 Que veux-tu faire ?
 ```
-Suggestions → `[🔍 Chercher] [📥 Téléchargements] [❓ Aide]`
+Suggestions → `[🔍 Chercher un fichier] [📥 Téléchargements] [❓ Aide & explications]`
 
-### Redirection vers Recherche
+Si un historique de conversation existe (`data/bot_accueil_history.json` > 10 octets) :
 ```
-🔍 Pas de souci ! Je t'emmène vers le bot Recherche,
-il pourra t'aider à trouver des fichiers sur Soulseek.
+Suggestions → `[🔍 Chercher un fichier] [📥 Téléchargements] [❓ Aide & explications] [📜 Conversation précédente]`
 ```
-Après 1.5s → `page_changed.emit("recherche")`
 
-### Redirection vers Téléchargement
+**Message d'erreur (fallback) :**
 ```
-📥 Je te laisse avec le bot Téléchargement.
-Il gère tout ce qui est téléchargements, files d'attente et priorisation.
-```
-Après 1.5s → `page_changed.emit("telechargement")`
+🤔 Je n'ai pas bien compris ta demande. Peux-tu reformuler ?
 
-### Redirection vers Aide
+Tu peux aussi utiliser les suggestions ci-dessous pour me guider !
 ```
-❓ Tu as besoin d'explications ? 
-Je te redirige vers le bot Aide, il connaît tout sur l'appli
-et ses 12 bots.
-```
-Après 1.5s → `page_changed.emit("aide")`
+Suggestions → `[🔍 Chercher] [📥 Téléchargements] [❓ Aide] [🎯 À propos] [🏠 Accueil]`
 
-### À propos de l'Armée
+**Réponse aux insultes :**
 ```
-🎯 L'Armée des 12 Bots est composée de :
-
-🔍 Recherche     — Trouver des fichiers
-📥 Téléchargement — Gérer les DL
-📚 Bibliothèque  — Explorer les fichiers
-👤 Utilisateurs  — Gérer les contacts
-📋 Wishlist      — Souhaits automatiques
-👁️ Surveillance  — Alertes en direct
-📅 Planificateur — Actions planifiées
-🧹 Nettoyage     — Organiser les fichiers
-📊 Statistiques  — Tableau de bord
-⚙️ Assistant     — Configuration guidée
-❓ Aide          — Guide & explications
-
-Et moi, le bot Accueil, je suis ton point d'entrée ! 🖐️
+😅 Woah, doucement ! Je suis là pour t'aider, pas pour me disputer.
+Si quelque chose ne va pas, dis-moi ce qui ne fonctionne pas
+et je ferai de mon mieux pour t'aider !
 ```
-Suggestions → `[🔍 Chercher] [❓ Aide] [🏠 Accueil]`
+Suggestions → `[🫤 Désolé…] [❓ Aide]`
 
 ---
 
-## 10. Étapes d'implémentation
+## 12. Étapes d'implémentation (historique)
 
-| # | Tâche | Description |
-|---|-------|-------------|
-| 1 | Créer `bot_accueil.py` | Classe `BotAccueil(QFrame)` avec layout, scroll, suggestions |
-| 2 | Système de messages | `add_message()`, `_render_message()`, cartes avec icônes |
-| 3 | Arborescence dialogues | `_ACTIONS`, routeur, messages pré-formatés |
-| 4 | Navigation vers bots | `navigate_to()` avec timer avant `page_changed.emit()` |
-| 5 | Persistance historique | `_load_history()`, `_save_history()`, format JSON |
-| 6 | Intégration CenterZone | Remplacer le placeholder par `BotAccueil`, connecter `page_changed` |
-| 7 | Suggestions dynamiques | Adapter les suggestions selon le contexte |
-| 8 | Nettoyage | Supprimer l'ancien bout `_build_menu_page("accueil")` si applicable |
+| # | Tâche | Statut |
+|---|-------|--------|
+| 1 | Créer `bot_accueil.py` avec layout, scroll, suggestions bar | ✅ |
+| 2 | `MessageCard` — cartes avec icônes + texte RichText | ✅ |
+| 3 | Arborescence dialogues + routeur `_on_suggestion` | ✅ |
+| 4 | `navigate_to()` avec timer 1.5s + `page_changed.emit()` | ✅ |
+| 5 | Persistance historique JSON (`_save_history` / `clear_history`) | ✅ |
+| 6 | Intégration dans `CenterZone` (signal `page_changed`, page `"Accueil"`) | ✅ |
+| 7 | **Champ de saisie** (`QLineEdit` + bouton Envoyer) | ✅ |
+| 8 | **Dictionnaire de connaissances** (`KNOWLEDGE` — 18 entrées) | ✅ |
+| 9 | **Moteur de matching** (`_match_intent` — scoring par mots-clés) | ✅ |
+| 10 | **Exécuteur de combos** (`_execute_actions` — message/delay/navigate) | ✅ |
+| 11 | **UserMessageCard** — messages utilisateur avec style distinct | ✅ |
+| 12 | Bouton 🗑️ dans barre de suggestions + `clear_history()` | ✅ |
+| 13 | Spécification mise à jour (v1) | ✅ |
+| 14 | **Chat init à zéro** — `_load_history()` supprimé de `__init__`, remplacé par `_show_welcome()` + `_check_history_exists()` | ✅ |
+| 15 | **Bouton 🗑️ déplacé** dans la barre de saisie (toujours visible) — `_add_clear_history_btn()` supprimé | ✅ |
+| 16 | **Bouton "📜 Conversation précédente"** — `_restore_history()` avec bug fix (lecture avant clear) | ✅ |
+| 17 | **Bug fix** `_restore_history()` lisait le fichier après l'avoir vidé — maintenant lit d'abord, nettoie sans sauvegarder | ✅ |
+| 18 | Spécification mise à jour (v2) | ✅ |
