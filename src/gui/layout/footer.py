@@ -1,8 +1,7 @@
 """
-Zone Footer — barre de navigation de pages.
+Zone Footer — barre de navigation des 12 bots.
 
-5 boutons : menu_1 à menu_5.
-Chaque bouton change la page affichée dans la zone centrale.
+Chaque bouton = un bot. Change la page affichée dans la zone centrale.
 """
 
 from __future__ import annotations
@@ -26,7 +25,20 @@ class _FooterNavButton(QPushButton):
         self.setCheckable(True)
 
 
-_MENU_ITEMS = ["menu_1", "menu_2", "menu_3", "menu_4", "menu_5"]
+_BOT_NAMES: list[str] = [
+    "Accueil",
+    "Recherche",
+    "Téléchargement",
+    "Wishlist",
+    "Bibliothèque",
+    "Utilisateurs",
+    "Surveillance",
+    "Planificateur",
+    "Nettoyage",
+    "Statistiques",
+    "Assistant",
+    "Aide",
+]
 
 
 class FooterZone(QFrame):
@@ -49,7 +61,7 @@ class FooterZone(QFrame):
         self._buttons: dict[str, _FooterNavButton] = {}
         self._active_button: _FooterNavButton | None = None
 
-        for name in _MENU_ITEMS:
+        for name in _BOT_NAMES:
             btn = _FooterNavButton(name)
             btn.clicked.connect(lambda checked=False, n=name: self._on_button(n))
             layout.addWidget(btn)

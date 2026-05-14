@@ -221,12 +221,20 @@ class ConnexionManager(QObject):
         try:
             username, password = _generer_identifiants()
             logger.info("Tentative de connexion avec le nouveau compte: %s", username)
-            msg = await self._service.connect(username, password)
+            msg = await asyncio.wait_for(
+                self._service.connect(username, password),
+                timeout=30.0,
+            )
             logger.info("Compte créé et connecté: %s", username)
             self.connected.emit(username)
+            self.generating.emit(False)
             self.status_changed.emit(
                 f"✅ Nouveau compte créé — {username}"
             )
+        except TimeoutError:
+            logger.error("Délai de connexion dépassé (30s) — serveur injoignable")
+            self.error_occurred.emit("⏱️ Délai de connexion dépassé. Le serveur Soulseek est peut-être injoignable.")
+            self.generating.emit(False)
         except Exception as e:
             message, _ = traduire(e)
             logger.error(afficher(e))

@@ -7,13 +7,18 @@ et 7 flèches animées pointant vers le footer.
 
 from __future__ import annotations
 
+import html
+import json
 import random
+from pathlib import Path
 
 from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
+    QHBoxLayout,
     QLabel,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -30,8 +35,8 @@ class HomePage(QWidget):
         self._arrow_anims: list[QPropertyAnimation] = []
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(32, 32, 32, 0)
-        outer.setSpacing(0)
+        outer.setContentsMargins(32, 24, 32, 0)
+        outer.setSpacing(12)
 
         # ── Bannière de bienvenue ──
         welcome = QFrame()
@@ -39,11 +44,11 @@ class HomePage(QWidget):
         welcome.setStyleSheet(
             "#homeWelcome {"
             "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 32px;"
+            "  border-radius: 12px; padding: 24px;"
             "}"
         )
         wl = QVBoxLayout(welcome)
-        wl.setSpacing(4)
+        wl.setSpacing(2)
         wl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._home_greeting = QLabel("Bienvenue sur aioslsk")
@@ -68,26 +73,94 @@ class HomePage(QWidget):
         description.setStyleSheet(
             "#homeDescription {"
             "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 32px;"
+            "  border-radius: 12px; padding: 20px;"
             "}"
         )
         dl = QVBoxLayout(description)
-        dl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        dl.setSpacing(10)
 
-        self._home_description = QLabel(
-            "Aucune description renseignée."
+        # Charger les données de description depuis data/description.json
+        desc_path = (
+            Path(__file__).resolve().parent.parent.parent.parent
+            / "data" / "description.json"
         )
-        self._home_description.setStyleSheet(
-            "color: #8a8a9a; font-size: 14px;"
+        try:
+            with open(desc_path, encoding="utf-8") as f:
+                desc_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            desc_data = {"title": "Profil", "categories": []}
+
+        # Titre général
+        title_lbl = QLabel(desc_data.get("title", ""))
+        title_lbl.setStyleSheet(
+            "color: #e4e4ec; font-size: 15px; font-weight: 700;"
         )
-        self._home_description.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._home_description.setWordWrap(True)
-        dl.addWidget(self._home_description)
+        title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        dl.addWidget(title_lbl)
 
-        outer.addWidget(description, 0, Qt.AlignmentFlag.AlignCenter)
+        # Catégories
+        for cat in desc_data.get("categories", []):
+            cat_title = cat.get("title", "")
+            if cat_title:
+                ct = QLabel(cat_title)
+                ct.setStyleSheet(
+                    "color: #a0a0b0; font-size: 11px; font-weight: 600;"
+                    "  letter-spacing: 0.5px;"
+                )
+                ct.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                dl.addWidget(ct)
 
-        # Pousseur pour coller les flèches au bord bas
-        outer.addStretch(1)
+            cols = cat.get("columns", [])
+            if cols:
+                cols_row = QHBoxLayout()
+                cols_row.setSpacing(32)
+                cols_row.setContentsMargins(0, 0, 0, 0)
+
+                for col in cols:
+                    col_vbox = QVBoxLayout()
+                    col_vbox.setSpacing(4)
+                    col_vbox.setContentsMargins(0, 0, 0, 0)
+
+                    for item in col:
+                        label = item.get("label", "")
+                        value = item.get("value", "—")
+                        safe_label = html.escape(label)
+                        safe_value = html.escape(value)
+                        item_html = (
+                            "<span style='color:#8a8a9a;font-size:12px;'>"
+                            f"{safe_label} :</span> "
+                            "<span style='color:#e4e4ec;font-size:12px;"
+                            f"font-weight:600;'>{safe_value}</span>"
+                        )
+                        iw = QLabel(item_html)
+                        iw.setTextFormat(Qt.TextFormat.RichText)
+                        iw.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        col_vbox.addWidget(iw)
+
+                    cols_row.addLayout(col_vbox)
+
+                dl.addLayout(cols_row)
+
+        dl.addStretch(1)
+
+        # Ligne descriptive : 70% de large, prend la hauteur dispo
+        desc_scroll = QScrollArea()
+        desc_scroll.setWidget(description)
+        desc_scroll.setWidgetResizable(True)
+        desc_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        desc_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        desc_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        desc_row = QHBoxLayout()
+        desc_row.setContentsMargins(0, 0, 0, 0)
+        desc_row.addStretch(15)
+        desc_row.addWidget(desc_scroll, 70)
+        desc_row.addStretch(15)
+        outer.addLayout(desc_row, 1)
 
         # ── Flèches animées pointant vers le footer ──
         self._build_home_arrows(outer)
@@ -122,12 +195,12 @@ class HomePage(QWidget):
         gap = 4         # écart entre les flèches
         margin = 24      # marge gauche/droite du container
 
-        bounce_offset = 36  # rebond en pixels
+        bounce_offset = 24  # rebond en pixels
 
         n_arrows = 7
         container_w = margin * 2 + n_arrows * arrow_w + (n_arrows - 1) * gap
-        container_h = arrow_h + 12 + bounce_offset  # espace pour le rebond
-        y = 6  # padding haut fixe de 6px
+        container_h = arrow_h + 6 + bounce_offset  # espace pour le rebond
+        y = 2  # padding haut fixe
 
         # Container (pas de layout — positionnement absolu pour animer pos)
         arrows_container = QWidget()
@@ -145,7 +218,7 @@ class HomePage(QWidget):
 
             # Animation de rebond vertical
             start_pos = arrow.pos()
-            end_pos = QPoint(start_pos.x(), start_pos.y() + 36)
+            end_pos = QPoint(start_pos.x(), start_pos.y() + bounce_offset)
             bounce = QPropertyAnimation(arrow, b"pos")  # type: ignore[arg-type]
             bounce.setDuration(600)
             bounce.setLoopCount(-1)
@@ -164,11 +237,13 @@ class HomePage(QWidget):
             fade.setKeyValueAt(0.5, 1.0)
             fade.setKeyValueAt(1.0, 0.4)
 
-            # Départ aléatoire pour chaque flèche (0-1400ms)
-            delay = random.randint(0, 1400)
-            QTimer.singleShot(delay, bounce.start)
-            QTimer.singleShot(delay, fade.start)
-
             self._arrow_anims.extend([bounce, fade])
+
+        # Délais uniques répartis sur 0-2000ms puis mélangés
+        delays = list(range(0, 2000, 2000 // n_arrows + 1))[:n_arrows]
+        random.shuffle(delays)
+        for i, arrow in enumerate(self._arrow_anims):
+            if isinstance(arrow, QPropertyAnimation):
+                QTimer.singleShot(delays[i // 2], arrow.start)
 
         outer.addWidget(arrows_container, 0, Qt.AlignmentFlag.AlignCenter)

@@ -116,8 +116,21 @@ class CenterZone(QFrame):
         # Pages de configuration — remplies avec les vraies options
         self._build_config_pages()
 
-        # Pages du footer (menus)
-        for name in ("menu_1", "menu_2", "menu_3", "menu_4", "menu_5"):
+        # Pages du footer (12 bots)
+        for name in (
+            "Accueil",
+            "Recherche",
+            "Téléchargement",
+            "Wishlist",
+            "Bibliothèque",
+            "Utilisateurs",
+            "Surveillance",
+            "Planificateur",
+            "Nettoyage",
+            "Statistiques",
+            "Assistant",
+            "Aide",
+        ):
             self._build_menu_page(name)
 
         # Connexion des signaux d'événements Soulseek
@@ -678,7 +691,7 @@ class CenterZone(QFrame):
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(8)
 
-        title = QLabel(f"Menu : {name}")
+        title = QLabel(f"Bot : {name}")
         title.setStyleSheet(
             "color: #6c5ce7; font-size: 16px; font-weight: 700;"
         )
@@ -686,8 +699,8 @@ class CenterZone(QFrame):
         lay.addWidget(title)
 
         placeholder = QLabel(
-            f"Contenu de la page {name}\n"
-            "(à venir)"
+            f"Interface du bot {name}\n"
+            "(en construction)"
         )
         placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder.setStyleSheet("color: #3a3a4a; font-size: 12px;")

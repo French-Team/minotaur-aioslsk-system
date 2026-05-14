@@ -1,0 +1,35 @@
+{
+  "title": "L'Armée des 12 Bots",
+  "categories": [
+    {
+      "title": "🎯 Essentiels",
+      "columns": [
+        [
+          { "label": "Accueil", "value": "Hub central, stats & bienvenue" },
+          { "label": "Recherche", "value": "Trouver des fichiers sur Soulseek" },
+          { "label": "Téléchargement", "value": "Gérer, suivre & prioriser les DL" },
+          { "label": "Wishlist", "value": "Souhaits & téléchargement automatique" }
+        ],
+        [
+          { "label": "Bibliothèque", "value": "Explorer les fichiers téléchargés" },
+          { "label": "Utilisateurs", "value": "Amis, bloqués & historique" },
+          { "label": "Surveillance", "value": "Notifications & alertes en direct" },
+          { "label": "Planificateur", "value": "Recherches & actions planifiées" }
+        ]
+      ]
+    },
+    {
+      "title": "⚙️ Organisation & Assistance",
+      "columns": [
+        [
+          { "label": "Nettoyage", "value": "Trier, renommer & organiser les DL" },
+          { "label": "Statistiques", "value": "Tableau de bord & historique" }
+        ],
+        [
+          { "label": "Assistant", "value": "Configuration guidée pas à pas" },
+          { "label": "Aide", "value": "Guide interactif & explications" }
+        ]
+      ]
+    }
+  ]
+}
