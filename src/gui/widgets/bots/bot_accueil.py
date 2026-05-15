@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.widgets.bots.bot_accueil_knowledge import KNOWLEDGE
+from src.gui.theme_fragments.colors import COLORS
 
 
 # ── Sous-composants ─────────────────────────────────────────────
@@ -37,7 +38,7 @@ class MessageCard(QFrame):
         self.setObjectName("messageCard")
         self.setStyleSheet(
             "#messageCard {"
-            "  background: #2a2a3a; border: 1px solid #3a3a4a;"
+            f"  background: {COLORS['BG_HOVER']}; border: 1px solid {COLORS['TEXT_PLACEHOLDER']};"
             "  border-radius: 8px; padding: 12px;"
             "}"
         )
@@ -59,7 +60,7 @@ class MessageCard(QFrame):
         text_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         text_lbl.setTextFormat(Qt.TextFormat.RichText)
         text_lbl.setStyleSheet(
-            "color: #e4e4ec; font-size: 13px;"
+            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px;"
             " background: transparent; border: none;"
         )
         layout.addWidget(text_lbl, 1)
@@ -73,7 +74,7 @@ class UserMessageCard(QFrame):
         self.setObjectName("userMessageCard")
         self.setStyleSheet(
             "#userMessageCard {"
-            "  background: #1e1e2e; border: 1px solid #3a3a5a;"
+            f"  background: {COLORS['BG_INPUT']}; border: 1px solid {COLORS['BORDER_CONFIG']};"
             "  border-radius: 8px; padding: 10px;"
             "}"
         )
@@ -94,7 +95,7 @@ class UserMessageCard(QFrame):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
         text_lbl.setStyleSheet(
-            "color: #a0a0d0; font-size: 13px; font-style: italic;"
+            f"color: {COLORS['TEXT_SURFACE']}; font-size: 13px; font-style: italic;"
             " background: transparent; border: none;"
         )
         layout.addWidget(text_lbl, 1)
@@ -109,15 +110,15 @@ class _SuggestionButton(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(
             "QPushButton {"
-            "  background: #2d2d3d; color: #c0c0d0;"
-            "  border: 1px solid #4a4a5a; border-radius: 16px;"
+            f"  background: {COLORS['BG_HOVER']}; color: {COLORS['TEXT_TERTIARY']};"
+            f"  border: 1px solid {COLORS['BG_BTN_PRESSED']}; border-radius: 16px;"
             "  padding: 8px 16px; font-size: 12px;"
             "}"
             "QPushButton:hover {"
-            "  background: #3d3d4d; border-color: #6c5ce7; color: #e4e4ec;"
+            f"  background: {COLORS['BG_BTN_DISABLED']}; border-color: {COLORS['ACCENT']}; color: {COLORS['TEXT_PRIMARY']};"
             "}"
             "QPushButton:pressed {"
-            "  background: #4a4a5a;"
+            f"  background: {COLORS['BG_BTN_PRESSED']};"
             "}"
         )
 
@@ -207,12 +208,12 @@ class BotAccueil(QFrame):
         self._input_field.setPlaceholderText("Écris ton message ici…")
         self._input_field.setStyleSheet(
             "QLineEdit {"
-            "  background: #1e1e2e; color: #e4e4ec;"
-            "  border: 1px solid #3a3a4a; border-radius: 12px;"
+            f"  background: {COLORS['BG_INPUT']}; color: {COLORS['TEXT_PRIMARY']};"
+            f"  border: 1px solid {COLORS['TEXT_PLACEHOLDER']}; border-radius: 12px;"
             "  padding: 8px 14px; font-size: 13px;"
             "}"
             "QLineEdit:focus {"
-            "  border-color: #6c5ce7;"
+            f"  border-color: {COLORS['ACCENT']};"
             "}"
         )
 
@@ -220,18 +221,18 @@ class BotAccueil(QFrame):
         self._send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._send_btn.setStyleSheet(
             "QPushButton {"
-            "  background: #6c5ce7; color: white;"
+            f"  background: {COLORS['ACCENT']}; color: {COLORS['TEXT_WHITE']};"
             "  border: none; border-radius: 12px;"
             "  padding: 8px 18px; font-size: 13px;"
             "}"
             "QPushButton:hover {"
-            "  background: #7c6cf7;"
+            f"  background: {COLORS['ACCENT_HOVER']};"
             "}"
             "QPushButton:pressed {"
-            "  background: #5b4cd6;"
+            f"  background: {COLORS['ACCENT_HOVER']};"
             "}"
             "QPushButton:disabled {"
-            "  background: #3a3a4a; color: #6a6a7a;"
+            f"  background: {COLORS['TEXT_PLACEHOLDER']}; color: {COLORS['TEXT_DISABLED']};"
             "}"
         )
 
@@ -244,12 +245,12 @@ class BotAccueil(QFrame):
         self._clear_chat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._clear_chat_btn.setStyleSheet(
             "QPushButton {"
-            "  background: transparent; color: #5a5a6a;"
-            "  border: 1px solid #3a3a4a; border-radius: 12px;"
+            f"  background: transparent; color: {COLORS['TEXT_MUTED']};"
+            f"  border: 1px solid {COLORS['TEXT_PLACEHOLDER']}; border-radius: 12px;"
             "  padding: 8px 10px; font-size: 12px;"
             "}"
             "QPushButton:hover {"
-            "  background: #2a2a3a; color: #e4e4ec; border-color: #e74c3c;"
+            f"  background: {COLORS['BG_HOVER']}; color: {COLORS['TEXT_PRIMARY']}; border-color: {COLORS['DANGER_BTN']};"
             "}"
         )
         self._clear_chat_btn.clicked.connect(self._on_clear_history)

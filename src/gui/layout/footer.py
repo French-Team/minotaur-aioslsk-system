@@ -31,7 +31,7 @@ _BOT_NAMES: list[str] = [
     "Téléchargement",
     "Wishlist",
     "Bibliothèque",
-    "Utilisateurs",
+    "Optimiseur",
     "Surveillance",
     "Planificateur",
     "Nettoyage",

@@ -32,11 +32,14 @@ from src.gui.widgets.config import (
 )
 from src.gui.widgets.connexions import ConnexionPage
 from src.gui.widgets.bots.bot_accueil import BotAccueil
+from src.gui.widgets.bots.bot_optimiseur import BotOptimiseur
+from src.gui.widgets.bots.bot_bibliotheque import BotBibliotheque
 from src.gui.widgets.bots.bot_wishlist import BotWishlist
 from src.gui.widgets.bots.bot_recherche import BotRecherche
 from src.gui.widgets.home import HomePage
 from src.gui.widgets.telechargements import TelechargementsPage
 from src.services.soulseek_client import soulseek_service
+from src.gui.theme_fragments.colors import COLORS
 
 import logging
 
@@ -122,8 +125,6 @@ class CenterZone(QFrame):
         # Pages du footer (bots)
         for name in (
             "Téléchargement",
-            "Bibliothèque",
-            "Utilisateurs",
             "Surveillance",
             "Planificateur",
             "Nettoyage",
@@ -133,6 +134,9 @@ class CenterZone(QFrame):
         ):
             self._build_menu_page(name)
 
+        # Page Bibliothèque (exploration des fichiers partagés)
+        self._build_bibliotheque_page()
+
         # Page Recherche (tableau de bord dédié)
         self._build_recherche_page()
 
@@ -141,6 +145,9 @@ class CenterZone(QFrame):
 
         # Page du bot Accueil (hub conversationnel)
         self._build_accueil_page()
+
+        # Page du bot Optimiseur (tableau de bord d'optimisation)
+        self._build_optimiseur_page()
 
         # Connexion des signaux d'événements Soulseek
         self._connect_event_signals()
@@ -239,6 +246,22 @@ class CenterZone(QFrame):
         self._stack.addWidget(page)
         page.page_changed.connect(self.show_page)
 
+    def _build_optimiseur_page(self) -> None:
+        """Page du bot Optimiseur — tableau de bord d'optimisation centralisé."""
+        page = BotOptimiseur(center_zone=self)
+        self._bot_optimiseur = page
+        self._pages["Optimiseur"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+
+    def _build_bibliotheque_page(self) -> None:
+        """Page Bibliothèque — exploration des fichiers partagés Soulseek."""
+        page = BotBibliotheque()
+        self._bibliotheque_page = page
+        self._pages["Bibliothèque"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+
     def _build_wishlist_page(self) -> None:
         """Page Wishlist — tableau de bord des souhaits automatiques."""
         page = BotWishlist()
@@ -289,8 +312,8 @@ class CenterZone(QFrame):
         preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         preview.setFixedHeight(120)
         preview.setStyleSheet(
-            "padding: 8px; background: #16161e; border: 1px solid #2e2e3a;"
-            " border-radius: 6px;"
+            f"padding: 8px; background: {COLORS['BG_SIDE']};"
+            f" border: 1px solid {COLORS['BORDER']}; border-radius: 6px;"
         )
         preview.setVisible(False)
         self._photo_preview = preview
@@ -726,7 +749,7 @@ class CenterZone(QFrame):
 
         title = QLabel(f"Bot : {name}")
         title.setStyleSheet(
-            "color: #6c5ce7; font-size: 16px; font-weight: 700;"
+            f"color: {COLORS['ACCENT']}; font-size: 16px; font-weight: 700;"
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(title)
@@ -736,7 +759,9 @@ class CenterZone(QFrame):
             "(en construction)"
         )
         placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #3a3a4a; font-size: 12px;")
+        placeholder.setStyleSheet(
+            f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 12px;"
+        )
         lay.addWidget(placeholder)
 
         lay.addStretch(1)

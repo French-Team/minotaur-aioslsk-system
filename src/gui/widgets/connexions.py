@@ -26,9 +26,9 @@ from src.gui.theme_fragments.colors import COLORS
 
 # ── Couleurs du voyant ──────────────────────────────────────────
 
-_LED_OFF = "#3a3a4a"
-_LED_GREEN = "#00e676"
-_LED_RED = "#ff5252"
+_LED_OFF = COLORS['TEXT_PLACEHOLDER']
+_LED_GREEN = COLORS['SUCCESS']
+_LED_RED = COLORS['DANGER']
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -87,10 +87,10 @@ class ConnexionHeaderWidget(QFrame):
         initial = username[0].upper() if username else "?"
         self._avatar.setText(initial)
         self._avatar.setStyleSheet(
-            "background-color: #6c5ce7; color: #ffffff;"
-            " font-weight: 700; font-size: 15px; border-radius: 18px;"
-            " border: 2px solid #2e2e3a;"
-            " min-width: 36px; min-height: 36px;"
+            f"background-color: {COLORS['ACCENT']}; color: {COLORS['TEXT_WHITE']};"
+            f" font-weight: 700; font-size: 15px; border-radius: 18px;"
+            f" border: 2px solid {COLORS['BG_BTN']};"
+            f" min-width: 36px; min-height: 36px;"
         )
 
     def set_photo(self, path: str) -> None:
@@ -159,7 +159,7 @@ class ConnexionPage(QFrame):
         # ── Titre ──
         title = QLabel("Connexion Soulseek")
         title.setStyleSheet(
-            "color: #6c5ce7; font-size: 18px; font-weight: 700;"
+            f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;"
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(title)
@@ -177,7 +177,7 @@ class ConnexionPage(QFrame):
 
         self._page_status = QLabel("Déconnecté")
         self._page_status.setStyleSheet(
-            "color: #5a5a6a; font-size: 13px; font-weight: 600;"
+            f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; font-weight: 600;"
         )
         status_row.addWidget(self._page_status)
         lay.addLayout(status_row)
@@ -185,7 +185,7 @@ class ConnexionPage(QFrame):
         # ── Séparateur ──
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.HLine)
-        sep1.setStyleSheet("color: #2e2e3a;")
+        sep1.setStyleSheet("color: {COLORS['BG_BTN']};")
         lay.addWidget(sep1)
 
         # ── Formulaire ──
@@ -210,12 +210,12 @@ class ConnexionPage(QFrame):
         # ── Séparateur + section nouveau compte ──
         self._sep2 = QFrame()
         self._sep2.setFrameShape(QFrame.HLine)
-        self._sep2.setStyleSheet("color: #2e2e3a;")
+        self._sep2.setStyleSheet("color: {COLORS['BG_BTN']};")
         lay.addWidget(self._sep2)
 
         self._new_label = QLabel("Nouveau sur Soulseek ?")
         self._new_label.setStyleSheet(
-            "color: #8a8a9a; font-size: 12px; font-weight: 600;"
+            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px; font-weight: 600;"
         )
         self._new_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(self._new_label)
@@ -224,7 +224,7 @@ class ConnexionPage(QFrame):
             "Générez un identifiant et un mot de passe "
             "pour créer votre compte sans pré-inscription."
         )
-        self._info_new.setStyleSheet("color: #5a5a6a; font-size: 11px;")
+        self._info_new.setStyleSheet("color: {COLORS['TEXT_MUTED']}; font-size: 11px;")
         self._info_new.setWordWrap(True)
         self._info_new.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(self._info_new)
@@ -264,7 +264,7 @@ class ConnexionPage(QFrame):
         else:
             self._page_status.setText("Connecté")
         self._page_status.setStyleSheet(
-            "color: #00e676; font-size: 13px; font-weight: 600;"
+            f"color: {COLORS['SUCCESS']}; font-size: 13px; font-weight: 600;"
         )
         self._username.setVisible(False)
         self._password.setVisible(False)
@@ -283,7 +283,7 @@ class ConnexionPage(QFrame):
         )
         self._page_status.setText("Déconnecté")
         self._page_status.setStyleSheet(
-            "color: #5a5a6a; font-size: 13px; font-weight: 600;"
+            f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; font-weight: 600;"
         )
         self._username.setVisible(True)
         self._password.setVisible(True)
@@ -302,22 +302,22 @@ class ConnexionPage(QFrame):
         self._generate_btn.setEnabled(not in_progress)
         if in_progress:
             self._page_led.setStyleSheet(
-                "color: #ffab00; font-size: 16px; background: transparent;"
+                f"color: {COLORS['WARNING']}; font-size: 16px; background: transparent;"
             )
-            self._set_message("Génération du compte...", "#ffab00")
+            self._set_message("Génération du compte...", COLORS['WARNING'])
         else:
             self._page_led.setStyleSheet(
-                "color: #ff5252; font-size: 16px; background: transparent;"
+                f"color: {COLORS['DANGER']}; font-size: 16px; background: transparent;"
             )
             self._set_message("", "")
 
     def show_error(self, msg: str) -> None:
         """Affiche un message d'erreur."""
-        self._set_message(msg, "#ff5252")
+        self._set_message(msg, COLORS['DANGER'])
 
     def show_success(self, msg: str) -> None:
         """Affiche un message de succès."""
-        self._set_message(msg, "#00e676")
+        self._set_message(msg, COLORS['SUCCESS'])
 
     def get_username(self) -> str:
         return self._username.text().strip()

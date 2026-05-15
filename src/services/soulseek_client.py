@@ -189,6 +189,9 @@ class SoulseekService(QObject):
     private_message_received = Signal(object)  # PrivateMessageEvent
     room_message_received = Signal(object)  # RoomMessageEvent
 
+    # Signaux — Connexion
+    connection_changed = Signal(bool)  # True = connecté, False = déconnecté
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._client: SoulSeekClient | None = None
@@ -393,10 +396,12 @@ class SoulseekService(QObject):
             await self._client.start()
             await self._client.login()
             self._running = True
+            self.connection_changed.emit(True)
             logger.info("Connecté à Soulseek en tant que %s", username)
             return f"Connecté à Soulseek en tant que {username}"
         except Exception as e:
             self._running = False
+            self.connection_changed.emit(False)
             await self._cleanup_client()
             logger.error("Échec de connexion: %s", e)
             raise
@@ -412,6 +417,7 @@ class SoulseekService(QObject):
             return "Pas de connexion active"
 
         self._running = False
+        self.connection_changed.emit(False)
         await self._cleanup_client()
         logger.info("Déconnecté de Soulseek")
         return "Déconnecté de Soulseek"

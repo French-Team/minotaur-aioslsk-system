@@ -1,0 +1,46 @@
+{
+  "name": "Puissance Max",
+  "icon": "🚀",
+  "description": "Optimise les paramètres pour la performance maximale — bande passante illimitée, connexion rapide, téléchargements parallèles",
+  "order": 2,
+  "params": {
+    "reseau": {
+      "reseau.upnp": false,
+      "reseau.port_ecoute": 60000,
+      "reseau.port_obfusque": 60001,
+      "reseau.obfuscation_p2p": false,
+      "reseau.mode_connexion_peer": "race",
+      "reseau.limite_upload_kbps": 0,
+      "reseau.limite_download_kbps": 0,
+      "reseau.reconnexion_auto": true,
+      "reseau.reconnexion_timeout": 5,
+      "reseau.hote_serveur": "server.slsknet.org",
+      "reseau.port_serveur": 2416,
+      "reseau.mode_erreur_ecoute": "clear",
+      "reseau.duree_bail_upnp": 3600,
+      "reseau.intervalle_upnp": 120,
+      "reseau.timeout_upnp": 5
+    },
+    "recherche": {
+      "recherche.nb_resultats_max": 250,
+      "recherche.nb_max_memoire": 1000,
+      "recherche.stocker_resultats": true,
+      "recherche.timeout_requete": 30,
+      "recherche.timeout_souhaits": 30,
+      "recherche.souhaits": ""
+    },
+    "telechargement": {
+      "telechargement.slots_upload": 6,
+      "telechargement.intervalle_rapport": 100
+    },
+    "salons": {
+      "salons.auto_join": true,
+      "salons.invitations_privees": true,
+      "salons.favoris": ""
+    },
+    "debug": {
+      "debug.search_for_parent": true,
+      "debug.log_connection_count": false
+    }
+  }
+}

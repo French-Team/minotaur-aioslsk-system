@@ -1,0 +1,46 @@
+{
+  "name": "Extrême",
+  "icon": "🔥",
+  "description": "Débloque tous les paramètres au maximum — tout débrider, résultats massifs, reconnexion instantanée, surveillance en temps réel",
+  "order": 3,
+  "params": {
+    "reseau": {
+      "reseau.upnp": false,
+      "reseau.port_ecoute": 2242,
+      "reseau.port_obfusque": 2243,
+      "reseau.obfuscation_p2p": true,
+      "reseau.mode_connexion_peer": "race",
+      "reseau.limite_upload_kbps": 0,
+      "reseau.limite_download_kbps": 0,
+      "reseau.reconnexion_auto": true,
+      "reseau.reconnexion_timeout": 2,
+      "reseau.hote_serveur": "server.slsknet.org",
+      "reseau.port_serveur": 2416,
+      "reseau.mode_erreur_ecoute": "retry",
+      "reseau.duree_bail_upnp": 1800,
+      "reseau.intervalle_upnp": 60,
+      "reseau.timeout_upnp": 3
+    },
+    "recherche": {
+      "recherche.nb_resultats_max": 500,
+      "recherche.nb_max_memoire": 2000,
+      "recherche.stocker_resultats": true,
+      "recherche.timeout_requete": 60,
+      "recherche.timeout_souhaits": 60,
+      "recherche.souhaits": ""
+    },
+    "telechargement": {
+      "telechargement.slots_upload": 10,
+      "telechargement.intervalle_rapport": 50
+    },
+    "salons": {
+      "salons.auto_join": true,
+      "salons.invitations_privees": true,
+      "salons.favoris": ""
+    },
+    "debug": {
+      "debug.search_for_parent": true,
+      "debug.log_connection_count": true
+    }
+  }
+}

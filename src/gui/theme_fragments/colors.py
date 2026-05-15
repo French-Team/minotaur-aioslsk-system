@@ -3,6 +3,19 @@ Palette de couleurs centralisée.
 Toutes les couleurs utilisées dans l'interface sont définies ici.
 """
 
+def rgba(hex_color: str, alpha_hex: str) -> str:
+    """Convertir une couleur hex + alpha hex en rgba() compatible Qt.
+
+    Qt Style Sheets ne supporte pas le format #RRGGBBAA.
+    Exemple : rgba('#6c5ce7', '44') -> 'rgba(108, 92, 231, 0.267)'
+    """
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+    a = round(int(alpha_hex, 16) / 255, 3)
+    return f"rgba({r}, {g}, {b}, {a})"
+
+
 COLORS = {
     "BG_MAIN":        "#0f0f13",
     "BG_DARK":        "#0a0a0f",
@@ -41,6 +54,25 @@ COLORS = {
     "DANGER_BG_HOVER":  "#2e1a1a",
     "DANGER_BG_PRESSED":"#1e1010",
     "WARNING":          "#ffab00",
+
+    # Nuances BotBibliothèque (violet, grilles, inputs)
+    "ACCENT":           "#6c5ce7",   # Violet principal (boutons, highlights)
+    "ACCENT_HOVER":     "#5a4bd1",   # Violet survol
+    "BG_INPUT":         "#1e1e2e",   # Fond inputs, tableaux
+    "GRIDLINE":         "#2a2a3e",   # Lignes de grille/séparation
+    "BG_TABLE_HEADER":  "#181825",   # Fond en-tête tableau
+    "TEXT_INPUT":       "#cdd6f4",   # Texte sur inputs
+    "TEXT_SURFACE":     "#a6adc8",   # Texte secondaire surfaces
+
+    # Statistiques Bibliothèque
+    "STAT_FILES":       "#00b894",   # Vert fichiers
+    "STAT_FILES_HOVER": "#00a381",   # Vert fichiers survol
+    "STAT_AUDIO":       "#fdcb6e",   # Jaune audio
+
+    # Nuances danger spécifiques
+    "DANGER_BTN":       "#e74c3c",   # Rouge bouton supprimer
+    "DANGER_BTN_HOVER": "#c0392b",   # Rouge bouton supprimer survol
+
     "BORDER":          "#2e2e3a",
     "BORDER_LIGHT":    "#3a3a4a",
     "BORDER_HOVER":    "#4a4a5a",

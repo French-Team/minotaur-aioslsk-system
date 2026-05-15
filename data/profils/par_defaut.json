@@ -1,0 +1,63 @@
+{
+  "name": "Par défaut",
+  "icon": "📋",
+  "description": "Rétablit tous les paramètres aux valeurs d'usine par défaut",
+  "order": 1,
+  "params": {
+    "general": {
+      "general.scan_on_start": true,
+      "general.description_profil": "",
+      "general.photo_profil": "",
+      "general.interets_aimes": "",
+      "general.interets_detestes": ""
+    },
+    "reseau": {
+      "reseau.upnp": false,
+      "reseau.port_ecoute": 60000,
+      "reseau.port_obfusque": 60001,
+      "reseau.obfuscation_p2p": false,
+      "reseau.mode_connexion_peer": "race",
+      "reseau.limite_upload_kbps": 0,
+      "reseau.limite_download_kbps": 0,
+      "reseau.reconnexion_auto": false,
+      "reseau.reconnexion_timeout": 10,
+      "reseau.hote_serveur": "server.slsknet.org",
+      "reseau.port_serveur": 2416,
+      "reseau.mode_erreur_ecoute": "clear",
+      "reseau.duree_bail_upnp": 21600,
+      "reseau.intervalle_upnp": 600,
+      "reseau.timeout_upnp": 10
+    },
+    "recherche": {
+      "recherche.nb_resultats_max": 100,
+      "recherche.nb_max_memoire": 500,
+      "recherche.stocker_resultats": true,
+      "recherche.timeout_requete": 0,
+      "recherche.timeout_souhaits": -1,
+      "recherche.souhaits": ""
+    },
+    "telechargement": {
+      "telechargement.slots_upload": 2,
+      "telechargement.dossier_destination": "",
+      "telechargement.intervalle_rapport": 250
+    },
+    "partages": {
+      "partages.dossier_1_chemin": "",
+      "partages.dossier_1_mode": "everyone",
+      "partages.dossier_1_utilisateurs": "",
+      "partages.dossier_2_chemin": "",
+      "partages.dossier_2_mode": "everyone",
+      "partages.dossier_2_utilisateurs": ""
+    },
+    "salons": {
+      "salons.auto_join": true,
+      "salons.invitations_privees": true,
+      "salons.favoris": ""
+    },
+    "debug": {
+      "debug.search_for_parent": false,
+      "debug.ip_overrides": "",
+      "debug.log_connection_count": false
+    }
+  }
+}

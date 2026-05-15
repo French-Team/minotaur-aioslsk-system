@@ -4,6 +4,7 @@ from .colors import COLORS
 
 from .base import CSS as _CSS_base
 from .layout import CSS as _CSS_layout
+from .bibliotheque import CSS as _CSS_bibliotheque
 from .connexion import CSS as _CSS_connexion
 from .progression import CSS as _CSS_progression
 from .clients import CSS as _CSS_clients
@@ -18,6 +19,7 @@ from .scrollbars import CSS as _CSS_scrollbars
 TEMPLATE = (
     _CSS_base + "\n\n" +
     _CSS_layout + "\n\n" +
+    _CSS_bibliotheque + "\n\n" +
     _CSS_connexion + "\n\n" +
     _CSS_progression + "\n\n" +
     _CSS_clients + "\n\n" +

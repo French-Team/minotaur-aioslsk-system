@@ -81,11 +81,29 @@ KNOWLEDGE: dict[str, dict] = {
         "keywords": [
             "bibliothèque", "bibliotheque", "library", "biblio",
             "explorer", "parcourir", "dossier", "dossiers",
+            "fichier partagé", "fichiers partagés",
+            "fichier local", "fichiers locaux",
+            "scanne", "scan", "scanner",
+            "scan bibliothèque", "bibliothèque partagée",
+            "partage", "partagé", "shared",
+            "dossier partagé", "dossiers partagés",
         ],
         "icon": "📚",
-        "response": "Le bot <b>Bibliothèque</b> te permet d'explorer "
-                    "et de parcourir les fichiers partagés. "
-                    "Je te dirige vers lui !",
+        "response": "Le bot <b>Bibliothèque</b> est ton explorateur "
+                    "de fichiers partagés !<br><br>"
+                    "🔹 <b>Scan</b> — analyse tes dossiers partagés "
+                    "avec progression en direct<br>"
+                    "🔹 <b>Arborescence</b> — navigue par dossier "
+                    "dans l'arbre à gauche<br>"
+                    "🔹 <b>Tableau</b> — tous les fichiers avec "
+                    "nom, taille, durée, débit, dossier<br>"
+                    "🔹 <b>Recherche</b> — filtre par mot-clé "
+                    "dans un dossier ou partout<br>"
+                    "🔹 <b>Tris</b> — clique sur les en-têtes "
+                    "de colonne pour trier<br>"
+                    "🔹 <b>Menu contextuel</b> — infos, lecture, "
+                    "suppression au clic droit<br><br>"
+                    "Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Bibliothèque"},
         ],

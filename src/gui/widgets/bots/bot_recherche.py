@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.theme_fragments.colors import COLORS
+from src.gui.theme_fragments.colors import COLORS, rgba
 from src.services.search_history import SearchHistory
 
 if TYPE_CHECKING:
@@ -350,7 +350,7 @@ class FiltresRechercheModal(QDialog):
             f"""
             QPushButton {{
                 background: {COLORS['PRIMARY']};
-                color: #ffffff;
+                color: {COLORS['TEXT_WHITE']};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 20px;
@@ -544,7 +544,7 @@ class HistoryPopup(QDialog):
                     text-align: left;
                 }}
                 QPushButton:hover {{
-                    background: {COLORS['PRIMARY']}15;
+                    background: rgba(COLORS['PRIMARY'], '15');
                     border-color: {COLORS['PRIMARY']};
                 }}
                 """
@@ -581,9 +581,9 @@ class HistoryPopup(QDialog):
                     padding: 0;
                 }}
                 QPushButton:hover {{
-                    color: #e74c3c;
-                    background: #e74c3c15;
-                    border-color: #e74c3c40;
+                    color: {COLORS['DANGER_BTN']};
+                    background: {COLORS['DANGER_BG_HOVER']};
+                    border-color: {COLORS['DANGER_BTN']};
                 }}
                 """
             )
@@ -647,15 +647,15 @@ class HistoryPopup(QDialog):
             f"""
             #clearHistoryBtn {{
                 background: transparent;
-                color: #e74c3c;
-                border: 1px solid #e74c3c;
+                color: {COLORS['DANGER_BTN']};
+                border: 1px solid {COLORS['DANGER_BTN']};
                 border-radius: 6px;
                 padding: 8px 14px;
                 font-size: 12px;
                 font-weight: 600;
             }}
             #clearHistoryBtn:hover {{
-                background: #e74c3c15;
+                background: {COLORS['DANGER_BG_HOVER']};
             }}
             """
         )
@@ -670,7 +670,7 @@ class HistoryPopup(QDialog):
             f"""
             QPushButton {{
                 background: {COLORS['PRIMARY']};
-                color: #ffffff;
+                color: {COLORS['TEXT_WHITE']};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 20px;
@@ -760,9 +760,9 @@ class BotRecherche(QFrame):
         self._filtres_badge = QLabel("")
         self._filtres_badge.setStyleSheet(
             f"""
-            color: {COLORS.get('ACCENT', '#e67e22')};
-            background: {COLORS.get('ACCENT', '#e67e22')}20;
-            border: 1px solid {COLORS.get('ACCENT', '#e67e22')};
+            color: {COLORS['WARNING']};
+            background: rgba(COLORS['WARNING'], '20');
+            border: 1px solid {COLORS['WARNING']};
             border-radius: 8px;
             padding: 2px 8px;
             font-size: 10px;
@@ -805,7 +805,7 @@ class BotRecherche(QFrame):
         self._audio_filter_btn.setStyleSheet(
             f"""
             #audioFilterBtn {{
-                background: {COLORS['PRIMARY']}20;
+                background: rgba(COLORS['PRIMARY'], '20');
                 color: {COLORS['PRIMARY']};
                 border: 1px solid {COLORS['PRIMARY']};
                 border-radius: 6px;
@@ -814,7 +814,7 @@ class BotRecherche(QFrame):
                 font-weight: 600;
             }}
             #audioFilterBtn:checked {{
-                background: {COLORS['PRIMARY']}20;
+                background: rgba(COLORS['PRIMARY'], '20');
                 border-color: {COLORS['PRIMARY']};
                 color: {COLORS['PRIMARY']};
             }}
@@ -850,13 +850,13 @@ class BotRecherche(QFrame):
                 font-weight: 600;
             }}
             #modeDispoBtn:checked {{
-                background: #27ae6030;
-                border-color: #27ae60;
-                color: #27ae60;
+                background: rgba(COLORS['SUCCESS'], '30');
+                border-color: {COLORS['SUCCESS']};
+                color: {COLORS['SUCCESS']};
             }}
             #modeDispoBtn:hover {{
-                border-color: #27ae60;
-                color: #27ae60;
+                border-color: {COLORS['SUCCESS']};
+                color: {COLORS['SUCCESS']};
             }}
             """
         )
@@ -872,8 +872,8 @@ class BotRecherche(QFrame):
         self._browse_banner.setStyleSheet(
             f"""
             #browseBanner {{
-                background: {COLORS['PRIMARY']}15;
-                border: 1px solid {COLORS['PRIMARY']}40;
+                background: rgba(COLORS['PRIMARY'], '15');
+                border: 1px solid rgba(COLORS['PRIMARY'], '40');
                 border-radius: 6px;
                 padding: 6px 10px;
             }}
@@ -929,8 +929,8 @@ class BotRecherche(QFrame):
         self._room_banner.setStyleSheet(
             f"""
             #roomBanner {{
-                background: #e67e2215;
-                border: 1px solid #e67e2240;
+                background: rgba(COLORS['WARNING'], '15');
+                border: 1px solid rgba(COLORS['WARNING'], '40');
                 border-radius: 6px;
                 padding: 6px 10px;
             }}
@@ -950,7 +950,7 @@ class BotRecherche(QFrame):
 
         self._room_label = QLabel("")
         self._room_label.setStyleSheet(
-            f"color: #e67e22; font-size: 13px; font-weight: 600; "
+            f"color: {COLORS['WARNING']}; font-size: 13px; font-weight: 600; "
             f"background: transparent; border: none;"
         )
         room_banner_layout.addWidget(self._room_label, 1)
@@ -970,8 +970,8 @@ class BotRecherche(QFrame):
                 font-weight: 600;
             }}
             #roomBackBtn:hover {{
-                border-color: #e67e22;
-                color: #e67e22;
+                border-color: {COLORS['WARNING']};
+                color: {COLORS['WARNING']};
             }}
             """
         )
@@ -987,7 +987,7 @@ class BotRecherche(QFrame):
         # Champ salon
         room_prefix = QLabel("#")
         room_prefix.setStyleSheet(
-            f"color: #e67e22; font-size: 13px; font-weight: 700; "
+            f"color: {COLORS['WARNING']}; font-size: 13px; font-weight: 700; "
             f"background: transparent; border: none; padding: 0;"
         )
         search_row.addWidget(room_prefix)
@@ -1000,14 +1000,14 @@ class BotRecherche(QFrame):
             f"""
             #roomInput {{
                 background: {COLORS['BG_SURFACE']};
-                color: #e67e22;
+                color: {COLORS['WARNING']};
                 border: 1px solid {COLORS['BORDER']};
                 border-radius: 6px;
                 padding: 8px 8px;
                 font-size: 12px;
             }}
             #roomInput:focus {{
-                border-color: #e67e22;
+                border-color: {COLORS['WARNING']};
             }}
             #roomInput:disabled {{
                 color: {COLORS['TEXT_DISABLED']};
@@ -1049,7 +1049,7 @@ class BotRecherche(QFrame):
             f"""
             #rechercheBtn {{
                 background: {COLORS['PRIMARY']};
-                color: #ffffff;
+                color: {COLORS['TEXT_WHITE']};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 20px;
@@ -1075,8 +1075,8 @@ class BotRecherche(QFrame):
         self._stop_btn.setStyleSheet(
             f"""
             #stopBtn {{
-                background: #e74c3c;
-                color: #ffffff;
+                background: {COLORS['DANGER_BTN']};
+                color: {COLORS['TEXT_WHITE']};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 16px;
@@ -1084,7 +1084,7 @@ class BotRecherche(QFrame):
                 font-weight: 600;
             }}
             #stopBtn:hover {{
-                background: #c0392b;
+                background: {COLORS['DANGER_BTN_HOVER']};
             }}
             """
         )
@@ -1158,7 +1158,7 @@ class BotRecherche(QFrame):
                 color: {COLORS['TEXT_PRIMARY']};
             }}
             #resultTable::item:selected {{
-                background: {COLORS['PRIMARY']}50;
+                background: rgba(COLORS['PRIMARY'], '50');
                 color: {COLORS['TEXT_PRIMARY']};
             }}
             QHeaderView::section {{
@@ -1635,7 +1635,7 @@ class BotRecherche(QFrame):
                 font-size: 12px;
             }}
             QMenu::item:selected {{
-                background: {COLORS['PRIMARY']}30;
+                background: rgba(COLORS['PRIMARY'], '30');
                 color: {COLORS['PRIMARY']};
             }}
             QMenu::separator {{
@@ -1853,7 +1853,7 @@ class BotRecherche(QFrame):
             f"""
             QPushButton {{
                 background: {COLORS['PRIMARY']};
-                color: #ffffff;
+                color: {COLORS['TEXT_WHITE']};
                 border: none;
                 border-radius: 14px;
                 font-size: 12px;
@@ -1918,7 +1918,7 @@ class BotRecherche(QFrame):
                     font-size: 10px;
                 }}
                 QPushButton:hover {{
-                    background: {COLORS['PRIMARY']}20;
+                    background: rgba(COLORS['PRIMARY'], '20');
                     border-color: {COLORS['PRIMARY']};
                     color: {COLORS['PRIMARY']};
                 }}

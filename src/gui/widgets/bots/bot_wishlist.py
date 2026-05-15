@@ -29,15 +29,16 @@ from PySide6.QtWidgets import (
 
 from src.services import app_config
 from src.services.soulseek_client import soulseek_service
+from src.gui.theme_fragments.colors import COLORS, rgba
 
 
 # ── Constantes ──────────────────────────────────────────────────
 
 _CONFIG_KEY_WISHLIST = "recherche.souhaits"
 
-_STYLE_STATUS_ACTIVE = "#2ecc71"
-_STYLE_STATUS_INACTIVE = "#7f8c8d"
-_STYLE_STATUS_ERROR = "#e74c3c"
+_STYLE_STATUS_ACTIVE = COLORS['SUCCESS']
+_STYLE_STATUS_INACTIVE = COLORS['TEXT_SECONDARY']
+_STYLE_STATUS_ERROR = COLORS['DANGER_BTN']
 
 _LABEL_STATUS: dict[str, str] = {
     "active": "🟢 Actif",
@@ -75,7 +76,7 @@ class WishlistCard(QFrame):
         border_color = color
         self.setStyleSheet(
             f"#wishlistCard {{"
-            f"  background: #1e1e2e; border: 1px solid {border_color}44;"
+            f"  background: {COLORS['BG_INPUT']}; border: 1px solid rgba(border_color, '44');"
             f"  border-radius: 8px; padding: 12px;"
             f"}}"
             f"#wishlistCard:hover {{"
@@ -97,12 +98,12 @@ class WishlistCard(QFrame):
         self._toggle_btn.setFixedHeight(26)
         self._toggle_btn.setStyleSheet(
             f"QPushButton {{"
-            f"  background: {color}22; color: {color};"
+            f"  background: {rgba(color, '22')}; color: {color};"
             f"  border: 1px solid {color}; border-radius: 13px;"
             f"  padding: 2px 12px; font-size: 11px; font-weight: 600;"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: {color}44;"
+            f"  background: {rgba(color, '44')};"
             f"}}"
         )
         self._toggle_btn.clicked.connect(self._on_toggle)
@@ -113,7 +114,7 @@ class WishlistCard(QFrame):
         query_lbl.setWordWrap(True)
         query_lbl.setTextFormat(Qt.TextFormat.RichText)
         query_lbl.setStyleSheet(
-            "color: #e4e4ec; font-size: 14px; background: transparent; border: none;"
+            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 14px; background: transparent; border: none;"
         )
         row1.addWidget(query_lbl, 1)
 
@@ -130,14 +131,14 @@ class WishlistCard(QFrame):
         )
         meta_lbl = QLabel(meta_text)
         meta_lbl.setStyleSheet(
-            "color: #7a7a8a; font-size: 12px; background: transparent; border: none;"
+            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px; background: transparent; border: none;"
         )
         row2.addWidget(meta_lbl)
 
         # Fréquence (lecture seule, globale)
         freq_lbl = QLabel("🔄 Fréquence : globale")
         freq_lbl.setStyleSheet(
-            "color: #5a5a6a; font-size: 11px; background: transparent; border: none;"
+            f"color: {COLORS['TEXT_MUTED']}; font-size: 11px; background: transparent; border: none;"
         )
         row2.addWidget(freq_lbl)
 
@@ -148,11 +149,11 @@ class WishlistCard(QFrame):
         row3 = QHBoxLayout()
         row3.setSpacing(6)
 
-        self._edit_btn = _ActionButton("✏️ Modifier", "#3498db")
+        self._edit_btn = _ActionButton("✏️ Modifier", COLORS['ACCENT'])
         self._edit_btn.clicked.connect(lambda: self.edit_requested.emit(self._query))
         row3.addWidget(self._edit_btn)
 
-        self._search_btn = _ActionButton("🔍 Chercher", "#2ecc71")
+        self._search_btn = _ActionButton("🔍 Chercher", COLORS['SUCCESS'])
         self._search_btn.clicked.connect(lambda: self.search_now_requested.emit(self._query))
         row3.addWidget(self._search_btn)
 
@@ -172,12 +173,12 @@ class WishlistCard(QFrame):
         self._toggle_btn.setText(_LABEL_STATUS[status])
         self._toggle_btn.setStyleSheet(
             f"QPushButton {{"
-            f"  background: {color}22; color: {color};"
+            f"  background: {rgba(color, '22')}; color: {color};"
             f"  border: 1px solid {color}; border-radius: 13px;"
             f"  padding: 2px 12px; font-size: 11px; font-weight: 600;"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: {color}44;"
+            f"  background: {rgba(color, '44')};"
             f"}}"
         )
         self.toggled.emit(self._query, self._enabled)
@@ -192,11 +193,11 @@ class _ActionButton(QPushButton):
         self.setStyleSheet(
             f"QPushButton {{"
             f"  background: transparent; color: {color};"
-            f"  border: 1px solid {color}44; border-radius: 10px;"
+            f"  border: 1px solid {rgba(color, '44')}; border-radius: 10px;"
             f"  padding: 4px 10px; font-size: 11px;"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: {color}22; border-color: {color};"
+            f"  background: {rgba(color, '22')}; border-color: {color};"
             f"}}"
         )
 
@@ -213,16 +214,16 @@ class _FilterButton(QPushButton):
         self.setCheckable(True)
         self.setStyleSheet(
             "QPushButton {"
-            "  background: transparent; color: #7a7a8a;"
-            "  border: 1px solid #3a3a4a; border-radius: 14px;"
+            f"  background: transparent; color: {COLORS['TEXT_SECONDARY']};"
+            f"  border: 1px solid {COLORS['TEXT_PLACEHOLDER']}; border-radius: 14px;"
             "  padding: 6px 14px; font-size: 11px;"
             "}"
             "QPushButton:hover {"
-            "  background: #2a2a3a; color: #c0c0d0;"
+            f"  background: {COLORS['BG_HOVER']}; color: {COLORS['TEXT_TERTIARY']};"
             "}"
             "QPushButton:checked {"
-            "  background: #6c5ce744; color: #6c5ce7;"
-            "  border-color: #6c5ce7;"
+            f"  background: COLORS['ACCENT']44; color: COLORS['ACCENT'];"
+            f"  border-color: COLORS['ACCENT'];"
             "}"
         )
 
@@ -231,36 +232,31 @@ class _FilterButton(QPushButton):
 
 
 class _StatCard(QFrame):
-    """Petite carte de statistique (ex: '5 actifs')."""
+    """Badge de statistique compact (ex: '🎵 42 Actifs')."""
 
     def __init__(self, value: str | int, label: str, color: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setObjectName("statCard")
+        self.setObjectName("statCardBadge")
         self.setStyleSheet(
-            f"#statCard {{"
-            f"  background: {color}11; border: 1px solid {color}33;"
-            f"  border-radius: 8px; padding: 10px;"
-            f"}}"
+            "#statCardBadge {"
+            f"  background: {COLORS['BG_BTN']}; border-radius: 4px;"
+            "}"
         )
-        self.setFixedWidth(120)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(2)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 3, 10, 3)
+        layout.setSpacing(4)
 
         value_lbl = QLabel(str(value))
-        value_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         value_lbl.setStyleSheet(
-            f"color: {color}; font-size: 22px; font-weight: 700;"
-            f" background: transparent; border: none;"
+            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 600;"
+            " background: transparent; border: none;"
         )
         layout.addWidget(value_lbl)
 
         label_lbl = QLabel(label)
-        label_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label_lbl.setStyleSheet(
-            "color: #7a7a8a; font-size: 11px;"
+            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 11px;"
             " background: transparent; border: none;"
         )
         layout.addWidget(label_lbl)
@@ -302,7 +298,7 @@ class BotWishlist(QFrame):
         # ── 1. En-tête ──
         header = QLabel("📋 Wishlist — Souhaits automatiques")
         header.setStyleSheet(
-            "color: #6c5ce7; font-size: 18px; font-weight: 700;"
+            f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;"
             " padding: 0 0 12px 0;"
         )
         layout.addWidget(header)
@@ -329,11 +325,11 @@ class BotWishlist(QFrame):
         self._search_field.setPlaceholderText("🔍 Rechercher un souhait…")
         self._search_field.setStyleSheet(
             "QLineEdit {"
-            "  background: #1e1e2e; color: #e4e4ec;"
-            "  border: 1px solid #3a3a4a; border-radius: 10px;"
+            f"  background: {COLORS['BG_INPUT']}; color: {COLORS['TEXT_PRIMARY']};"
+            f"  border: 1px solid {COLORS['TEXT_PLACEHOLDER']}; border-radius: 10px;"
             "  padding: 6px 12px; font-size: 12px; max-width: 220px;"
             "}"
-            "QLineEdit:focus { border-color: #6c5ce7; }"
+            f"QLineEdit:focus {{ border-color: {COLORS['ACCENT']}; }}"
         )
         self._search_field.textChanged.connect(self._on_search)
         toolbar_layout.addWidget(self._search_field)
@@ -356,11 +352,11 @@ class BotWishlist(QFrame):
         self._toggle_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._toggle_all_btn.setStyleSheet(
             "QPushButton {"
-            "  background: transparent; color: #7a7a8a;"
-            "  border: 1px solid #3a3a4a; border-radius: 10px;"
+            f"  background: transparent; color: {COLORS['TEXT_SECONDARY']};"
+            f"  border: 1px solid {COLORS['TEXT_PLACEHOLDER']}; border-radius: 10px;"
             "  padding: 6px 12px; font-size: 11px;"
             "}"
-            "QPushButton:hover { background: #2a2a3a; color: #c0c0d0; }"
+            f"QPushButton:hover {{ background: {COLORS['BG_HOVER']}; color: {COLORS['TEXT_TERTIARY']}; }}"
         )
         self._toggle_all_btn.clicked.connect(self._on_toggle_all)
         toolbar_layout.addWidget(self._toggle_all_btn)
@@ -372,12 +368,12 @@ class BotWishlist(QFrame):
         self._add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_btn.setStyleSheet(
             "QPushButton {"
-            "  background: #6c5ce7; color: white;"
+            f"  background: COLORS['ACCENT']; color: {COLORS['TEXT_WHITE']};"
             "  border: none; border-radius: 10px;"
             "  padding: 6px 16px; font-size: 12px; font-weight: 600;"
             "}"
-            "QPushButton:hover { background: #7c6cf7; }"
-            "QPushButton:pressed { background: #5b4cd6; }"
+            f"QPushButton:hover {{ background: {COLORS['ACCENT_HOVER']}; }}"
+            f"QPushButton:pressed {{ background: {COLORS['ACCENT_HOVER']}; }}"
         )
         self._add_btn.clicked.connect(self._on_add_click)
         toolbar_layout.addWidget(self._add_btn)
@@ -420,8 +416,8 @@ class BotWishlist(QFrame):
         self._add_field.setPlaceholderText("Nouveau souhait (ex: 'Pink Floyd')…")
         self._add_field.setStyleSheet(
             "QLineEdit {"
-            "  background: #1e1e2e; color: #e4e4ec;"
-            "  border: 1px solid #6c5ce7; border-radius: 10px;"
+            f"  background: {COLORS['BG_INPUT']}; color: {COLORS['TEXT_PRIMARY']};"
+            f"  border: 1px solid COLORS['ACCENT']; border-radius: 10px;"
             "  padding: 8px 14px; font-size: 13px;"
             "}"
         )
@@ -432,11 +428,11 @@ class BotWishlist(QFrame):
         self._add_confirm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_confirm_btn.setStyleSheet(
             "QPushButton {"
-            "  background: #6c5ce7; color: white;"
+            f"  background: COLORS['ACCENT']; color: {COLORS['TEXT_WHITE']};"
             "  border: none; border-radius: 10px;"
             "  padding: 8px 16px; font-size: 13px; font-weight: 600;"
             "}"
-            "QPushButton:hover { background: #7c6cf7; }"
+            f"QPushButton:hover {{ background: {COLORS['ACCENT_HOVER']}; }}"
         )
         self._add_confirm_btn.clicked.connect(self._on_add_confirm)
         add_bar_layout.addWidget(self._add_confirm_btn)
@@ -445,11 +441,11 @@ class BotWishlist(QFrame):
         self._add_cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._add_cancel_btn.setStyleSheet(
             "QPushButton {"
-            "  background: transparent; color: #7a7a8a;"
-            "  border: 1px solid #3a3a4a; border-radius: 10px;"
+            f"  background: transparent; color: {COLORS['TEXT_SECONDARY']};"
+            f"  border: 1px solid {COLORS['TEXT_PLACEHOLDER']}; border-radius: 10px;"
             "  padding: 8px 12px; font-size: 13px;"
             "}"
-            "QPushButton:hover { background: #2a2a3a; color: #c0c0d0; }"
+            f"QPushButton:hover {{ background: {COLORS['BG_HOVER']}; color: {COLORS['TEXT_TERTIARY']}; }}"
         )
         self._add_cancel_btn.clicked.connect(self._on_add_cancel)
         add_bar_layout.addWidget(self._add_cancel_btn)
@@ -635,7 +631,7 @@ class BotWishlist(QFrame):
         inactive = sum(1 for w in self._wishlist if w.get("status") == "inactive")
         errors = sum(1 for w in self._wishlist if w.get("status") == "error")
 
-        self._stats_layout.addWidget(_StatCard(total, "Total", "#6c5ce7"))
+        self._stats_layout.addWidget(_StatCard(total, "Total", COLORS['ACCENT']))
         self._stats_layout.addWidget(_StatCard(active, "Actifs", _STYLE_STATUS_ACTIVE))
         self._stats_layout.addWidget(_StatCard(inactive, "Inactifs", _STYLE_STATUS_INACTIVE))
         self._stats_layout.addWidget(_StatCard(errors, "Erreurs", _STYLE_STATUS_ERROR))
@@ -659,7 +655,7 @@ class BotWishlist(QFrame):
             )
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(
-                "color: #5a5a6a; font-size: 13px; padding: 40px;"
+                f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; padding: 40px;"
                 " background: transparent;"
             )
             self._list_layout.insertWidget(0, empty_lbl)

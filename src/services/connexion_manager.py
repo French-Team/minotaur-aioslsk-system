@@ -19,7 +19,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from src.services.error_translator import traduire, afficher
 import src.services.app_config as app_config
-from src.services.soulseek_client import SoulseekService
+from src.services.soulseek_client import soulseek_service
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class ConnexionManager(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
 
-        self._service = SoulseekService()
+        self._service = soulseek_service
         self._async_thread = _AsyncEventLoopThread(self)
         self._async_thread.start()
         self._async_thread.wait_ready()

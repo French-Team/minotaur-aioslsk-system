@@ -166,6 +166,56 @@ class ConfigToggle(QFrame):
 
 
 # ═════════════════════════════════════════════════════════════════
+#  Fonctions de lecture/écriture de widgets (pour applique_profile)
+# ═════════════════════════════════════════════════════════════════
+
+
+def _lire_valeur_widget(widget: QWidget):
+    """Lit la valeur actuelle d'un widget de config.
+
+    Supporte : ConfigToggle, ConfigEntry, ConfigCombo, ConfigSpin,
+    ConfigFilePicker, ConfigDirectoryPicker.
+    """
+    # L'ordre des tests est important : is_checked avant value
+    # car ConfigToggle n'a pas de ``value``.
+    if isinstance(widget, ConfigToggle):
+        return widget.is_checked
+    if isinstance(widget, ConfigCombo):
+        return widget.value
+    if isinstance(widget, ConfigSpin):
+        return widget.value
+    if isinstance(widget, ConfigEntry):
+        return widget.text
+    if isinstance(widget, ConfigFilePicker):
+        return widget.file_path
+    if isinstance(widget, ConfigDirectoryPicker):
+        return widget.directory
+    return "?"
+
+
+def _ecrire_valeur_widget(widget: QWidget, valeur) -> None:
+    """Écrit une valeur sur un widget de config.
+
+    Supporte : ConfigToggle, ConfigEntry, ConfigCombo, ConfigSpin,
+    ConfigFilePicker, ConfigDirectoryPicker.
+    """
+    if isinstance(widget, ConfigToggle):
+        widget.set_checked(bool(valeur))
+    elif isinstance(widget, ConfigCombo):
+        widget.set_value(str(valeur))
+    elif isinstance(widget, ConfigSpin):
+        widget.set_value(int(valeur))
+    elif isinstance(widget, ConfigEntry):
+        widget.set_text(str(valeur))
+        # setText n'émet pas editingFinished → persistance manuelle
+        app_config.set(widget.config_key, str(valeur))
+    elif isinstance(widget, ConfigFilePicker):
+        widget.set_file_path(str(valeur))
+    elif isinstance(widget, ConfigDirectoryPicker):
+        widget.set_directory(str(valeur))
+
+
+# ═════════════════════════════════════════════════════════════════
 #  ConfigEntry — champ de texte
 # ═════════════════════════════════════════════════════════════════
 
@@ -755,6 +805,36 @@ class ConfigResetBtn(QPushButton):
 
 
 # ═════════════════════════════════════════════════════════════════
+#  Fonctions utilitaires
+# ═════════════════════════════════════════════════════════════════
+
+
+def highlight_widget(widget: QWidget, duree_ms: int = 1500) -> None:
+    """Met en surbrillance un widget modifié (scroll + animation).
+
+    Args:
+        widget: Le widget à mettre en évidence.
+        duree_ms: Durée de la surbrillance en millisecondes.
+    """
+    from PySide6.QtCore import QTimer
+
+    # 1. Scroll jusqu'au widget
+    parent = widget.parent()
+    while parent is not None:
+        if isinstance(parent, QScrollArea):
+            parent.ensureWidgetVisible(widget)
+            break
+        parent = parent.parent()
+
+    # 2. Animation de surbrillance
+    style_original = widget.styleSheet()
+    widget.setStyleSheet(
+        "background: rgba(108, 92, 231, 0.15); border: 1px solid #6c5ce7;"
+    )
+    QTimer.singleShot(duree_ms, lambda: widget.setStyleSheet(style_original))
+
+
+# ═════════════════════════════════════════════════════════════════
 #  ConfigPage — page de configuration complète (scrollable)
 # ═════════════════════════════════════════════════════════════════
 
@@ -768,11 +848,17 @@ class ConfigPage(QFrame):
         section = ConfigSection("Connexion")
         section.add(ConfigToggle("UPnP", "reseau.upnp"))
         page.add(section)
+
+    Nouveautés (profil Optimiseur) :
+
+        page.applique_profile({"reseau.upnp": True})
+        # retourne [(config_key, ancienne_valeur, nouvelle_valeur, widget)]
     """
 
     def __init__(self, titre: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName(f"page{titre}")
+        self._widgets: dict[str, QWidget] = {}  # config_key → widget
 
         # Layout principal
         outer = QVBoxLayout(self)
@@ -788,10 +874,10 @@ class ConfigPage(QFrame):
         outer.addWidget(header)
 
         # ── Zone scrollable ──
-        scroll = QScrollArea()
-        scroll.setObjectName("configScroll")
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
+        self._scroll = QScrollArea()
+        self._scroll.setObjectName("configScroll")
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.NoFrame)
 
         self._content = QWidget()
         self._content.setObjectName("configContent")
@@ -800,8 +886,8 @@ class ConfigPage(QFrame):
         self._layout.setSpacing(0)
         self._layout.addStretch(1)
 
-        scroll.setWidget(self._content)
-        outer.addWidget(scroll, 1)
+        self._scroll.setWidget(self._content)
+        outer.addWidget(self._scroll, 1)
 
     # ── API publique ─────────────────────────────────────────────
 
@@ -809,6 +895,8 @@ class ConfigPage(QFrame):
         """Ajoute un widget (ConfigSection, ConfigResetBtn, etc.)."""
         # Insérer avant le stretch
         self._layout.insertWidget(self._layout.count() - 1, widget)
+        # Collecter les widgets de config dans le container ajouté
+        self._collect_config_widgets(widget)
 
     def add_placeholder(self, text: str) -> None:
         """Ajoute un message placeholder (quand aucune option n'est encore disponible)."""
@@ -818,3 +906,50 @@ class ConfigPage(QFrame):
             "color: #3a3a4a; font-size: 12px; padding: 16px;"
         )
         self._layout.insertWidget(self._layout.count() - 1, placeholder)
+
+    def _find_widget_by_key(self, config_key: str) -> QWidget | None:
+        """Retourne le widget associé à une config_key, ou None."""
+        return self._widgets.get(config_key)
+
+    def _collect_config_widgets(self, container: QWidget) -> None:
+        """Parcourt récursivement un container pour indexer les widgets de config.
+
+        Détecte automatiquement les widgets ConfigToggle, ConfigEntry,
+        ConfigCombo, ConfigSpin, ConfigFilePicker, ConfigDirectoryPicker
+        via leur propriété ``config_key``.
+        """
+        for child in container.findChildren(QFrame):
+            try:
+                key = child.config_key  # type: ignore[union-attr]
+                if isinstance(key, str) and key:
+                    self._widgets[key] = child
+            except (AttributeError, TypeError):
+                pass
+
+    def applique_profile(self, data: dict) -> list[tuple[str, str, str, QWidget | None]]:
+        """Applique les valeurs d'un profil aux widgets de la page.
+
+        Args:
+            data: Dictionnaire {config_key: valeur}.
+
+        Returns:
+            Liste de (config_key, valeur_avant, valeur_après, widget_modifié).
+            widget_modifié = None si le widget n'a pas été trouvé.
+        """
+        results: list[tuple[str, str, str, QWidget | None]] = []
+
+        for config_key, nouvelle_valeur in data.items():
+            widget = self._find_widget_by_key(config_key)
+            if widget is None:
+                results.append((config_key, "?", str(nouvelle_valeur), None))
+                continue
+
+            # Lire l'ancienne valeur
+            ancienne = _lire_valeur_widget(widget)
+
+            # Appliquer la nouvelle valeur
+            _ecrire_valeur_widget(widget, nouvelle_valeur)
+
+            results.append((config_key, str(ancienne), str(nouvelle_valeur), widget))
+
+        return results

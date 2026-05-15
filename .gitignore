@@ -31,7 +31,12 @@ env/
 # Private and test directories
 .private/
 .tests/
+tests/
+_temp_fix_/
+specs/
 
+# coverage
+htmlcov/
 # Configuration files
 app_config.json
 
