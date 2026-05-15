@@ -38,15 +38,15 @@ COLORS = {
     "TEXT_WHITE":      "#ffffff",
     "TEXT_SECONDARY":  "#8a8a9a",
     "TEXT_MUTED":       "#5a5a6a",
-    "TEXT_MUTED_BG":    "#5a5a6a4D",
-    "TEXT_MUTED_BORDER":"#5a5a6a80",
+    "TEXT_MUTED_BG":    rgba("#5a5a6a", "4D"),
+    "TEXT_MUTED_BORDER":rgba("#5a5a6a", "80"),
     "TEXT_TERTIARY":   "#b0b0c0",
     "TEXT_DISABLED":   "#6a6a7a",
     "TEXT_PLACEHOLDER":"#3a3a4a",
     "TEXT_DARK":       "#1a1a1a",
     "SUCCESS":          "#00e676",
-    "SUCCESS_BG":       "#00e6764D",
-    "SUCCESS_BORDER":   "#00e67680",
+    "SUCCESS_BG":       rgba("#00e676", "4D"),
+    "SUCCESS_BORDER":   rgba("#00e676", "80"),
     "DANGER":           "#ff5252",
     "DANGER_HOVER":     "#ff7070",
     "DANGER_PRESSED":   "#cc3333",
@@ -56,8 +56,8 @@ COLORS = {
     "WARNING":          "#ffab00",
 
     # Nuances BotBibliothèque (violet, grilles, inputs)
-    "ACCENT":           "#6c5ce7",   # Violet principal (boutons, highlights)
-    "ACCENT_HOVER":     "#5a4bd1",   # Violet survol
+    "ACCENT":           "#F3A449",   # (boutons, highlights)
+    "ACCENT_HOVER":     "#A87030",   # survol
     "BG_INPUT":         "#1e1e2e",   # Fond inputs, tableaux
     "GRIDLINE":         "#2a2a3e",   # Lignes de grille/séparation
     "BG_TABLE_HEADER":  "#181825",   # Fond en-tête tableau

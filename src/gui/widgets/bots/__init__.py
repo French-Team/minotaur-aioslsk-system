@@ -10,6 +10,7 @@ from src.gui.widgets.bots.bot_wishlist import BotWishlist
 from src.gui.widgets.bots.bot_recherche import BotRecherche
 from src.gui.widgets.bots.bot_bibliotheque import BotBibliotheque
 from src.gui.widgets.bots.bot_optimiseur import BotOptimiseur
+from src.gui.widgets.bots.bot_surveillance import BotSurveillance
 
 
 __all__: list[str] = [
@@ -18,4 +19,5 @@ __all__: list[str] = [
     "BotRecherche",
     "BotBibliotheque",
     "BotOptimiseur",
+    "BotSurveillance",
 ]

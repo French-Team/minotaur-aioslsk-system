@@ -826,10 +826,10 @@ def highlight_widget(widget: QWidget, duree_ms: int = 1500) -> None:
             break
         parent = parent.parent()
 
-    # 2. Animation de surbrillance
+    # 2. Animation de surbrillance — bordure seule, pas de fond coloré
     style_original = widget.styleSheet()
     widget.setStyleSheet(
-        "background: rgba(108, 92, 231, 0.15); border: 1px solid #6c5ce7;"
+        "border: 2px solid rgba(108, 92, 231, 0.5);"
     )
     QTimer.singleShot(duree_ms, lambda: widget.setStyleSheet(style_original))
 

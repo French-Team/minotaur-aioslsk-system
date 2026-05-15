@@ -10,19 +10,55 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QWidget,
 )
 
+from src.gui.theme_fragments.colors import COLORS
+
 
 class _FooterNavButton(QPushButton):
-    """Bouton de navigation dans le footer."""
+    """Bouton de navigation dans le footer, avec badge optionnel."""
 
     def __init__(self, text: str, parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self.setObjectName("footerNavButton")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setCheckable(True)
+
+        # Badge de comptage (caché par défaut)
+        self._badge = QLabel("", self)
+        self._badge.setObjectName("footerNavBadge")
+        self._badge.setFixedSize(18, 18)
+        self._badge.setAlignment(Qt.AlignCenter)
+        self._badge.setVisible(False)
+        self._badge.setStyleSheet(f"""
+            #footerNavBadge {{
+                background: {COLORS['DANGER']};
+                color: #ffffff;
+                font-size: 10px;
+                font-weight: 700;
+                border-radius: 9px;
+            }}
+        """)
+
+    def set_badge(self, count: int) -> None:
+        """Affiche ou masque le badge avec le nombre donné."""
+        if count > 0:
+            display = str(count) if count <= 99 else "99+"
+            self._badge.setText(display)
+            self._badge.setVisible(True)
+            # Positionner le badge en haut à droite du bouton
+            self._badge.move(self.width() - 22, -4)
+        else:
+            self._badge.setVisible(False)
+
+    def resizeEvent(self, event: object) -> None:
+        """Repositionne le badge lors du redimensionnement."""
+        super().resizeEvent(event)  # type: ignore[arg-type]
+        if self._badge.isVisible():
+            self._badge.move(self.width() - 22, -4)
 
 
 _BOT_NAMES: list[str] = [
@@ -90,6 +126,16 @@ class FooterZone(QFrame):
             self._active_button = btn
 
     def page_button(self, name: str) -> QPushButton | None:
+        return self._buttons.get(name)
+
+    def set_badge(self, name: str, count: int) -> None:
+        """Définit le badge de comptage pour un bouton."""
+        btn = self._buttons.get(name)
+        if isinstance(btn, _FooterNavButton):
+            btn.set_badge(count)
+
+    def button(self, name: str) -> _FooterNavButton | None:
+        """Retourne le _FooterNavButton correspondant au nom."""
         return self._buttons.get(name)
 
     # ── Interne ──────────────────────────────────────────────────

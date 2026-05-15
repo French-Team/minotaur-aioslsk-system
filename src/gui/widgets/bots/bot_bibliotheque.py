@@ -42,6 +42,7 @@ from src.services import app_config
 from src.services.library_db import get_library_db
 from src.services.library_scanner import LibraryScanner
 from src.services.soulseek_client import soulseek_service
+from src.services.event_bus import EventBus
 from src.gui.theme_fragments.colors import COLORS
 
 
@@ -842,6 +843,13 @@ class BotBibliotheque(QFrame):
         self._toolbar.set_progress_value(0)
         self._toolbar.set_progress_format("%v / %m fichiers")
         self.set_status("⏳ Scan en cours…")
+        EventBus().emit_event(
+            severity="INFO",
+            category="bibliotheque",
+            title="Scan démarré",
+            message="Scan de la bibliothèque démarré",
+            source="BotBibliotheque",
+        )
 
     def _on_scan_progress(self, processed: int, total: int) -> None:
         """Callback : mise à jour de la progression du scan."""
@@ -885,6 +893,17 @@ class BotBibliotheque(QFrame):
             f"{len(result.errors)} erreurs"
             f"{dur_msg}"
         )
+        EventBus().emit_event(
+            severity="INFO",
+            category="bibliotheque",
+            title="Scan terminé",
+            message=(
+                f"Scan terminé — {result.files_new} nouveaux, "
+                f"{result.files_removed} retirés, "
+                f"{len(result.errors)} erreurs{dur_msg}"
+            ),
+            source="BotBibliotheque",
+        )
 
     def _on_scan_error(self, message: str) -> None:
         """Callback : le scan a échoué."""
@@ -893,6 +912,13 @@ class BotBibliotheque(QFrame):
         self._toolbar.set_search_enabled(True)
         self._toolbar.set_progress_visible(False)
         self.set_status(f"⚠️ Erreur de scan : {message}")
+        EventBus().emit_event(
+            severity="ERROR",
+            category="bibliotheque",
+            title="Erreur de scan",
+            message=f"Erreur lors du scan : {message}",
+            source="BotBibliotheque",
+        )
 
     # ── Menu contextuel ─────────────────────────────────────────────
 

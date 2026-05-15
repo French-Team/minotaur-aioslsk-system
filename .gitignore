@@ -32,8 +32,8 @@ env/
 .private/
 .tests/
 tests/
-_temp_fix_/
-specs/
+
+
 
 # coverage
 htmlcov/

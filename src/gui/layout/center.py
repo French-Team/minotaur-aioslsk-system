@@ -36,6 +36,7 @@ from src.gui.widgets.bots.bot_optimiseur import BotOptimiseur
 from src.gui.widgets.bots.bot_bibliotheque import BotBibliotheque
 from src.gui.widgets.bots.bot_wishlist import BotWishlist
 from src.gui.widgets.bots.bot_recherche import BotRecherche
+from src.gui.widgets.bots.bot_surveillance import BotSurveillance
 from src.gui.widgets.home import HomePage
 from src.gui.widgets.telechargements import TelechargementsPage
 from src.services.soulseek_client import soulseek_service
@@ -87,6 +88,14 @@ def _transfer_statut_label(transfer: object) -> str:
     return _transfer_state_to_statut(state)
 
 
+# ── Alias de navigation ───────────────────────────────────────────────
+# Permet au footer d'envoyer des noms "utilisateur" qui diffèrent des
+# clés internes des pages (ex: "Accueil" → "accueil", "Téléchargement" → "telechargements").
+_PAGE_ALIASES: dict[str, str] = {
+    "Téléchargement": "telechargements",
+}
+
+
 class CenterZone(QFrame):
     """Zone de contenu principal avec pages empilables."""
 
@@ -124,7 +133,6 @@ class CenterZone(QFrame):
 
         # Pages du footer (bots)
         for name in (
-            "Téléchargement",
             "Surveillance",
             "Planificateur",
             "Nettoyage",
@@ -148,6 +156,9 @@ class CenterZone(QFrame):
 
         # Page du bot Optimiseur (tableau de bord d'optimisation)
         self._build_optimiseur_page()
+
+        # Page du bot Surveillance (watcher centralisé)
+        self._build_surveillance_page()
 
         # Connexion des signaux d'événements Soulseek
         self._connect_event_signals()
@@ -178,9 +189,17 @@ class CenterZone(QFrame):
 
     def show_page(self, name: str) -> None:
         """Affiche la page demandée par son nom."""
+        # Alias : certains noms de navigation (footer) diffèrent des clés internes
+        name = _PAGE_ALIASES.get(name, name)
         page = self._pages.get(name)
         if page is not None:
             self._stack.setCurrentWidget(page)
+
+        # Réinitialiser le badge d'événements non lus quand on affiche Surveillance
+        if name == "Surveillance":
+            surv = self._pages.get("Surveillance")
+            if isinstance(surv, BotSurveillance):
+                surv.reset_unseen_count()
 
     def show_home(self, username: str) -> None:
         """Affiche la page d'accueil avec le nom de l'utilisateur connecté."""
@@ -191,6 +210,15 @@ class CenterZone(QFrame):
         """Affiche la page de connexion."""
         self._home_page.set_greeting_default()
         self.show_page("connexion")
+
+    def _update_surveillance_badge(self, count: int) -> None:
+        """Met à jour le badge de comptage sur le bouton Surveillance du footer."""
+        parent = self.parent()
+        while parent is not None:
+            if hasattr(parent, 'footer'):
+                parent.footer.set_badge("Surveillance", count)
+                break
+            parent = parent.parent()
 
     def page(self, name: str) -> QWidget | None:
         """Retourne le widget d'une page par son nom."""
@@ -253,6 +281,19 @@ class CenterZone(QFrame):
         self._pages["Optimiseur"] = page
         self._stack.addWidget(page)
         page.page_changed.connect(self.show_page)
+
+    def _build_surveillance_page(self) -> None:
+        """Page du bot Surveillance — watcher centralisé."""
+        page = BotSurveillance(center_zone=self)
+        self._bot_surveillance = page
+        self._pages["Surveillance"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+
+        # Mettre à jour le badge du footer quand des événements arrivent hors vue
+        page.unseen_count_changed.connect(
+            lambda count: self._update_surveillance_badge(count)
+        )
 
     def _build_bibliotheque_page(self) -> None:
         """Page Bibliothèque — exploration des fichiers partagés Soulseek."""
@@ -558,7 +599,7 @@ class CenterZone(QFrame):
         ))
         recherche.add(section_souhaits)
 
-        self._pages["Recherche"] = recherche
+        self._pages["config-recherche"] = recherche
         self._stack.addWidget(recherche)
 
         # ════════════════════════ Téléchargement ═════════════════
@@ -595,7 +636,7 @@ class CenterZone(QFrame):
         ))
         telechargement.add(section_rapport)
 
-        self._pages["Téléchargement"] = telechargement
+        self._pages["config-telechargement"] = telechargement
         self._stack.addWidget(telechargement)
 
         # ══════════════════════════ Utilisateurs ═══════════════════

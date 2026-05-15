@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 
 from src.gui.theme_fragments.colors import COLORS, rgba
 from src.services.search_history import SearchHistory
+from src.services.event_bus import EventBus
 
 if TYPE_CHECKING:
     from src.services.connexion_manager import ConnexionManager
@@ -1302,6 +1303,15 @@ class BotRecherche(QFrame):
         self._search_timer.timeout.connect(self._on_search_timeout)
         self._search_timer.start(30000)
 
+        # Notifier l'EventBus
+        EventBus().emit_event(
+            severity="INFO",
+            category="recherche",
+            title="Recherche lancée",
+            message=f"Recherche de « {query} » démarrée",
+            source="BotRecherche",
+        )
+
     def _on_stop(self) -> None:
         """Arrête la recherche en cours et annule la requête réseau."""
         if self._connexion_manager is not None:
@@ -1309,6 +1319,15 @@ class BotRecherche(QFrame):
         self._reset_search_state()
         self._status_label.setText(
             f"⏹ Recherche arrêtée — {self._result_count} résultat(s) affiché(s)"
+        )
+
+        # Notifier l'EventBus
+        EventBus().emit_event(
+            severity="INFO",
+            category="recherche",
+            title="Recherche arrêtée",
+            message=f"Recherche arrêtée par l'utilisateur — {self._result_count} résultat(s)",
+            source="BotRecherche",
         )
 
     def _on_audio_filter_toggled(self, checked: bool) -> None:
@@ -1433,6 +1452,13 @@ class BotRecherche(QFrame):
         if self._searching:
             self._reset_search_state()
             self._status_label.setText(f"❌ Erreur : {msg}")
+            EventBus().emit_event(
+                severity="ERROR",
+                category="recherche",
+                title="Erreur de recherche",
+                message=f"Erreur lors de la recherche : {msg}",
+                source="BotRecherche",
+            )
 
     def _on_search_timeout(self) -> None:
         if self._searching:

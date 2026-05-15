@@ -19,8 +19,10 @@ from PySide6.QtWidgets import (
 from src.gui.devtool import QssInspector
 from src.gui.layout.entry import LayoutEntry
 from src.gui.theme import DARK_THEME
+from src.gui.widgets.toast_notification import ToastNotification
 from src.services.app_config import get as cfg_get
 from src.services.connexion_manager import ConnexionManager
+from src.services.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +243,11 @@ class MainWindow(QMainWindow):
         self._version_label = QLabel("v0.1.0")
         status_bar.addPermanentWidget(self._version_label)
 
+        # ── Toast Notifications (overlay des événements ERROR) ──
+        self._toast = ToastNotification(self)
+        self._toast.raise_()
+        self._connect_toast_events()
+
         # ── Gestionnaire de connexion Soulseek ──
         self._connect_connexion_manager()
 
@@ -330,6 +337,19 @@ class MainWindow(QMainWindow):
 
         # Transmettre le gestionnaire aux bots (Recherche, etc.)
         center.set_connexion_manager(self._connexion_manager)
+
+    def _connect_toast_events(self) -> None:
+        """Connecte les événements ERROR/WARN de l'EventBus aux toasts."""
+        EventBus().event_emitted.connect(self._on_toast_event)
+
+    def _on_toast_event(self, event: object) -> None:
+        """Affiche une notification toast pour les événements ERROR et WARN."""
+        severity = getattr(event, 'severity', '')
+        if severity not in ("ERROR", "WARN"):
+            return
+        title = getattr(event, 'title', '')
+        message = getattr(event, 'message', '')
+        self._toast.show_toast(severity, title, message)
 
     def _build_menu(self) -> None:
         """Construit la barre de menus."""

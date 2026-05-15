@@ -71,6 +71,18 @@ class _Handle(QFrame):
         self._arrow.setText(text)
 
 
+_SECTION_TO_PAGE: dict[str, str] = {
+    "Général": "Général",
+    "Partages": "Partages",
+    "Réseau": "Réseau",
+    "Recherche": "config-recherche",
+    "Téléchargement": "config-telechargement",
+    "Utilisateurs": "Utilisateurs",
+    "Salons": "Salons",
+    "Debug": "Debug",
+}
+
+
 class LeftZone(QFrame):
     """Panneau latéral gauche — navigation + rétractable."""
 
@@ -198,7 +210,9 @@ class LeftZone(QFrame):
     def _on_button(self, name: str) -> None:
         """Un bouton de navigation a été cliqué."""
         self.set_active(name)
-        self.page_changed.emit(name)
+        # Mapper vers le vrai nom de page config (évite les collisions bot/config)
+        page_name = _SECTION_TO_PAGE.get(name, name)
+        self.page_changed.emit(page_name)
 
     def _toggle_panel(self) -> None:
         self._collapsed = not self._collapsed

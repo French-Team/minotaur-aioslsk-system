@@ -35,6 +35,7 @@ from aioslsk.settings import (
 )
 
 from src.services import app_config
+from src.services.event_bus import EventBus
 from aioslsk.user.model import BlockingFlag
 from aioslsk.network.network import ListeningConnectionErrorMode
 from aioslsk.shares.model import DirectoryShareMode
@@ -197,6 +198,7 @@ class SoulseekService(QObject):
         self._client: SoulSeekClient | None = None
         self._username: str = ""
         self._running: bool = False
+        self._transfer_states: set[str] = set()  # IDs de transferts déjà signalés à l'EventBus
 
     @property
     def client(self) -> SoulSeekClient | None:
@@ -373,15 +375,33 @@ class SoulseekService(QObject):
         )
         self._client.events.register(
             TransferAddedEvent,
-            lambda evt: self.transfer_added.emit(evt),
+            lambda evt: (
+                self.transfer_added.emit(evt),
+                EventBus().emit_event(
+                    severity="INFO",
+                    category="transfert",
+                    title="Transfert ajouté",
+                    message=f"{evt.transfer.direction} {evt.transfer.remote_path} — {evt.transfer.username}",
+                    source="SoulseekService",
+                ),
+            ),
         )
         self._client.events.register(
             TransferRemovedEvent,
-            lambda evt: self.transfer_removed.emit(evt),
+            lambda evt: (
+                self.transfer_removed.emit(evt),
+                EventBus().emit_event(
+                    severity="INFO",
+                    category="transfert",
+                    title="Transfert terminé",
+                    message=f"{evt.transfer.direction} {evt.transfer.remote_path} — {evt.transfer.username}",
+                    source="SoulseekService",
+                ),
+            ),
         )
         self._client.events.register(
             TransferProgressEvent,
-            lambda evt: self.transfer_progress.emit(evt),
+            lambda evt: self._on_transfer_progress(evt),
         )
         self._client.events.register(
             PrivateMessageEvent,
@@ -405,6 +425,33 @@ class SoulseekService(QObject):
             await self._cleanup_client()
             logger.error("Échec de connexion: %s", e)
             raise
+
+    def _on_transfer_progress(self, evt: "TransferProgressEvent") -> None:
+        """Gère la progression d'un transfert — n'émet à l'EventBus que début et fin."""
+        self.transfer_progress.emit(evt)
+        updates = getattr(evt, 'updates', None)
+        if not updates:
+            return
+        for transfer, prev_snap, cur_snap in updates:
+            # Construire une clé unique pour ce transfert
+            key = f"{transfer.username}:{transfer.remote_path}:{transfer.direction}"
+            current_bytes = getattr(cur_snap, 'bytes_transfered', 0) if cur_snap else 0
+            total_bytes = getattr(transfer, 'filesize', 0)
+            if current_bytes <= 0 or (total_bytes > 0 and current_bytes >= total_bytes):
+                # Début ou fin de transfert
+                is_start = current_bytes <= 0
+                title = "Transfert démarré" if is_start else "Transfert terminé"
+                EventBus().emit_event(
+                    severity="INFO",
+                    category="transfert",
+                    title=title,
+                    message=f"{transfer.direction} {transfer.remote_path} — {transfer.username}",
+                    source="SoulseekService",
+                )
+                if not is_start:
+                    self._transfer_states.discard(key)
+                else:
+                    self._transfer_states.add(key)
 
     async def disconnect(self) -> str:
         """

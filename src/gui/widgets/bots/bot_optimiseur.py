@@ -7,6 +7,8 @@ paramètres de configuration des pages (Réseau, Recherche, etc.).
 
 from __future__ import annotations
 
+from src.gui.theme_fragments.colors import rgba
+
 import json
 import os
 from glob import glob
@@ -28,6 +30,7 @@ from PySide6.QtWidgets import (
 
 from src.gui.theme_fragments.colors import COLORS
 from src.gui.widgets.config import ConfigPage, highlight_widget
+from src.services.event_bus import EventBus
 
 # ─── Constantes ───────────────────────────────────────────────
 
@@ -104,7 +107,7 @@ class BotOptimiseur(QFrame):
 
         label_profils = QLabel("⚡ Profils")
         label_profils.setStyleSheet(
-            f"color: {_COLORS['TEXT_SECONDARY']};"
+            f"color: {_COLORS['TEXT_PRIMARY']};"
             f"font-size: 11px; font-weight: 600;"
             f"padding: 0 4px 0 0;"
         )
@@ -332,7 +335,7 @@ class BotOptimiseur(QFrame):
             f"QPushButton {{"
             f"  background: transparent;"
             f"  color: {_COLORS['DANGER']};"
-            f"  border: 1px solid {_COLORS['DANGER']}55;"
+            f"  border: 1px solid {rgba(_COLORS['DANGER'], '55')};"
             f"  border-radius: 6px;"
             f"  padding: 4px 12px;"
             f"  font-size: 11px;"
@@ -351,7 +354,7 @@ class BotOptimiseur(QFrame):
         if actif:
             return (
                 f"QPushButton {{"
-                f"  background: {_COLORS['ACCENT']}22;"
+                f"  background: {_COLORS['BG_BTN']};"
                 f"  color: {_COLORS['ACCENT']};"
                 f"  border: 1px solid {_COLORS['ACCENT']};"
                 f"  border-radius: 8px;"
@@ -359,7 +362,7 @@ class BotOptimiseur(QFrame):
                 f"  font-size: 11px; font-weight: 600;"
                 f"}}"
                 f"QPushButton:hover {{"
-                f"  background: {_COLORS['ACCENT']}44;"
+                f"  background: {_COLORS['BG_HOVER']};"
                 f"  color: {_COLORS['ACCENT_HOVER']};"
                 f"}}"
             )
@@ -460,8 +463,8 @@ class BotOptimiseur(QFrame):
     _CAT_TO_PAGE: dict[str, str] = {
         "general": "Général",
         "reseau": "Réseau",
-        "recherche": "Recherche",
-        "telechargement": "Téléchargement",
+        "recherche": "config-recherche",
+        "telechargement": "config-telechargement",
         "utilisateurs": "Utilisateurs",
         "partages": "Partages",
         "salons": "Salons",
@@ -480,6 +483,13 @@ class BotOptimiseur(QFrame):
                 data = json.load(fh)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             self._log(f"❌ Erreur lecture profil : {e}")
+            EventBus().emit_event(
+                severity="ERROR",
+                category="optimiseur",
+                title="Erreur de lecture",
+                message=f"Impossible de lire le profil {fichier}: {e}",
+                source="BotOptimiseur",
+            )
             return
 
         nom = data.get("name", fichier)
@@ -506,15 +516,31 @@ class BotOptimiseur(QFrame):
             # Reconstruire les clés complètes (cat_key.sub_key → valeur)
             full_params: dict[str, object] = {}
             for sub_key, valeur in cat_params.items():
-                full_params[f"{cat_key}.{sub_key}"] = valeur
+                # Les clés dans le JSON ont déjà le préfixe catégorie (ex: "general.scan_on_start")
+                # Ne pas ajouter le préfixe à nouveau pour éviter "general.general.scan_on_start"
+                full_params[sub_key] = valeur
 
             sequence.append((page_name, page, full_params))
 
         if not sequence:
             self._log("⚠ Aucune page de config ciblée")
+            EventBus().emit_event(
+                severity="WARN",
+                category="optimiseur",
+                title="Profil vide",
+                message=f"Le profil {icone} {nom} ne cible aucune page de configuration",
+                source="BotOptimiseur",
+            )
             return
 
         self._log(f"🎯 Application de {icone} {nom}…")
+        EventBus().emit_event(
+            severity="INFO",
+            category="optimiseur",
+            title="Application du profil",
+            message=f"Application du profil {icone} {nom} en cours…",
+            source="BotOptimiseur",
+        )
         self._profil_actif = fichier
         self._reload_profiles()
 
@@ -564,6 +590,13 @@ class BotOptimiseur(QFrame):
         self._log(
             f"✅ {self._icone_applique} {self._nom_applique} — "
             f"{n_modifs} modification(s)"
+        )
+        EventBus().emit_event(
+            severity="INFO",
+            category="optimiseur",
+            title="Profil appliqué",
+            message=f"Profil {self._icone_applique} {self._nom_applique} appliqué — {n_modifs} modification(s)",
+            source="BotOptimiseur",
         )
 
         # Mettre à jour le dashboard
@@ -621,7 +654,7 @@ class BotOptimiseur(QFrame):
         btn_rester.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_rester.setStyleSheet(
             f"QPushButton {{"
-            f"  background: {_COLORS['ACCENT']}22;"
+            f"  background: {_COLORS['BG_BTN']};"
             f"  color: {_COLORS['ACCENT']};"
             f"  border: 1px solid {_COLORS['ACCENT']};"
             f"  border-radius: 6px;"
@@ -629,7 +662,7 @@ class BotOptimiseur(QFrame):
             f"  font-size: 11px; font-weight: 600;"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: {_COLORS['ACCENT']}44;"
+            f"  background: {_COLORS['BG_HOVER']};"
             f"}}"
         )
         btn_rester.clicked.connect(self._hide_overlay)

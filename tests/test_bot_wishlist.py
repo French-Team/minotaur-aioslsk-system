@@ -17,11 +17,25 @@ from PySide6.QtWidgets import QApplication
 
 from src.gui.widgets.bots.bot_wishlist import BotWishlist
 from src.services import app_config
+from src.services.event_bus import EventBus
 
 
 # ═════════════════════════════════════════════════════════════════
 #  Fixtures
 # ═════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture(autouse=True)
+def _isolate_eventbus(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    """Isoler EventBus avec une base SQLite temporaire (évite conflits xdist)."""
+    db_file = tmp_path / "test_events.db"
+    monkeypatch.setattr("src.services.event_bus._DB_PATH", db_file)
+    EventBus._instance = None
+    yield
+    bus = EventBus._instance
+    if bus is not None:
+        bus.shutdown()
+        EventBus._instance = None
 
 
 @pytest.fixture

@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from src.services import app_config
 from src.services.soulseek_client import soulseek_service
+from src.services.event_bus import EventBus
 from src.gui.theme_fragments.colors import COLORS, rgba
 
 
@@ -568,6 +569,13 @@ class BotWishlist(QFrame):
         self._wishlist = [w for w in self._wishlist if w["query"] != query]
         self._save_wishlist()
         self.refresh()
+        EventBus().emit_event(
+            severity="INFO",
+            category="wishlist",
+            title="Souhait supprimé",
+            message=f"Souhait « {query} » retiré de la wishlist",
+            source="BotWishlist",
+        )
 
     def toggle_wish(self, query: str, enabled: bool) -> None:
         """Active ou désactive un souhait."""
@@ -606,6 +614,13 @@ class BotWishlist(QFrame):
                 break
         self._save_wishlist()
         self.refresh()
+        EventBus().emit_event(
+            severity="INFO",
+            category="wishlist",
+            title="Recherche wishlist",
+            message=f"Recherche lancée pour « {query} »",
+            source="BotWishlist",
+        )
 
         # TODO: Déclencher une vraie recherche via ConnexionManager
         # if soulseek_service.is_connected:

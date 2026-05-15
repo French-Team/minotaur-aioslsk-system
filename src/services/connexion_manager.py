@@ -19,6 +19,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from src.services.error_translator import traduire, afficher
 import src.services.app_config as app_config
+from src.services.event_bus import EventBus
 from src.services.soulseek_client import soulseek_service
 
 logger = logging.getLogger(__name__)
@@ -164,6 +165,38 @@ class ConnexionManager(QObject):
         # Transférer les signaux du service
         self._service.search_result_received.connect(
             self.search_result_received.emit
+        )
+
+        # ── Connexion des signaux à l'EventBus ──
+        self.connected.connect(
+            lambda username: EventBus().emit_event(
+                severity="INFO",
+                category="reseau",
+                title="Connecté à Soulseek",
+                message=f"Connexion réussie en tant que {username}",
+                source="ConnexionManager",
+            )
+        )
+        self.disconnected.connect(
+            lambda: EventBus().emit_event(
+                severity="WARN",
+                category="reseau",
+                title="Déconnecté de Soulseek",
+                message="Le client a été déconnecté du serveur",
+                source="ConnexionManager",
+            )
+        )
+        self.error_occurred.connect(
+            lambda msg: EventBus().emit_event(
+                severity="ERROR",
+                category="reseau",
+                title="Erreur de connexion",
+                message=msg if len(msg) < 200 else msg[:200],
+                source="ConnexionManager",
+            )
+        )
+        self.status_changed.connect(
+            lambda msg: None  # Ignoré — trop bavard pour l'EventBus
         )
 
         logger.info("ConnexionManager prêt (thread asyncio lancé)")
