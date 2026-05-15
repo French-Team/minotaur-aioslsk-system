@@ -30,10 +30,10 @@ COLORS = {
     "BG_BTN":         "#2e2e3a",
     "BG_BTN_DISABLED":"#3a3a4a",
     "BG_BTN_PRESSED": "#4a4a5a",
-    "PRIMARY":         "#F3A449",
-    "PRIMARY_HOVER":   "#A87030",
-    "PRIMARY_HOVER2":  "#D38226",
-    "PRIMARY_PRESSED": "#885111",
+    "PRIMARY":         "#7E5527",
+    "PRIMARY_HOVER":   "#5F401C",
+    "PRIMARY_HOVER2":  "#412A0F",
+    "PRIMARY_PRESSED": "#44290B",
     "TEXT_PRIMARY":    "#e4e4ec",
     "TEXT_WHITE":      "#ffffff",
     "TEXT_SECONDARY":  "#8a8a9a",
@@ -56,8 +56,8 @@ COLORS = {
     "WARNING":          "#ffab00",
 
     # Nuances BotBibliothèque (violet, grilles, inputs)
-    "ACCENT":           "#F3A449",   # (boutons, highlights)
-    "ACCENT_HOVER":     "#A87030",   # survol
+    "ACCENT":           "#362511",   # (boutons, highlights)
+    "ACCENT_HOVER":     "#3A2308",   # survol
     "BG_INPUT":         "#1e1e2e",   # Fond inputs, tableaux
     "GRIDLINE":         "#2a2a3e",   # Lignes de grille/séparation
     "BG_TABLE_HEADER":  "#181825",   # Fond en-tête tableau

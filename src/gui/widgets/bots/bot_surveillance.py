@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, Signal, QTimer, QDate
 from src.gui.theme_fragments.colors import rgba
 
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QDateEdit,
