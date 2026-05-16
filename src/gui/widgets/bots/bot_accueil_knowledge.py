@@ -188,20 +188,21 @@ KNOWLEDGE: dict[str, dict] = {
         ],
     },
 
-    "nettoyage": {
+    "ordonnanceur": {
         "keywords": [
-            "nettoyage", "nettoyer", "clean", "nettoyage",
-            "organiser", "organisation", "ranger", "trier",
+            "ordonnanceur", "nettoyage", "nettoyer", "clean",
+            "organiser", "organisation", "ranger", "trier", "classer",
+            "renommer", "dédoublonner",
         ],
         "icon": "🧹",
-        "response": "Le bot <b>Nettoyage</b> t'aide à organiser "
-                    "et nettoyer tes fichiers. "
+        "response": "Le bot <b>Ordonnanceur</b> t'aide à organiser, "
+                    "classer et nettoyer tes fichiers téléchargés. "
                     "Je t'envoie vers lui !",
         "actions": [
-            {"type": "navigate", "bot": "Nettoyage"},
+            {"type": "navigate", "bot": "Ordonnanceur"},
         ],
         "suggestions": [
-            {"label": "🧹 Nettoyer", "action": "nettoyage"},
+            {"label": "🧹 Organiser", "action": "ordonnanceur"},
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
@@ -296,7 +297,7 @@ KNOWLEDGE: dict[str, dict] = {
                     "<b>Téléchargement</b>, <b>Bibliothèque</b>, "
                     "<b>Utilisateurs</b>, <b>Wishlist</b>, "
                     "<b>Surveillance</b>, <b>Planificateur</b>, "
-                    "<b>Nettoyage</b>, <b>Statistiques</b>, "
+                    "<b>Ordonnanceur</b>, <b>Statistiques</b>, "
                     "<b>Assistant</b>, et <b>Aide</b>.",
         "suggestions": [
             {"label": "🎯 Voir les 12 bots", "action": "about"},

@@ -22,7 +22,7 @@
       "title": "⚙️ Organisation & Assistance",
       "columns": [
         [
-          { "label": "Nettoyage", "value": "Trier, renommer & organiser les DL" },
+          { "label": "Ordonnanceur", "value": "Trier, classer & organiser les DL" },
           { "label": "Statistiques", "value": "Tableau de bord & historique" }
         ],
         [

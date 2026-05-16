@@ -1,57 +1,68 @@
-# Instructions pour l'Agent (à exécuter)
+# Instructions — Projet Ordonnanceur
 
-**Agent, lis et exécute les tâches ci‑dessous immédiatement.**
-
-## Objectif Principal
-Développer une interface utilisateur conviviale pour Soulseek, accessible via 12 bots, sans que l'utilisateur n'ait besoin de connaître les rouages de Soulseek.
-
-## Priorités Actuelles (Phase 2 – Bots essentiels)
-1. **Bot Accueil** – Reprendre et finaliser le travail sur `home.py`.
-2. **Bot Recherche** – Développer l'interface et la logique de recherche Soulseek.
-3. **Bot Téléchargement** – Mettre en place la gestion des téléchargements.
-4. **Bot Assistant** – Créer une interface de configuration guidée.
-
-## État de la Connexion Backend
-La connexion au serveur Soulseek a déjà été vérifiée avec succès (`ConnexionManager`). **Ne pas refaire la vérification**.
-
-## Tâches à exécuter immédiatement
-- **Bot Recherche** : finaliser l’UI, afficher les résultats de recherche (utiliser le signal `search_result_received`).
-- **Bot Téléchargement** : implémenter la file d’attente, le suivi et l’état des téléchargements.
-- **Bot Assistant** : créer l’interface de configuration guidée.
-- **Documentation** : à chaque étape, ajouter une entrée détaillée dans `.aioslsk-logbook.md` (progrès, obstacles, solutions).
-
-## Mise à jour du Logbook
-- Tout progrès doit être consigné dans `.aioslsk-logbook.md`.
-- Utiliser le format suivant pour chaque entrée :
-  - **Date & Heure**
-  - **Tâche**
-  - **Résultat**
-  - **Problèmes rencontrés**
-  - **Solution / prochaine étape**
+**Agent, lis et exécute les tâches ci-dessous immédiatement.**
 
 ---
-**Agent, prends ces instructions comme directives à exécuter et mets à jour le logbook dès que chaque tâche est complétée.**
 
 ## Objectif Principal
-Développer une interface utilisateur conviviale pour Soulseek, accessible via 12 bots, sans que l'utilisateur n'ait besoin de connaître les rouages de Soulseek.
 
-## Priorités Actuelles (Phase 2 - Bots essentiels)
+Développer **l'Ordonnanceur**, un outil d'organisation de fichiers audio
+accessible en CLI et GUI. L'utilisateur s'appelle **Ordonnanceur**.
 
-1.  **Bot Accueil :** Reprendre et finaliser le travail sur `home.py`.
-2.  **Bot Recherche :** Développer l'interface et la logique pour les fonctionnalités de recherche de Soulseek.
-3.  **Bot Téléchargement :** Mettre en place la gestion des téléchargements.
-4.  **Bot Assistant :** Créer une interface pour une configuration guidée.
+L'Ordonnanceur analyse, renomme, classe, dédoublonne et nettoie
+les fichiers audio téléchargés.
 
-## Connexion au Backend déjà Vérifiée
+---
 
-Le logbook indique que la connexion au serveur Soulseek a été testée avec succès (voir section "✅ Vérification de la connexion Soulseek (backend)"), et que le `ConnexionManager` fonctionne correctement. Aucun besoin de répéter cette vérification.
+## Ce qui est déjà construit
 
-**Prochaines actions attendues**
+### Backend — `src/services/ordonnanceur_service.py` ✅
+- Analyse de dossier (scan récursif, tags mutagen, pattern filename)
+- Renommage intelligent (template personnalisable, presets)
+- Classement artiste/album (structure configurable, presets)
+- Dédoublonnage (nom+taille → SHA256, règle de conservation)
+- Nettoyage temporaire (âge + extension)
+- Résolution automatique des conflits de noms
+- Exécution réelle des opérations sur le disque
+- **128 tests unitaires — ✅ verts**
 
-1. **Bot Recherche** – Finaliser l'interface utilisateur et afficher les résultats de recherche (utiliser le signal `search_result_received`).
-2. **Bot Téléchargement** – Implémenter la gestion des téléchargements (queue, suivi, état).
-3. **Bot Assistant** – Créer l'interface de configuration guidée.
-4. **Documentation** – Continuer à consigner chaque étape et tout obstacle dans `.aioslsk-logbook.md`.
+### CLI — `src/cli_ordonnanceur.py` ✅
+- Preview console formatée (renommage, classement, déduplication, nettoyage)
+- `--executer` pour appliquer les opérations
+- `--dry-run` pour forcer la simulation
+- **16 tests — ✅ verts**
 
-## Mise à Jour du Logbook
-Veuillez maintenir le fichier `.aioslsk-logbook.md` à jour avec votre progression, les défis rencontrés et les solutions apportées. C'est notre point de communication principal pour suivre l'avancement.
+### GUI — `src/gui/widgets/bots/bot_ordonnanceur.py` 🏗️
+- Structure 4 étapes : Choix → Aperçu → Exécution → Rapport
+- UI construite mais service backend **non branché**
+- **553 lignes** — à connecter à `ordonnanceur_service`
+
+---
+
+## Prochaines actions
+
+1. **Brancher le service dans le GUI** — connecter `ordonnanceur_service`
+   aux méthodes du `BotOrdonnanceur` (analyse, preview, execution)
+2. **Tests d'intégration GUI** — tests avec `pytest-qt`
+3. **Intégration Planificateur** — exposer les actions individuelles
+4. **Auto au démarrage** — hook optionnel
+5. **Améliorations** — corbeille, barre de progression, i18n
+
+---
+
+## Conventions
+
+- Service : `src/services/ordonnanceur_service.py`
+- CLI : `src/cli_ordonnanceur.py` (argparse, `python -m src.cli_ordonnanceur`)
+- GUI : `src/gui/widgets/bots/bot_ordonnanceur.py` (PySide6)
+- Tests : `tests/test_ordonnanceur_service.py` + `test_cli_ordonnanceur.py`
+- Documentation : `.aioslsk-logbook.md` + `specs/bot-ordonnanceur-spec.md`
+
+## Mise à jour du Logbook
+
+Tout progrès doit être consigné dans `.aioslsk-logbook.md` avec :
+- **Date & Heure**
+- **Tâche**
+- **Résultat**
+- **Problèmes rencontrés**
+- **Solution / prochaine étape**

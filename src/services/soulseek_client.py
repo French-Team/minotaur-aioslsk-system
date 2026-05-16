@@ -47,6 +47,7 @@ from aioslsk.events import (
     TransferProgressEvent,
     TransferRemovedEvent,
 )
+from aioslsk.transfer.model import TransferDirection
 
 logger = logging.getLogger(__name__)
 
@@ -477,6 +478,42 @@ class SoulseekService(QObject):
             except Exception as e:
                 logger.warning("Erreur lors du cleanup du client: %s", e)
             self._client = None
+
+    # ── Contrôle des transferts ────────────────────────────────────────────
+
+    def pause_transfer(self, username: str, remote_path: str) -> None:
+        """Met en pause un téléchargement (fire-and-forget)."""
+        if not self.is_connected or self._client is None:
+            return
+        transfer = self._client.transfers.find_transfer(
+            username, remote_path, TransferDirection.DOWNLOAD
+        )
+        if transfer:
+            asyncio.ensure_future(self._client.transfers.pause(transfer))
+            logger.debug("Transfert mis en pause: %s / %s", username, remote_path)
+
+    def resume_transfer(self, username: str, remote_path: str) -> None:
+        """Reprend un téléchargement (fire-and-forget).
+
+        Appelle download() qui relance le transfert s'il existe déjà.
+        """
+        if not self.is_connected or self._client is None:
+            return
+        asyncio.ensure_future(
+            self._client.transfers.download(username, remote_path, paused=False)
+        )
+        logger.debug("Transfert relancé: %s / %s", username, remote_path)
+
+    def abort_transfer(self, username: str, remote_path: str) -> None:
+        """Annule/abandonne un téléchargement (fire-and-forget)."""
+        if not self.is_connected or self._client is None:
+            return
+        transfer = self._client.transfers.find_transfer(
+            username, remote_path, TransferDirection.DOWNLOAD
+        )
+        if transfer:
+            asyncio.ensure_future(self._client.transfers.abort(transfer))
+            logger.debug("Transfert annulé: %s / %s", username, remote_path)
 
 
 # Instance globale partagée

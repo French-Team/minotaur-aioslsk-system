@@ -338,6 +338,20 @@ class MainWindow(QMainWindow):
         # Transmettre le gestionnaire aux bots (Recherche, etc.)
         center.set_connexion_manager(self._connexion_manager)
 
+        # Pré-remplir le formulaire avec les credentials stockés
+        username = cfg_get("reseau.nom_utilisateur", "")
+        password = cfg_get("reseau.mot_de_passe", "")
+        if username and password:
+            connexion_page.prefill(username, password)
+
+        # Synchroniser la checkbox avec la config
+        auto_login = cfg_get("general.connexion_automatique", False)
+        connexion_page.set_auto_login(bool(auto_login))
+
+        # Connexion automatique au démarrage (si flag + credentials OK)
+        if bool(auto_login) and username and password:
+            self._connexion_manager.auto_login()
+
     def _connect_toast_events(self) -> None:
         """Connecte les événements ERROR/WARN de l'EventBus aux toasts."""
         EventBus().event_emitted.connect(self._on_toast_event)

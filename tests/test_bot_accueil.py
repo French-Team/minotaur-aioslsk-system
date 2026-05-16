@@ -233,7 +233,7 @@ class TestOnSuggestion:
             "wishlist": "Wishlist",
             "surveillance": "Surveillance",
             "planificateur": "Planificateur",
-            "nettoyage": "Nettoyage",
+            "ordonnanceur": "Ordonnanceur",
             "stats": "Statistiques",
             "config": "Assistant",
             "help": "Aide",

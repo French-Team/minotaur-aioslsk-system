@@ -607,7 +607,7 @@ class BotAccueil(QFrame):
             "📋 <b>Wishlist</b> — Souhaits automatiques<br>"
             "👁️ <b>Surveillance</b> — Alertes en direct<br>"
             "📅 <b>Planificateur</b> — Actions planifiées<br>"
-            "🧹 <b>Nettoyage</b> — Organiser les fichiers<br>"
+            "🧹 <b>Ordonnanceur</b> — Organiser les fichiers<br>"
             "📊 <b>Statistiques</b> — Tableau de bord<br>"
             "⚙️ <b>Assistant</b> — Configuration guidée<br>"
             "❓ <b>Aide</b> — Guide & explications<br><br>"
@@ -640,7 +640,7 @@ class BotAccueil(QFrame):
             "wishlist": lambda: self.navigate_to("Wishlist", "📋"),
             "surveillance": lambda: self.navigate_to("Surveillance", "👁️"),
             "planificateur": lambda: self.navigate_to("Planificateur", "📅"),
-            "nettoyage": lambda: self.navigate_to("Nettoyage", "🧹"),
+            "ordonnanceur": lambda: self.navigate_to("Ordonnanceur", "🧹"),
             "stats": lambda: self.navigate_to("Statistiques", "📊"),
             "config": lambda: self.navigate_to("Assistant", "⚙️"),
             "help": lambda: self.navigate_to("Aide", "❓"),

@@ -31,7 +31,7 @@ def main() -> None:
         "async_upnp_client.traffic",     # SOAP UPnP brut
         "async_upnp_client.client",
     ):
-        logging.getLogger(logger_name).setLevel(logging.WARNING)
+        logging.getLogger(logger_name).setLevel(logging.ERROR)
 
     app = QApplication(sys.argv)
     app.setApplicationName("aioslsk")

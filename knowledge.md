@@ -3,51 +3,60 @@
 This file gives Freebuff context about your project: goals, commands, conventions, and gotchas.
 
 ## What this is
-A collection of **custom AI agents** for use with [Codebuff](https://codebuff.com) — a CLI tool where you chat with AI to code. Agents are TypeScript files that define specialized AI behaviors using the `AgentDefinition` interface.
+**L'Ordonnanceur** — un outil CLI + GUI pour organiser les fichiers audio : renommer, classer par artiste/album, dédoublonner (hash SHA256), et nettoyer les fichiers temporaires.
 
 ## Quickstart
-- **Setup:** Run `codebuff` from project root. Agents live in `.agents/`.
-- **Test / run:** `codebuff` loads agents from `.agents/` automatically. Invoke agents via `@AgentName` in chat.
-- **Publish:** `codebuff publish your-agent-name` (requires Codebuff CLI).
+- **Lancer le CLI :** `python -m src.cli_ordonnanceur DOSSIER`
+- **Lancer les tests :** `python -m pytest tests/`
+- **Preview sans risque :** `python -m src.cli_ordonnanceur DOSSIER` (simulation par défaut)
+- **Exécuter pour de vrai :** `python -m src.cli_ordonnanceur DOSSIER --executer`
 
 ## Key directories
 | Path | Purpose |
 |------|---------|
-| `.agents/` | Agent definitions loaded by Codebuff |
-| `.agents/types/` | TypeScript types (`AgentDefinition`, input/output schemas, tool types) |
-| `codebuff-dot-agents/` | Original agent examples, skills, and templates (not loaded by Codebuff) |
-| `codebuff-dot-agents/examples/` | Example agents: diff-reviewer, git-committer, file-explorer |
-| `codebuff-dot-agents/skills/` | Reusable skill definitions (each subdirectory has a `SKILL.md` with YAML frontmatter) |
-
-## Custom agents (in `.agents/`)
-
-### Multi-agent system for aioslsk (Soulseek Python library)
-These three agents work together as a team. The interface builder and backend developer **must** spawn the researcher before using any aioslsk APIs — they are strictly forbidden from inventing API signatures.
-
-| Agent | File | Purpose |
-|-------|------|---------|
-| **researcher-aioslsk** | `.agents/researcher-aioslsk.ts` | Researches aioslsk docs at https://aioslsk.readthedocs.io/en/stable/ — the **single source of truth** for API signatures |
-| **aioslsk-interface-builder** | `.agents/aioslsk-interface-builder.ts` | Builds FastAPI web interfaces using verified aioslsk APIs (spawns researcher) |
-| **backend-aioslsk** | `.agents/backend-aioslsk.ts` | Implements backend business logic using verified aioslsk APIs (spawns researcher) |
-
-### Other agents
-- **`codebuff-dot-agents/my-custom-agent.ts`** — Starter custom agent (uses `x-ai/grok-4-fast` model)
+| `src/services/ordonnanceur_service.py` | Backend complet (1652 lignes) — analyse, renommage, classement, déduplication, nettoyage, exécution |
+| `src/cli_ordonnanceur.py` | CLI (432 lignes) — preview console + --executer |
+| `src/gui/widgets/bots/bot_ordonnanceur.py` | GUI Qt (553 lignes) — assistant 4 étapes (service non branché) |
+| `tests/test_ordonnanceur_service.py` | 128 tests backend |
+| `tests/test_cli_ordonnanceur.py` | 16 tests CLI |
+| `specs/bot-ordonnanceur-spec.md` | Spécification détaillée |
+| `.aioslsk-logbook.md` | Carnet de bord du projet |
 
 ## Architecture
-- Each agent is a standalone `.ts` file exporting an `AgentDefinition` object
-- Agents define: `id`, `displayName`, `model` (OpenRouter models), `toolNames`, `instructionsPrompt`, and optional `handleSteps` generator for programmatic logic
-- Agents can spawn sub-agents using the `spawn_agents` tool
-- Skills provide reusable behaviors loaded via the `skill` tool
-- Supported models include Claude, GPT, Grok, Gemini, DeepSeek, Llama, and more (via OpenRouter)
+
+```python
+# Flux principal
+analyse = svc.analyser_dossier(dossier)         # scan + tags mutagen
+apercu = svc.generer_apercu(analyse, ops)        # preview
+resultat = svc.executer_operations(apercu)       # apply (ou simuler)
+```
+
+- **4 opérations :** renommage, classement, deduplication, nettoyage
+- **Simulation par défaut** — rien n'est modifié sans `--executer`
+- **Résolution de conflits** — suffixes _2, _3… automatiques
+- **Dédoublonnage** — passe rapide (nom+taille) → passe sûre (SHA256 64Ko)
+
+## Tests
+- **783 tests verts** dans tout le projet
+- `python -m pytest tests/` pour tout lancer
+- `python -m pytest tests/test_ordonnanceur_service.py::TestExecuterOperations -v` pour un sous-ensemble
+
+## CLI commands
+| Commande | Description |
+|----------|-------------|
+| `python -m src.cli_ordonnanceur --help` | Aide complète |
+| `python -m src.cli_ordonnanceur DOSSIER` | Preview simulation |
+| `python -m src.cli_ordonnanceur DOSSIER --executer` | Exécution réelle |
+| `python -m src.cli_ordonnanceur DOSSIER --ops renommage classement` | Opérations filtrées |
+| `python -m src.cli_ordonnanceur DOSSIER --template-renommage "{artist} - {title}.{ext}"` | Template personnalisé |
 
 ## Conventions
-- **License:** Apache 2.0
-- **Language:** TypeScript
-- **Agent IDs:** kebab-case (e.g., `basic-diff-reviewer`)
-- **Skills:** Each skill lives in its own directory with a `SKILL.md` containing YAML frontmatter (`name`, `description`, `license`) followed by instructions
-- **Skill loading:** Project-level skills are in `.agents/skills/`, global ones in `~/.agents/skills/`; project takes precedence
-- **Testing:** No dedicated test framework — agents are tested by running `codebuff` and invoking them interactively
+- **Langue des docs :** français (projet francophone)
+- **Code :** Python 3.12+, type hints partout
+- **Tests :** pytest, fixtures tmp_path pour les fichiers temporaires
+- **CLI :** argparse, `python -m src.cli_ordonnanceur`
 
 ## Things to avoid
-- Don't use deprecated model names — check `types/agent-definition.ts` for the current model enum
-- Skill names must be lowercase alphanumeric with hyphens (1–64 chars), match their directory name, no consecutive hyphens
+- Ne pas lancer d'opérations destructives sans confirmation utilisateur (toucher au disque)
+- Ne pas modifier les fichiers des anciens bots Soulseek sans demande explicite
+- Toujours utiliser `simuler=True` par défaut — `--executer` est une action explicite de l'utilisateur

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -136,6 +137,7 @@ class ConnexionPage(QFrame):
     login_requested = Signal(str, str)   # (username, password)
     generate_requested = Signal()
     disconnect_requested = Signal()
+    auto_login_changed = Signal(bool)    # (checked) — bascule de la checkbox
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -199,6 +201,32 @@ class ConnexionPage(QFrame):
         self._password.setPlaceholderText("Mot de passe")
         self._password.setEchoMode(QLineEdit.EchoMode.Password)
         lay.addWidget(self._password)
+
+        # ── Checkbox connexion automatique ──
+        self._auto_cb = QCheckBox("Connexion automatique au démarrage")
+        self._auto_cb.setStyleSheet(f"""
+            QCheckBox {{
+                color: {COLORS['TEXT_SECONDARY']};
+                font-size: 11px;
+                spacing: 6px;
+            }}
+            QCheckBox::indicator {{
+                width: 14px;
+                height: 14px;
+                border: 1px solid {COLORS['BORDER']};
+                border-radius: 3px;
+                background-color: {COLORS['BG_SURFACE2']};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {COLORS['ACCENT']};
+                border-color: {COLORS['ACCENT']};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {COLORS['ACCENT']};
+            }}
+        """)
+        self._auto_cb.toggled.connect(self._on_auto_login_toggled)
+        lay.addWidget(self._auto_cb)
 
         # ── Bouton connexion ──
         self._login_btn = QPushButton("Se connecter")
@@ -319,6 +347,21 @@ class ConnexionPage(QFrame):
         """Affiche un message de succès."""
         self._set_message(msg, COLORS['SUCCESS'])
 
+    def prefill(self, username: str, password: str) -> None:
+        """Pré-remplit les champs avec les credentials stockés."""
+        self._username.setText(username)
+        self._password.setText(password)
+
+    def set_auto_login(self, checked: bool) -> None:
+        """Définit l'état de la checkbox connexion auto (sans émettre de signal)."""
+        self._auto_cb.blockSignals(True)
+        self._auto_cb.setChecked(checked)
+        self._auto_cb.blockSignals(False)
+
+    def is_auto_login(self) -> bool:
+        """Retourne l'état de la checkbox connexion auto."""
+        return self._auto_cb.isChecked()
+
     def get_username(self) -> str:
         return self._username.text().strip()
 
@@ -342,6 +385,12 @@ class ConnexionPage(QFrame):
             self.show_error("Veuillez remplir tous les champs.")
             return
         self.login_requested.emit(username, password)
+
+    def _on_auto_login_toggled(self, checked: bool) -> None:
+        """Sauvegarde l'état de la checkbox dans la config."""
+        from src.services.app_config import set as cfg_set
+        cfg_set("general.connexion_automatique", checked)
+        self.auto_login_changed.emit(checked)
 
     def _on_generate(self) -> None:
         self.generate_requested.emit()

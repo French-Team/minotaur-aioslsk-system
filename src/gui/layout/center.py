@@ -37,8 +37,10 @@ from src.gui.widgets.bots.bot_bibliotheque import BotBibliotheque
 from src.gui.widgets.bots.bot_wishlist import BotWishlist
 from src.gui.widgets.bots.bot_recherche import BotRecherche
 from src.gui.widgets.bots.bot_surveillance import BotSurveillance
+from src.gui.widgets.bots.bot_planificateur import BotPlanificateur
 from src.gui.widgets.home import HomePage
-from src.gui.widgets.telechargements import TelechargementsPage
+from src.gui.widgets.bots.bot_telechargement import BotTelechargement
+from src.gui.widgets.bots.bot_ordonnanceur import BotOrdonnanceur
 from src.services.soulseek_client import soulseek_service
 from src.gui.theme_fragments.colors import COLORS
 
@@ -48,44 +50,6 @@ logger = logging.getLogger(__name__)
 
 
 # ── Helpers de formatage ─────────────────────────────────────────
-
-
-def _format_taille(bytes_val: int) -> str:
-    """Formate une taille en bytes vers une chaîne lisible."""
-    if bytes_val >= 1_000_000_000:
-        return f"{bytes_val / 1_000_000_000:.1f} Go"
-    if bytes_val >= 1_000_000:
-        return f"{bytes_val / 1_000_000:.1f} Mo"
-    if bytes_val >= 1_000:
-        return f"{bytes_val / 1_000:.1f} Ko"
-    return f"{bytes_val} o"
-
-
-def _transfer_state_to_statut(state: object) -> str:
-    """Convertit un TransferState.State en label de statut."""
-    state_name = state.name if hasattr(state, 'name') else str(state)
-    mapping = {
-        "VIRGIN": "attente",
-        "QUEUED": "attente",
-        "INITIALIZING": "attente",
-        "INCOMPLETE": "en_cours",
-        "DOWNLOADING": "en_cours",
-        "UPLOADING": "en_cours",
-        "COMPLETE": "termine",
-        "FAILED": "echoue",
-        "ABORTED": "echoue",
-        "PAUSED": "attente",
-        "UNSET": "attente",
-    }
-    return mapping.get(state_name.upper(), "en_cours")
-
-
-def _transfer_statut_label(transfer: object) -> str:
-    """Détermine le statut initial d'un transfert."""
-    state = getattr(transfer, 'state', None)
-    if state is None:
-        return "attente"
-    return _transfer_state_to_statut(state)
 
 
 # ── Alias de navigation ───────────────────────────────────────────────
@@ -135,7 +99,6 @@ class CenterZone(QFrame):
         for name in (
             "Surveillance",
             "Planificateur",
-            "Nettoyage",
             "Statistiques",
             "Assistant",
             "Aide",
@@ -159,6 +122,12 @@ class CenterZone(QFrame):
 
         # Page du bot Surveillance (watcher centralisé)
         self._build_surveillance_page()
+
+        # Page du bot Planificateur (gestion des actions planifiées)
+        self._build_planificateur_page()
+
+        # Page du bot Ordonnanceur (assistant d'organisation)
+        self._build_ordonnanceur_page()
 
         # Connexion des signaux d'événements Soulseek
         self._connect_event_signals()
@@ -195,11 +164,19 @@ class CenterZone(QFrame):
         if page is not None:
             self._stack.setCurrentWidget(page)
 
-        # Réinitialiser le badge d'événements non lus quand on affiche Surveillance
+        # Réinitialiser les badges d'événements non lus
         if name == "Surveillance":
             surv = self._pages.get("Surveillance")
             if isinstance(surv, BotSurveillance):
                 surv.reset_unseen_count()
+        if name == "Planificateur":
+            plan = self._pages.get("Planificateur")
+            if isinstance(plan, BotPlanificateur):
+                plan.reset_unseen_count()
+        if name == "telechargements":
+            dl = self._pages.get("telechargements")
+            if isinstance(dl, BotTelechargement):
+                dl.reset_unseen_count()
 
     def show_home(self, username: str) -> None:
         """Affiche la page d'accueil avec le nom de l'utilisateur connecté."""
@@ -217,6 +194,24 @@ class CenterZone(QFrame):
         while parent is not None:
             if hasattr(parent, 'footer'):
                 parent.footer.set_badge("Surveillance", count)
+                break
+            parent = parent.parent()
+
+    def _update_planificateur_badge(self, count: int) -> None:
+        """Met à jour le badge de comptage sur le bouton Planificateur du footer."""
+        parent = self.parent()
+        while parent is not None:
+            if hasattr(parent, 'footer'):
+                parent.footer.set_badge("Planificateur", count)
+                break
+            parent = parent.parent()
+
+    def _update_telechargement_badge(self, count: int) -> None:
+        """Met à jour le badge de comptage sur le bouton Téléchargement du footer."""
+        parent = self.parent()
+        while parent is not None:
+            if hasattr(parent, 'footer'):
+                parent.footer.set_badge("Téléchargement", count)
                 break
             parent = parent.parent()
 
@@ -248,10 +243,12 @@ class CenterZone(QFrame):
         self._stack.addWidget(page)
 
     def _build_telechargements_page(self) -> None:
-        """Page des téléchargements."""
-        page = TelechargementsPage()
+        """Page des téléchargements (Bot)."""
+        page = BotTelechargement()
         self._pages["telechargements"] = page
         self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+        page.unseen_count_changed.connect(self._update_telechargement_badge)
 
     def _build_connexion_page(self) -> None:
         """Page de connexion Soulseek."""
@@ -295,6 +292,27 @@ class CenterZone(QFrame):
             lambda count: self._update_surveillance_badge(count)
         )
 
+    def _build_ordonnanceur_page(self) -> None:
+        """Page du bot Ordonnanceur — assistant d'organisation des téléchargements."""
+        page = BotOrdonnanceur(center_zone=self)
+        self._bot_ordonnanceur = page
+        self._pages["Ordonnanceur"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+
+    def _build_planificateur_page(self) -> None:
+        """Page du bot Planificateur — gestion des actions planifiées."""
+        page = BotPlanificateur(center_zone=self)
+        self._bot_planificateur = page
+        self._pages["Planificateur"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+
+        # Mettre à jour le badge du footer quand des actions échouent hors vue
+        page.unseen_count_changed.connect(
+            lambda count: self._update_planificateur_badge(count)
+        )
+
     def _build_bibliotheque_page(self) -> None:
         """Page Bibliothèque — exploration des fichiers partagés Soulseek."""
         page = BotBibliotheque()
@@ -326,6 +344,12 @@ class CenterZone(QFrame):
             "Scanner les partages au démarrage",
             "general.scan_on_start",
             description="Analyse les dossiers partagés au lancement de l'application",
+        ))
+        section_demarrage.add(ConfigToggle(
+            "Connexion automatique",
+            "general.connexion_automatique",
+            description="Se connecte automatiquement à Soulseek au démarrage "
+                       "avec les identifiants stockés.",
         ))
         general.add(section_demarrage)
 
@@ -814,11 +838,11 @@ class CenterZone(QFrame):
     def _connect_event_signals(self) -> None:
         """Connecte les signaux d'événements Soulseek aux widgets UI."""
 
-        # ── Transfers → TelechargementsPage ──────────────────────
+        # ── Transfers → BotTelechargement ────────────────────────
 
-        soulseek_service.transfer_added.connect(self._on_transfer_added)
-        soulseek_service.transfer_removed.connect(self._on_transfer_removed)
-        soulseek_service.transfer_progress.connect(self._on_transfer_progress)
+        page = self.telechargements_page
+        if page is not None and hasattr(page, 'setup'):
+            page.setup(soulseek_service)
 
         # ── Recherche → log (UI à venir) ─────────────────────────
 
@@ -867,66 +891,3 @@ class CenterZone(QFrame):
             self._photo_preview.clear()
             self._photo_preview.setVisible(False)
 
-    # ── Handlers de transfert ───────────────────────────────────
-
-    def _on_transfer_added(self, evt: object) -> None:
-        """Handler : un transfert a été ajouté."""
-        page = self.telechargements_page
-        if page is None:
-            return
-        transfer = getattr(evt, 'transfer', None)
-        if transfer is None:
-            return
-
-        identifiant = transfer.remote_path
-        fichier = identifiant.split("/")[-1].split("\\")[-1]  # extraire le nom
-        fichiersize = getattr(transfer, 'filesize', 0)
-        taille = _format_taille(fichiersize)
-        statut = _transfer_statut_label(transfer)
-
-        page.add_download(
-            identifiant=identifiant,
-            fichier=fichier,
-            statut=statut,
-            progression=0.0,
-            vitesse="",
-            taille=taille,
-        )
-        logger.info("Transfert ajouté : %s (%s)", fichier, statut)
-
-    def _on_transfer_removed(self, evt: object) -> None:
-        """Handler : un transfert a été supprimé."""
-        page = self.telechargements_page
-        if page is None:
-            return
-        transfer = getattr(evt, 'transfer', None)
-        if transfer is None:
-            return
-        page.remove_download(transfer.remote_path)
-        logger.debug("Transfert supprimé : %s", transfer.remote_path)
-
-    def _on_transfer_progress(self, evt: object) -> None:
-        """Handler : mise à jour de progression."""
-        page = self.telechargements_page
-        if page is None:
-            return
-        updates = getattr(evt, 'updates', None)
-        if not updates:
-            return
-        for transfer, prev_snap, cur_snap in updates:
-            remote_path = getattr(transfer, 'remote_path', '')
-            if not remote_path:
-                continue
-            fichiersize = getattr(transfer, 'filesize', 0)
-            bytes_transfered = getattr(cur_snap, 'bytes_transfered', 0) if cur_snap else 0
-            if fichiersize > 0:
-                progression = (bytes_transfered / fichiersize) * 100.0
-            else:
-                progression = 0.0
-            page.update_progression(remote_path, progression)
-
-            # Ne changer le statut que si l'état a réellement changé
-            cur_state = cur_snap.state if cur_snap else None
-            prev_state = prev_snap.state if prev_snap else None
-            if cur_state is not None and prev_state != cur_state:
-                page.change_statut(remote_path, _transfer_state_to_statut(cur_state))

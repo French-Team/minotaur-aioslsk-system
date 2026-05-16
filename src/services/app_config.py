@@ -26,8 +26,11 @@ _DEFAULTS: dict[str, Any] = {
     "general.photo_profil": "",  # Chemin vers la photo de profil
     "general.interets_aimes": "",  # Centres d'intérêt appréciés (séparés par des virgules)
     "general.interets_detestes": "",  # Centres d'intérêt détestés (séparés par des virgules)
+    "general.connexion_automatique": False,  # Connexion automatique au démarrage
 
     # ═══ Réseau ═══
+    "reseau.nom_utilisateur": "",  # Nom d'utilisateur Soulseek (pour reconnexion auto)
+    "reseau.mot_de_passe": "",  # Mot de passe Soulseek (pour reconnexion auto)
     "reseau.upnp": False,
     "reseau.port_ecoute": 60000,
     "reseau.port_obfusque": 60001,

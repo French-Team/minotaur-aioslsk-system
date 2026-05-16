@@ -287,6 +287,24 @@ class ConnexionManager(QObject):
         self.status_changed.emit("Connexion en cours…")
         self._async_thread.run_coro(self._do_login(username, password))
 
+    def auto_login(self) -> None:
+        """Tente une reconnexion auto avec les credentials stockés.
+
+        Vérifie d'abord le flag ``general.connexion_automatique`` dans la config.
+        N'est appelé que si ce flag est True (checkbox cochée ou config activée).
+        """
+        if not app_config.get("general.connexion_automatique", False):
+            logger.debug("Connexion automatique désactivée dans la config — skip auto_login")
+            return
+        username = app_config.get("reseau.nom_utilisateur", "")
+        password = app_config.get("reseau.mot_de_passe", "")
+        if username and password:
+            logger.info("Reconnexion auto détectée pour : %s", username)
+            self.status_changed.emit("Reconnexion automatique…")
+            self._async_thread.run_coro(self._do_login(username, password))
+        else:
+            logger.debug("Aucun credentials stockés — pas de reconnexion auto")
+
     def generate_account(self) -> None:
         """Génère des identifiants aléatoires et tente de se connecter.
 
@@ -320,6 +338,9 @@ class ConnexionManager(QObject):
         try:
             msg = await self._service.connect(username, password)
             logger.info("Connexion réussie: %s", username)
+            # Sauvegarder les credentials pour reconnexion auto
+            app_config.set("reseau.nom_utilisateur", username)
+            app_config.set("reseau.mot_de_passe", password)
             self.connected.emit(username)
             self.status_changed.emit(msg)
         except Exception as e:
@@ -337,6 +358,9 @@ class ConnexionManager(QObject):
                 timeout=30.0,
             )
             logger.info("Compte créé et connecté: %s", username)
+            # Sauvegarder les credentials pour reconnexion auto
+            app_config.set("reseau.nom_utilisateur", username)
+            app_config.set("reseau.mot_de_passe", password)
             self.connected.emit(username)
             self.generating.emit(False)
             self.status_changed.emit(

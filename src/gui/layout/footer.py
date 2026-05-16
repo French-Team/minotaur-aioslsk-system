@@ -50,7 +50,8 @@ class _FooterNavButton(QPushButton):
             self._badge.setText(display)
             self._badge.setVisible(True)
             # Positionner le badge en haut à droite du bouton
-            self._badge.move(self.width() - 22, -4)
+            self._badge.move(self.width() - 22, 0)
+            self._badge.raise_()
         else:
             self._badge.setVisible(False)
 
@@ -58,7 +59,8 @@ class _FooterNavButton(QPushButton):
         """Repositionne le badge lors du redimensionnement."""
         super().resizeEvent(event)  # type: ignore[arg-type]
         if self._badge.isVisible():
-            self._badge.move(self.width() - 22, -4)
+            self._badge.move(self.width() - 22, 0)
+            self._badge.raise_()
 
 
 _BOT_NAMES: list[str] = [
@@ -70,7 +72,7 @@ _BOT_NAMES: list[str] = [
     "Optimiseur",
     "Surveillance",
     "Planificateur",
-    "Nettoyage",
+    "Ordonnanceur",
     "Statistiques",
     "Assistant",
     "Aide",
