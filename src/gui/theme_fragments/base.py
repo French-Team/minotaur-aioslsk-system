@@ -3,7 +3,6 @@ CSS fragment — base.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-
 CSS = """\
 QMainWindow {
     background-color: @BG_MAIN@;

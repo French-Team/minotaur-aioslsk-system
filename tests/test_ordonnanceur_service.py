@@ -1477,19 +1477,6 @@ class TestFilenamePatterns:
         assert r is not None
         assert r["title"] == "Anything"
 
-    def test_patterns_default(self) -> None:
-        svc = OrdonnanceurService()
-        assert len(svc.filename_patterns) >= 2
-
-    def test_set_patterns(self) -> None:
-        svc = OrdonnanceurService()
-        custom = [re.compile(r"^(?P<title>.+)$")]
-        svc.set_filename_patterns(custom)
-        assert svc.filename_patterns == custom
-        r = svc._parser_nom_fichier("Anything")
-        assert r is not None
-        assert r["title"] == "Anything"
-
 
 # ── Templates prédéfinis ───────────────────────────────────────────
 

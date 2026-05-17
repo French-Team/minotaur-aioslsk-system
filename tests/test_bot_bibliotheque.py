@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -299,7 +300,7 @@ class TestArbreDossiers:
         """Chaque dossier enfant (si présent) a un folder_id dans UserRole."""
         for i in range(bot._tree_root.childCount()):
             child = bot._tree_root.child(i)
-            folder_id: int | None = child.data(0, Qt.ItemDataRole.UserRole)
+            child.data(0, Qt.ItemDataRole.UserRole)
             # folder_id peut être None si la DB est vide, doit être présent si enfant
             assert child.text(0).startswith("📁")
 

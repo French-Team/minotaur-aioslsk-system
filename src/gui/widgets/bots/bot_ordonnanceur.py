@@ -299,7 +299,10 @@ class _OrdonnanceurWorker(QObject):
         """Point d'entrée du thread. Appelé via QThread.started."""
         self.started.emit()
         try:
-            progress_cb = lambda op, cur, tot: self.progress.emit(op, cur, tot)
+
+            def progress_cb(op, cur, tot):
+                return self.progress.emit(op, cur, tot)
+
             resultat = self._service.executer_operations(self._apercu, simuler=self._simuler, on_progress=progress_cb)
             if self._cancelled:
                 return
@@ -1059,9 +1062,9 @@ class BotOrdonnanceur(QFrame):
                 summary_lines.append(f"  {op_emojis.get(op_key, '•')} {op_label} : {self._taille_lisible(t)} libérés")
 
         for line in summary_lines:
-            l = QLabel(line)
-            l.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 12px;")
-            summary_layout.addWidget(l)
+            label = QLabel(line)
+            label.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 12px;")
+            summary_layout.addWidget(label)
 
         self._content_layout.addWidget(summary)
         self._content_layout.addStretch(1)

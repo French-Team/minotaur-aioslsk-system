@@ -3,7 +3,6 @@ CSS fragment — progression.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-
 CSS = """\
 #progressionMode {
     color: @TEXT_SECONDARY@;

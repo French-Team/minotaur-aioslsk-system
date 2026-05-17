@@ -3,7 +3,6 @@ CSS fragment — downloads.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-
 CSS = """\
 #telechargementsHeader:hover {
     border: 1px solid @PRIMARY@;

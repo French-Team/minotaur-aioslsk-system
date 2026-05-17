@@ -88,7 +88,7 @@ class _ToastCard(QFrame):
     def set_card_opacity(self, value: float) -> None:
         """Modifie l'opacité (0.0–1.0) de la carte."""
         self._opacity = max(0.0, min(1.0, value))
-        style = self.styleSheet()
+        self.styleSheet()
         # On utilise un QGraphicsOpacityEffect
         from PySide6.QtWidgets import QGraphicsOpacityEffect
 

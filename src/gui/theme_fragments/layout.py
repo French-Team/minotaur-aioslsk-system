@@ -3,7 +3,6 @@ CSS fragment — layout.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-
 CSS = """\
 #leftZone {
     border: 1px solid @BORDER_LIGHT@;

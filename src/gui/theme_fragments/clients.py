@@ -3,7 +3,6 @@ CSS fragment — clients.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-
 CSS = """\
 #clientsHeader:hover {
     border: 1px solid @PRIMARY@;

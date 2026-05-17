@@ -448,7 +448,6 @@ class TestIntegrationTelechargement:
     ) -> None:
         """Quand alice passe AWAY, la colonne utilisateur est mise à jour."""
         tel_page = center.telechargements_page
-        actifs_page = center.bot_clients_actifs_page
 
         # Ajouter un téléchargement pour alice
         tel_page.add_download(

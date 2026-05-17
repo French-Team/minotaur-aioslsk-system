@@ -233,7 +233,7 @@ class TestClientRow:
         row = ClientRow(nom="inactif", actif=False, joignable=True)
         # Vérifie qu'on trouve un QLabel "Actif" ou "Inactif" et que c'est "Inactif"
         labels = [w for w in row.findChildren(QLabel) if w.text() in ("Actif", "Inactif")]
-        assert any(l.text() == "Inactif" for l in labels)
+        assert any(label.text() == "Inactif" for label in labels)
 
     def test_label_actif_present(self, qapp: QApplication) -> None:
         """Client actif → label 'Actif'."""

@@ -2,7 +2,6 @@
 CSS fragment — connexion (header, avatar, username).
 """
 
-
 CSS = """\
 /* ---- En-tete de connexion ---- */
 #connexionHeader {

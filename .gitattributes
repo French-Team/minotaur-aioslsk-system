@@ -1,0 +1,39 @@
+# Auto-detect text vs binary files
+* text=auto
+
+# Python — LF norme Unix
+*.py text eol=lf
+
+# Web et config — LF
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.ts text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# Git files
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# Binaires — pas de normalisation de fin de ligne
+*.db binary
+*.db-shm binary
+*.db-wal binary
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+*.pdf binary
+*.so binary
+*.pyc binary
+*.egg binary

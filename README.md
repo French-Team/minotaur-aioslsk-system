@@ -1,8 +1,8 @@
-# free-buff
+# Minotaur AIOSLSK System
 
 [![CI](https://github.com/French-Team/minotaur-aioslsk-system/actions/workflows/ci.yml/badge.svg)](https://github.com/French-Team/minotaur-aioslsk-system/actions/workflows/ci.yml) [![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)](https://python.org) [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE) [![PySide6](https://img.shields.io/badge/PySide6-6.5+-blue?logo=qt&logoColor=white)]() [![Coverage](https://codecov.io/gh/French-Team/minotaur-aioslsk-system/branch/main/graph/badge.svg)](https://codecov.io/gh/French-Team/minotaur-aioslsk-system)
 
-**Client Soulseek** avec interface graphique (PySide6) et bots de gestion intelligents.
+**Client Soulseek puissant** avec interface graphique (PySide6) et bots de gestion intelligents.
 
 Interface complète pour la recherche, le téléchargement, et l'organisation de fichiers audio via le réseau Soulseek, avec des outils avancés de classement, déduplication, planification, et optimisation.
 
@@ -40,7 +40,7 @@ Interface complète pour la recherche, le téléchargement, et l'organisation de
 ## 🏗️ Architecture
 
 ```
-free-buff/
+minotaur-aioslsk-system/
 ├── src/
 │   ├── main.py                 # Point d'entrée
 │   ├── config.py               # Configuration
@@ -92,8 +92,8 @@ free-buff/
 
 ```bash
 # Cloner le dépôt
-git clone <url>
-cd free-buff-aioslsk
+git clone https://github.com/French-Team/minotaur-aioslsk-system.git
+cd minotaur-aioslsk-system
 
 # Dépendances
 pip install -r requirements.txt

@@ -403,7 +403,7 @@ class BotTelechargement(QFrame):
 
     # ── Connexion backend ────────────────────────────────────────────────
 
-    def setup(self, svc: "SoulseekService") -> None:
+    def setup(self, svc: "SoulseekService") -> None:  # noqa: F821
         """Connecte le bot aux signaux SoulseekService."""
         if self._setup_done:
             return

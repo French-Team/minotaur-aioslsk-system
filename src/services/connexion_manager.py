@@ -429,7 +429,7 @@ class ConnexionManager(QObject):
         try:
             username, password = _generer_identifiants()
             logger.info("Tentative de connexion avec le nouveau compte: %s", username)
-            msg = await asyncio.wait_for(
+            await asyncio.wait_for(
                 self._service.connect(username, password),
                 timeout=30.0,
             )

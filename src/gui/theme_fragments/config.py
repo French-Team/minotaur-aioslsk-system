@@ -3,7 +3,6 @@ CSS fragment — config.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-
 CSS = """\
 #configRow {
     background-color: @BG_SURFACE@;

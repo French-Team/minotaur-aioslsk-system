@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMenu,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QTableWidget,

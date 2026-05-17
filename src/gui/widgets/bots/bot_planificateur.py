@@ -483,7 +483,7 @@ class ActionModal(QDialog):
             parametres[field_name] = value
 
         mode = self._mode_cb.currentData() or "immediat"
-        now = QDate.currentDate()
+        QDate.currentDate()
 
         self._result_data = {
             "type": action_type,
