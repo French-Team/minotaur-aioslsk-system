@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from pytest import MonkeyPatch
 
-from src.services.search_history import SearchHistory, MAX_HISTORY
+from src.services.search_history import MAX_HISTORY, SearchHistory
 
 
 @pytest.fixture
@@ -37,12 +37,19 @@ class TestInit:
         """Charge les données d'un fichier existant."""
         data_path = tmp_data_dir / "bot_recherche_history.json"
         data_path.write_text(
-            json.dumps({
-                "searches": [
-                    {"query": "test", "type": "global", "username": None,
-                     "count": 5, "timestamp": "2024-01-01T00:00:00+00:00"},
-                ]
-            }),
+            json.dumps(
+                {
+                    "searches": [
+                        {
+                            "query": "test",
+                            "type": "global",
+                            "username": None,
+                            "count": 5,
+                            "timestamp": "2024-01-01T00:00:00+00:00",
+                        },
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
         monkeypatch.setattr("src.services.search_history.HISTORY_FILE", data_path)

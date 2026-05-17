@@ -434,3 +434,63 @@ Si l'utilisateur veut désactiver ce filtre : un toggle dans la modal Filtres �
 | 12 | Suggestions rapides (5 dernières sous la barre) | ❌ |
 | 13 | Mise à jour de `center.py` + intégration | ❌ |
 | 14 | Mise à jour `.aioslsk-logbook.md` | ❌ |
+
+## 13. ❓ Questions résolues
+
+### Interface et UX
+
+- [x] **QTableWidget plutôt que SearchResultCard** : L'ancien système utilisait des cartes individuelles (SearchResultCard). Avantages du tableau unique :
+  - Tri natif par colonne (cliquer sur l'en-tête) sans code de tri custom
+  - Meilleure densité d'information : 9 colonnes visibles sans scroll, contre 3-4 max avec des cartes
+  - Performances supérieures avec 200+ lignes (QTableWidget virtualise le rendu)
+  - Navigation clavier native (flèches, PageUp/PageDown) sans code supplémentaire
+
+- [x] **200 résultats max avec FIFO** : Pas de pagination (trop complexe pour un flux de résultats temps réel). Le FIFO évite de saturer la mémoire et permet de voir les résultats les plus récents sans perdre les anciens immédiatement. Un message avertit l'utilisateur quand la limite est atteinte.
+
+- [x] **9 colonnes du tableau** : Extension, Fichier, Taille, Bitrate, Durée, Utilisateur, Slots, Vitesse, DL. Ces colonnes couvrent tout ce dont un utilisateur a besoin pour décider de télécharger : format, qualité, disponibilité du pair. Pas de colonnes superflues (chemin complet, date) pour garder le tableau lisible.
+
+- [x] **Tri par bitrate décroissant par défaut** : La qualité audio est le critère principal de sélection. Alternative envisagée : tri par slots libres — écarté car le statut des slots change trop vite entre la recherche et le clic.
+
+- [x] **Filtres en modal centrée plutôt qu'inline** : Les filtres (extension, bitrate, durée, taille, utilisateur, slots) sont nombreux (8+). La modal économise l'espace vertical, offre une UX plus propre, et un badge [N filtres actifs] rappelle l'état sans rouvrir la modal.
+
+- [x] **Mode dispo (toggle binaire plutôt que filtre)** : Le toggle « slots libres seulement » est séparé des filtres car c'est une action fréquente. L'icône change (rouge → vert) pour un feedback immédiat. Une checkbox dans la modal aurait nécessité 2 clics supplémentaires.
+
+- [x] **Menu contextuel (4 actions)** : Télécharger, browse, copier nom, bloquer. Pas d'actions secondaires (partager, favoris) pour éviter la surcharge. Les actions avancées sont dans le Bot Téléchargement.
+
+### Moteur de recherche
+
+- [x] **3 modes (global, user, room) dans un seul tableau** : Plutôt que 3 onglets séparés, le même QTableWidget est réutilisé. Le mode est indiqué par le titre (recherche normale / « Fichiers de : X » / « Salon : #x »). Bouton « Retour » depuis les modes user/room.
+
+- [x] **Filtre automatique mp3/flac/ogg à la réception** : Évite de polluer le tableau avec .zip/.exe/.nfo. S'applique côté réception avant ajout au QTableWidget. Toggle « Audio seulement » dans la modal pour désactiver.
+
+- [x] **30 secondes de timeout** : Durée empirique adaptée aux latences Soulseek (5-15s pour une recherche broadcast). Assez longue pour laisser les résultats arriver, assez courte pour ne pas bloquer l'UI. Après timeout, le bouton Rechercher est réactivé mais les résultats continuent en arrière-plan.
+
+- [x] **Validation 2 caractères minimum** : Évite les recherches accidentelles (Entrée sur champ vide) et les requêtes trop courtes qui inondent le réseau.
+
+### Architecture technique
+
+- [x] **Service SearchHistory séparé** : Classe dédiée dans src/services/search_history.py plutôt que logique embarquée dans BotRecherche. SRP, testable indépendamment du GUI, réutilisable.
+
+- [x] **Historique JSON plutôt que base de données** : 20 entrées max. JSON plus simple (pas de DB, pas de schéma, lisible, déboguable). SQLite serait du surkill pour 20 lignes.
+
+- [x] **20 entrées max** : 5 affichées sous la barre (suggestions rapides), 20 via bouton Historique complet. Nombre suffisant pour une session de recherche typique.
+
+- [x] **Déduplication automatique** : Même requête + type + utilisateur = timestamp mis à jour + remonte en tête. Évite les doublons dans l'historique.
+
+- [x] **Signaux via ConnexionManager** : BotRecherche ne touche jamais aioslsk directement. Tout passe par ConnexionManager (search_result_received, connected, disconnected, error_occurred). Découplage, thread-safe, testable.
+
+- [x] **Téléchargement rapide automatique** : Sélectionne le meilleur fichier (slots libres + meilleure vitesse). Pas de liste de choix — trop de clics pour une action fréquente.
+
+- [x] **Pas de gestion directe des téléchargements** : Délègue au Bot Téléchargement via page_changed. SRP : chercher, pas télécharger.
+
+### Performance et limites
+
+- [x] **Extension non bloquante** : Filtre appliqué à la réception avant ajout au tableau. Un fichier .exe n'est jamais ajouté — économie mémoire, pas de scintillement.
+
+- [x] **Persistance immédiate** : Chaque modification déclenche une sauvegarde JSON. Pas de perte de données en cas de crash.
+
+- [x] **Pas de QTimer pour le rafraîchissement** : Résultats via signaux (event-driven), pas de polling. Économise CPU, pas d'appels réseau inutiles.
+
+---
+
+*Section ajoutée le 2026-06-23 — documente les décisions de conception prises pendant l'implémentation.*

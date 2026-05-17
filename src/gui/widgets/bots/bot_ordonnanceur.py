@@ -7,10 +7,14 @@ et nettoyer les fichiers téléchargés.
 
 from __future__ import annotations
 
+import json
+import logging
+import threading
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QFileDialog,
     QFrame,
@@ -22,12 +26,164 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QVBoxLayout,
     QWidget,
-    QApplication,
 )
 
 from src.gui.theme_fragments.colors import COLORS
 from src.services.ordonnanceur_service import OrdonnanceurService
+from src.services.planificateur_service import planificateur_service
 
+logger = logging.getLogger(__name__)
+
+
+# ── Intégration Planificateur ───────────────────────────────────────────
+
+_ACTION_EXECUTOR: OrdonnanceurService | None = None
+
+
+class _PlanificateurWorker(QObject):
+    """Worker exécutant une action planifiée dans un thread dédié."""
+
+    completed = Signal(int, bool, str)  # (action_id, succes, message)
+
+    def __init__(
+        self,
+        action_id: int,
+        action_type: str,
+        params: dict,
+    ) -> None:
+        super().__init__()
+        self._action_id = action_id
+        self._action_type = action_type
+        self._params = params
+
+    def run(self) -> None:
+        """Point d'entrée du thread. Appelé via QThread.started."""
+        assert _ACTION_EXECUTOR is not None
+
+        thread_name = threading.current_thread().name
+        logger.info(
+            "[Threading] Worker lance action_id=%s type=%s thread=%s",
+            self._action_id,
+            self._action_type,
+            thread_name,
+        )
+
+        try:
+            resultat = _ACTION_EXECUTOR.executer_action_planificateur(
+                action_type=self._action_type,
+                params=self._params,
+            )
+            self.completed.emit(
+                self._action_id,
+                resultat["succes"],
+                resultat["message"],
+            )
+            logger.info(
+                "[Threading] Worker termine action_id=%s type=%s succes=True thread=%s",
+                self._action_id,
+                self._action_type,
+                threading.current_thread().name,
+            )
+        except Exception as e:
+            logger.error(
+                "[Threading] Worker echoue action_id=%s type=%s erreur=%s thread=%s",
+                self._action_id,
+                self._action_type,
+                e,
+                threading.current_thread().name,
+            )
+            self.completed.emit(
+                self._action_id,
+                False,
+                f"Erreur : {e}",
+            )
+
+
+def _connect_planificateur() -> None:
+    """Connecte le Planificateur à l'Ordonnanceur pour l'exécution automatique."""
+    global _ACTION_EXECUTOR
+    _ACTION_EXECUTOR = OrdonnanceurService()
+    planificateur_service.action_changed.connect(_on_action_planifiee)
+
+
+def _on_action_planifiee(action_id: int, action_type: str, statut: str) -> None:
+    """Lance une action ordonnanceur dans un thread dédié (via QThread)."""
+    if statut != "en_cours":
+        return
+    if action_type not in ("classement", "renommage", "deduplication", "nettoyage_temp"):
+        return
+    if _ACTION_EXECUTOR is None:
+        logger.warning(
+            "[Threading] Action ignoree action_id=%s type=%s: _ACTION_EXECUTOR=None",
+            action_id,
+            action_type,
+        )
+        return
+
+    action = planificateur_service.get_action(action_id)
+    if action is None:
+        logger.warning(
+            "[Threading] Action introuvable action_id=%s type=%s",
+            action_id,
+            action_type,
+        )
+        return
+
+    try:
+        raw = action.get("parametres", "{}")
+        params = json.loads(raw) if raw else {}
+    except (json.JSONDecodeError, TypeError):
+        params = {}
+
+    logger.info(
+        "[Threading] Demarrage thread action_id=%s type=%s params=%s",
+        action_id,
+        action_type,
+        params,
+    )
+
+    # Lancer dans un thread dédié pour ne pas bloquer le main thread
+    worker = _PlanificateurWorker(
+        action_id=action_id,
+        action_type=action_type,
+        params=params,
+    )
+    thread = QThread()
+    worker.moveToThread(thread)
+    thread.started.connect(worker.run)
+    worker.completed.connect(_PLANIFICATEUR_RECEIVER.on_action_terminee)
+    worker.completed.connect(thread.quit)
+    worker.completed.connect(worker.deleteLater)
+    thread.finished.connect(thread.deleteLater)
+    thread.start()
+
+
+class _PlanificateurReceiver(QObject):
+    """Receiver vivant dans le main thread pour les callbacks du worker.
+
+    Garantit que complete_action() est appelé depuis le main thread
+    (Qt utilise AutoConnection → QueuedConnection pour cross-thread).
+    """
+
+    def on_action_terminee(self, action_id: int, succes: bool, message: str) -> None:
+        """Callback appelé quand le worker a fini (exécuté dans le main thread)."""
+        logger.info(
+            "[Threading] Callback action_id=%s succes=%s message=%s thread=%s",
+            action_id,
+            succes,
+            message,
+            threading.current_thread().name,
+        )
+        if succes:
+            planificateur_service.complete_action(action_id, succes=True)
+        else:
+            planificateur_service.complete_action(action_id, succes=False, erreur=message)
+
+
+_PLANIFICATEUR_RECEIVER = _PlanificateurReceiver()
+
+
+_connect_planificateur()
 
 # ── Constantes ──────────────────────────────────────────────────────
 
@@ -39,10 +195,10 @@ _STEPS = [
 ]
 
 _OPERATIONS = [
-    ("classement",   "📂 Classer par artiste/album",   "Déplacer les fichiers dans une arborescence Artiste/Album"),
-    ("renommage",    "✏️ Renommer intelligemment",     "Normaliser les noms selon un template configurable"),
-    ("dedoublonner", "🗑️ Dédoublonner",               "Supprimer les fichiers en double (nom+taille puis hash)"),
-    ("nettoyage",    "🧹 Nettoyer fichiers temp",      "Supprimer les fichiers .part, caches et logs obsolètes"),
+    ("classement", "📂 Classer par artiste/album", "Déplacer les fichiers dans une arborescence Artiste/Album"),
+    ("renommage", "✏️ Renommer intelligemment", "Normaliser les noms selon un template configurable"),
+    ("dedoublonner", "🗑️ Dédoublonner", "Supprimer les fichiers en double (nom+taille puis hash)"),
+    ("nettoyage", "🧹 Nettoyer fichiers temp", "Supprimer les fichiers .part, caches et logs obsolètes"),
 ]
 
 _STEP_CIRCLE_ACTIVE = (
@@ -80,6 +236,35 @@ _BTN_DANGER = (
     f"QPushButton:hover {{ background: {COLORS['DANGER_BTN_HOVER']}; }}"
     "QPushButton:pressed { background: #a93226; }"
 )
+
+
+class _AnalyseWorker(QObject):
+    """Worker exécutant l'analyse du dossier dans un thread séparé."""
+
+    finished = Signal(object, object)  # analyse, apercu
+    error = Signal(str)
+
+    def __init__(
+        self,
+        service: OrdonnanceurService,
+        dossier: Path,
+        selected_ops: set[str],
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._service = service
+        self._dossier = dossier
+        self._selected_ops = selected_ops
+
+    def run(self) -> None:
+        """Point d'entrée du thread d'analyse."""
+        try:
+            analyse = self._service.analyser_dossier(self._dossier)
+            ops_list = list(self._selected_ops)
+            apercu = self._service.generer_apercu(analyse, ops_list)
+            self.finished.emit(analyse, apercu)
+        except Exception as e:
+            self.error.emit(str(e))
 
 
 class _OrdonnanceurWorker(QObject):
@@ -147,6 +332,10 @@ class BotOrdonnanceur(QFrame):
         # Service
         self._service = OrdonnanceurService()
 
+        # Threads
+        self._analyse_thread: QThread | None = None
+        self._analyse_worker: _AnalyseWorker | None = None
+
         # Opérations sélectionnées
         self._selected_ops: set[str] = set()
 
@@ -160,11 +349,13 @@ class BotOrdonnanceur(QFrame):
         self._thread: QThread | None = None
         self._log_lines: list[str] = []
 
+        # Progression
+        self._progress_bars: dict[str, QProgressBar] = {}
+
         # Widgets du wizard
         self._step_circles: list[QLabel] = []
         self._step_labels: list[QLabel] = []
         self._op_checkboxes: dict[str, QCheckBox] = {}
-        self._progress_bars: list[QProgressBar] = []
         self._log_label: QLabel | None = None
         self._folder_label: QLabel | None = None
         self._back_btn: QPushButton | None = None
@@ -182,19 +373,11 @@ class BotOrdonnanceur(QFrame):
 
         # ── Header ────────────────────────────────────────────────
         header = QLabel("🧹 Ordonnanceur — Assistant d'organisation")
-        header.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;"
-            " padding-bottom: 4px;"
-        )
+        header.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700; padding-bottom: 4px;")
         layout.addWidget(header)
 
-        subtitle = QLabel(
-            "Classe, renomme, dédoubleonne et nettoie tes téléchargements."
-        )
-        subtitle.setStyleSheet(
-            f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 12px;"
-            " padding-bottom: 16px;"
-        )
+        subtitle = QLabel("Classe, renomme, dédoubleonne et nettoie tes téléchargements.")
+        subtitle.setStyleSheet(f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 12px; padding-bottom: 16px;")
         layout.addWidget(subtitle)
 
         # ── Barre d'étapes ────────────────────────────────────────
@@ -212,9 +395,7 @@ class BotOrdonnanceur(QFrame):
         self._content_scroll.setWidgetResizable(True)
         self._content_scroll.setFrameShape(QFrame.NoFrame)
         self._content_scroll.setStyleSheet("background: transparent;")
-        self._content_scroll.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
+        self._content_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self._content_scroll, stretch=1)
 
         self._content_widget = QWidget()
@@ -310,12 +491,8 @@ class BotOrdonnanceur(QFrame):
         for i in range(len(_STEPS)):
             active = i == step
             completed = i < step
-            self._step_circles[i].setStyleSheet(
-                _STEP_CIRCLE_ACTIVE if active or completed else _STEP_CIRCLE_INACTIVE
-            )
-            self._step_labels[i].setStyleSheet(
-                _STEP_LABEL_ACTIVE if active else _STEP_LABEL_INACTIVE
-            )
+            self._step_circles[i].setStyleSheet(_STEP_CIRCLE_ACTIVE if active or completed else _STEP_CIRCLE_INACTIVE)
+            self._step_labels[i].setStyleSheet(_STEP_LABEL_ACTIVE if active else _STEP_LABEL_INACTIVE)
 
         # Contenu spécifique à l'étape
         if step == 0:
@@ -347,9 +524,7 @@ class BotOrdonnanceur(QFrame):
     def _build_step1_choix(self) -> None:
         """Étape 1 : Choix des opérations."""
         title = QLabel("Étape 1/4 — Choisis les opérations à effectuer")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;")
         self._content_layout.addWidget(title)
 
         desc = QLabel(
@@ -368,8 +543,7 @@ class BotOrdonnanceur(QFrame):
             cb = QCheckBox(op_label)
             cb.setToolTip(op_desc)
             cb.setStyleSheet(
-                f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 500;"
-                " spacing: 8px; padding: 4px 0px;"
+                f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 500; spacing: 8px; padding: 4px 0px;"
             )
             cb.stateChanged.connect(lambda checked, k=op_key: self._on_op_toggle(k, checked))
             self._op_checkboxes[op_key] = cb
@@ -378,8 +552,7 @@ class BotOrdonnanceur(QFrame):
             # Sous-description
             sub = QLabel(op_desc)
             sub.setStyleSheet(
-                f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 11px;"
-                " padding-left: 28px; padding-bottom: 4px;"
+                f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 11px; padding-left: 28px; padding-bottom: 4px;"
             )
             self._content_layout.addWidget(sub)
 
@@ -388,25 +561,20 @@ class BotOrdonnanceur(QFrame):
         # Dossier cible
         folder_section = QFrame()
         folder_section.setStyleSheet(
-            f"background: {COLORS['BG_SIDE']}; border-radius: 8px;"
-            f" border: 1px solid {COLORS['BORDER']}; padding: 12px;"
+            f"background: {COLORS['BG_SIDE']}; border-radius: 8px; border: 1px solid {COLORS['BORDER']}; padding: 12px;"
         )
         folder_layout = QVBoxLayout(folder_section)
         folder_layout.setContentsMargins(12, 10, 12, 10)
         folder_layout.setSpacing(6)
 
         folder_label = QLabel("📁 Dossier à organiser")
-        folder_label.setStyleSheet(
-            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 600;"
-        )
+        folder_label.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 600;")
         folder_layout.addWidget(folder_label)
 
         picker_row = QHBoxLayout()
         picker_row.setSpacing(8)
 
-        self._folder_label = QLabel(
-            str(self._dossier) if self._dossier else "Aucun dossier sélectionné"
-        )
+        self._folder_label = QLabel(str(self._dossier) if self._dossier else "Aucun dossier sélectionné")
         self._folder_label.setStyleSheet(
             f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 12px;"
             " padding: 6px 10px;"
@@ -433,9 +601,7 @@ class BotOrdonnanceur(QFrame):
     def _build_step2_apercu(self) -> None:
         """Étape 2 : Aperçu des modifications."""
         title = QLabel("Étape 2/4 — Aperçu des modifications")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;")
         self._content_layout.addWidget(title)
 
         if not self._apercu:
@@ -448,9 +614,7 @@ class BotOrdonnanceur(QFrame):
 
         apercu = self._apercu
 
-        desc = QLabel(
-            "Voici un résumé de ce qui va être fait. Vérifie avant de lancer !"
-        )
+        desc = QLabel("Voici un résumé de ce qui va être fait. Vérifie avant de lancer !")
         desc.setWordWrap(True)
         desc.setStyleSheet(f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 12px;")
         self._content_layout.addWidget(desc)
@@ -458,11 +622,9 @@ class BotOrdonnanceur(QFrame):
         self._content_layout.addSpacing(8)
 
         # Résumé des fichiers analysés
-        nb_fichiers = len(self._analyse.get("fichiers", [])) if self._analyse else 0
+        nb_fichiers = len(self._analyse.fichiers) if self._analyse else 0
         resum = QLabel(f"📊 {nb_fichiers} fichiers analysés dans {self._dossier or '?'}")
-        resum.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 14px; font-weight: 600;"
-        )
+        resum.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 14px; font-weight: 600;")
         self._content_layout.addWidget(resum)
 
         # Sections d'aperçu
@@ -478,13 +640,23 @@ class BotOrdonnanceur(QFrame):
             section = apercu.get(key)
             if not section:
                 continue
-            fichiers = section.get("fichiers", [])
-            nb = len(fichiers)
+
+            # Compter les fichiers selon la structure de chaque opération
+            if key == "deduplication":
+                nb = section.get("total_doublons", 0)
+            else:
+                fichiers = section.get("fichiers", [])
+                nb = len(fichiers)
             if nb == 0:
                 continue
 
-            # Économie pour déduplication/nettoyage
-            economie = section.get("taille_economisee", 0) or 0
+            # Économie selon la clé propre à chaque opération
+            if key == "deduplication":
+                economie = section.get("total_economise", 0) or 0
+            elif key == "nettoyage":
+                economie = section.get("taille_totale", 0) or 0
+            else:
+                economie = 0
             total_economie += economie
 
             card = QFrame()
@@ -496,13 +668,12 @@ class BotOrdonnanceur(QFrame):
             card_layout.setContentsMargins(12, 8, 12, 8)
 
             lbl = QLabel(label)
-            lbl.setStyleSheet(
-                f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 500;"
-            )
+            lbl.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 500;")
             card_layout.addWidget(lbl)
             card_layout.addStretch(1)
 
-            if economie > 0:                    valeur = f"{nb} fichiers · {self._taille_lisible(economie)} libérés"
+            if economie > 0:
+                valeur = f"{nb} fichiers · {self._taille_lisible(economie)} libérés"
             else:
                 valeur = f"{nb} fichiers concernés"
 
@@ -513,12 +684,8 @@ class BotOrdonnanceur(QFrame):
             self._content_layout.addWidget(card)
 
         if total_economie > 0:
-            eco_label = QLabel(
-                f"💾 Total économie estimée : {self._taille_lisible(total_economie)}"
-            )
-            eco_label.setStyleSheet(
-                f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-style: italic;"
-            )
+            eco_label = QLabel(f"💾 Total économie estimée : {self._taille_lisible(total_economie)}")
+            eco_label.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-style: italic;")
             self._content_layout.addWidget(eco_label)
 
         # ── Checkbox exécution réelle ──────────────────────────
@@ -542,9 +709,7 @@ class BotOrdonnanceur(QFrame):
     def _build_step3_execution(self) -> None:
         """Étape 3 : Exécution avec progression."""
         title = QLabel("Étape 3/4 — Exécution en cours")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;")
         self._content_layout.addWidget(title)
 
         if not self._apercu:
@@ -561,7 +726,7 @@ class BotOrdonnanceur(QFrame):
         self._content_layout.addSpacing(8)
 
         # Barres de progression par opération
-        self._progress_bars: list[QProgressBar] = []
+        self._progress_bars.clear()
         for op_key, op_label, _ in _OPERATIONS:
             if op_key in self._selected_ops:
                 op_frame = QFrame()
@@ -590,14 +755,12 @@ class BotOrdonnanceur(QFrame):
                     " border-radius: 10px; }}"
                 )
                 op_layout.addWidget(pb)
-                self._progress_bars.append(pb)
+                self._progress_bars[op_key] = pb
                 self._content_layout.addWidget(op_frame)
 
         # Log en direct
         log_label = QLabel("Journal d'exécution :")
-        log_label.setStyleSheet(
-            f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 11px; font-weight: 500;"
-        )
+        log_label.setStyleSheet(f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 11px; font-weight: 500;")
         self._content_layout.addWidget(log_label)
 
         self._log_label = QLabel("\n".join(self._log_lines[-6:]) or "Préparation…")
@@ -629,9 +792,7 @@ class BotOrdonnanceur(QFrame):
         # ── Bouton Copier le rapport ──
         top_bar = QHBoxLayout()
         title = QLabel(f"Étape 4/4 — Rapport final {status_icon}")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 15px; font-weight: 600;")
         top_bar.addWidget(title)
         top_bar.addStretch(1)
 
@@ -719,9 +880,7 @@ class BotOrdonnanceur(QFrame):
             # Ligne titre + stats
             header_row = QHBoxLayout()
             lbl = QLabel(f"{status_emoji} {label}")
-            lbl.setStyleSheet(
-                f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 600;"
-            )
+            lbl.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; font-weight: 600;")
             header_row.addWidget(lbl)
             header_row.addStretch(1)
 
@@ -749,10 +908,7 @@ class BotOrdonnanceur(QFrame):
                 card_layout.addWidget(bar)
 
             # Détails pliables
-            op_details = [
-                d for d in all_details
-                if isinstance(d, dict) and d.get("operation") == op_key
-            ]
+            op_details = [d for d in all_details if isinstance(d, dict) and d.get("operation") == op_key]
             if op_details:
                 toggle_btn = QPushButton(f"📄 Détails ({len(op_details)} fichiers)")
                 toggle_btn.setStyleSheet(
@@ -767,8 +923,7 @@ class BotOrdonnanceur(QFrame):
 
                 details_panel = QFrame()
                 details_panel.setStyleSheet(
-                    f"background: {COLORS['BG_SURFACE2']}; border-radius: 4px;"
-                    f" border: none; padding: 6px;"
+                    f"background: {COLORS['BG_SURFACE2']}; border-radius: 4px; border: none; padding: 6px;"
                 )
                 details_layout = QVBoxLayout(details_panel)
                 details_layout.setContentsMargins(8, 4, 8, 4)
@@ -803,10 +958,7 @@ class BotOrdonnanceur(QFrame):
 
                     item = QLabel(line)
                     item.setWordWrap(True)
-                    item.setStyleSheet(
-                        f"color: {COLORS['TEXT_PRIMARY']}; font-size: 11px;"
-                        f" padding: 1px 0;"
-                    )
+                    item.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 11px; padding: 1px 0;")
                     details_layout.addWidget(item)
 
                 if len(op_details) > max_shown:
@@ -820,10 +972,7 @@ class BotOrdonnanceur(QFrame):
                 # Connexion toggle
                 toggle_btn.clicked.connect(
                     lambda checked, p=details_panel, b=toggle_btn, n=len(op_details): (
-                        b.setText(
-                            f"📄 Masquer les détails" if p.isVisible()
-                            else f"📄 Détails ({n} fichiers)"
-                        ),
+                        b.setText(f"📄 Masquer les détails" if p.isVisible() else f"📄 Détails ({n} fichiers)"),
                         p.setVisible(not p.isVisible()),
                     )
                 )
@@ -842,9 +991,7 @@ class BotOrdonnanceur(QFrame):
             err_layout.setSpacing(4)
 
             err_title = QLabel(f"⚠️ {len(erreurs_list)} erreur(s) rencontrée(s)")
-            err_title.setStyleSheet(
-                f"color: {COLORS['DANGER_BTN']}; font-size: 13px; font-weight: 600;"
-            )
+            err_title.setStyleSheet(f"color: {COLORS['DANGER_BTN']}; font-size: 13px; font-weight: 600;")
             err_layout.addWidget(err_title)
 
             for err in erreurs_list[:10]:
@@ -857,9 +1004,7 @@ class BotOrdonnanceur(QFrame):
                     err_text = f"  • {err}"
                 err_label = QLabel(err_text)
                 err_label.setWordWrap(True)
-                err_label.setStyleSheet(
-                    f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 11px;"
-                )
+                err_label.setStyleSheet(f"color: {COLORS['TEXT_PLACEHOLDER']}; font-size: 11px;")
                 err_layout.addWidget(err_label)
 
             if len(erreurs_list) > 10:
@@ -872,16 +1017,13 @@ class BotOrdonnanceur(QFrame):
         # ── Résumé global enrichi ──
         summary = QFrame()
         summary.setStyleSheet(
-            f"background: {COLORS['BG_SIDE']}; border-radius: 8px;"
-            f" border: 1px solid {COLORS['BORDER']}; padding: 14px;"
+            f"background: {COLORS['BG_SIDE']}; border-radius: 8px; border: 1px solid {COLORS['BORDER']}; padding: 14px;"
         )
         summary_layout = QVBoxLayout(summary)
         summary_layout.setSpacing(4)
 
         total_lbl = QLabel("📊 Résumé global")
-        total_lbl.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 14px; font-weight: 700;"
-        )
+        total_lbl.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 14px; font-weight: 700;")
         summary_layout.addWidget(total_lbl)
 
         # Stats globales
@@ -933,12 +1075,12 @@ class BotOrdonnanceur(QFrame):
         """Convertit des octets en taille lisible (Ko, Mo, Go)."""
         if octets < 1024:
             return f"{octets} o"
-        elif octets < 1024 ** 2:
+        elif octets < 1024**2:
             return f"{octets / 1024:.1f} Ko"
-        elif octets < 1024 ** 3:
-            return f"{octets / 1024 ** 2:.1f} Mo"
+        elif octets < 1024**3:
+            return f"{octets / 1024**2:.1f} Mo"
         else:
-            return f"{octets / 1024 ** 3:.1f} Go"
+            return f"{octets / 1024**3:.1f} Go"
 
     def _copier_rapport(self, resultat: dict) -> None:
         """Copie un résumé texte du rapport dans le presse-papier."""
@@ -1024,9 +1166,7 @@ class BotOrdonnanceur(QFrame):
 
     def _on_browse_folder(self) -> None:
         """Ouvre un QFileDialog pour choisir le dossier à organiser."""
-        dossier = QFileDialog.getExistingDirectory(
-            self, "Choisir le dossier à organiser"
-        )
+        dossier = QFileDialog.getExistingDirectory(self, "Choisir le dossier à organiser")
         if dossier:
             self._dossier = Path(dossier)
             self._folder_label.setText(str(self._dossier))
@@ -1066,7 +1206,7 @@ class BotOrdonnanceur(QFrame):
             self._show_step(self._step + 1)
 
     def _run_analysis(self) -> None:
-        """Lance l'analyse du dossier."""
+        """Lance l'analyse du dossier dans un thread séparé."""
         if not self._dossier or not self._dossier.exists():
             self._next_btn.setEnabled(True)
             self._next_btn.setText("Analyser →")
@@ -1076,21 +1216,54 @@ class BotOrdonnanceur(QFrame):
         self._next_btn.setEnabled(False)
         self._next_btn.setText("Analyse en cours…")
 
-        try:
-            self._analyse = self._service.analyser_dossier(self._dossier)
-            ops_list = list(self._selected_ops)
-            self._apercu = self._service.generer_apercu(self._analyse, ops_list)
-            self._show_step(1)
-        except Exception as e:
-            self._next_btn.setEnabled(True)
-            self._next_btn.setText("Analyser →")
-            # Afficher l'erreur
-            err_label = QLabel(f"❌ Erreur d'analyse : {e}")
-            err_label.setWordWrap(True)
-            err_label.setStyleSheet(
-                f"color: {COLORS['DANGER_BTN']}; font-size: 12px;"
-            )
-            self._content_layout.addWidget(err_label)
+        # Nettoyer un thread précédent
+        if self._analyse_worker is not None:
+            self._analyse_worker = None
+        if self._analyse_thread is not None:
+            self._analyse_thread.quit()
+            self._analyse_thread.wait(2000)
+            self._analyse_thread = None
+
+        self._analyse_thread = QThread()
+        self._analyse_worker = _AnalyseWorker(
+            self._service,
+            self._dossier,
+            self._selected_ops,
+        )
+        self._analyse_worker.moveToThread(self._analyse_thread)
+
+        self._analyse_thread.started.connect(self._analyse_worker.run)
+        self._analyse_worker.finished.connect(self._on_analysis_completed)
+        self._analyse_worker.error.connect(self._on_analysis_error)
+        self._analyse_worker.finished.connect(self._analyse_thread.quit)
+        self._analyse_worker.finished.connect(self._analyse_worker.deleteLater)
+        self._analyse_worker.error.connect(self._analyse_thread.quit)
+        self._analyse_worker.error.connect(self._analyse_worker.deleteLater)
+        self._analyse_thread.finished.connect(self._analyse_thread.deleteLater)
+
+        self._analyse_thread.start()
+
+    def _on_analysis_completed(self, analyse: object, apercu: dict) -> None:
+        """Callback quand l'analyse est terminée."""
+        # Si l'utilisateur a navigué ailleurs, ignorer
+        if self._step != 0 or self._analyse_thread is None:
+            return
+        self._analyse = analyse
+        self._apercu = apercu
+        self._analyse_thread = None
+        self._analyse_worker = None
+        self._show_step(1)
+
+    def _on_analysis_error(self, error_msg: str) -> None:
+        """Callback en cas d'erreur d'analyse."""
+        self._analyse_thread = None
+        self._analyse_worker = None
+        self._next_btn.setEnabled(True)
+        self._next_btn.setText("Analyser →")
+        err_label = QLabel(f"❌ Erreur d'analyse : {error_msg}")
+        err_label.setWordWrap(True)
+        err_label.setStyleSheet(f"color: {COLORS['DANGER_BTN']}; font-size: 12px;")
+        self._content_layout.addWidget(err_label)
 
     def _start_execution(self) -> None:
         """Lance l'exécution dans un thread séparé."""
@@ -1170,12 +1343,24 @@ class BotOrdonnanceur(QFrame):
         if self._step == 2:
             # Nettoyer le thread d'exécution avant de revenir en arrière
             self._cleanup_thread()
+        elif self._step == 0 and self._analyse_thread is not None:
+            # Annuler l'analyse en cours si on revient
+            self._analyse_thread.quit()
+            self._analyse_thread.wait(2000)
+            self._analyse_thread = None
+            self._analyse_worker = None
         if self._step > 0:
             self._show_step(self._step - 1)
 
     def _on_cancel(self) -> None:
-        """Annule, nettoie le thread et retourne à l'accueil."""
+        """Annule, nettoie les threads et retourne à l'accueil."""
         self._cleanup_thread()
+        # Nettoyer aussi le thread d'analyse
+        if self._analyse_thread is not None:
+            self._analyse_thread.quit()
+            self._analyse_thread.wait(2000)
+            self._analyse_thread = None
+            self._analyse_worker = None
         self.page_changed.emit("Accueil")
 
     # ── API publique ──────────────────────────────────────────────

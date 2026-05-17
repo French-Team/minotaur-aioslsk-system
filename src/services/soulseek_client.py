@@ -3,13 +3,20 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Callable
-
-from PySide6.QtCore import QObject, Signal
 
 from aioslsk.client import SoulSeekClient
+from aioslsk.events import (
+    PrivateMessageEvent,
+    RoomMessageEvent,
+    SearchResultEvent,
+    TransferAddedEvent,
+    TransferProgressEvent,
+    TransferRemovedEvent,
+)
+from aioslsk.network.network import ListeningConnectionErrorMode
 from aioslsk.settings import (
     CredentialsSettings,
+    DebugSettings,
     InterestsSettings,
     ListeningSettings,
     NetworkLimitSettings,
@@ -22,32 +29,23 @@ from aioslsk.settings import (
     SearchSendSettings,
     SearchSettings,
     ServerSettings,
-    SharedDirectorySettingEntry,
-    WishlistSettingEntry,
     Settings,
+    SharedDirectorySettingEntry,
     SharesSettings,
     TransferLimitSettings,
     TransfersSettings,
     UpnpSettings,
     UserInfoSettings,
-    DebugSettings,
     UsersSettings,
+    WishlistSettingEntry,
 )
+from aioslsk.shares.model import DirectoryShareMode
+from aioslsk.transfer.model import TransferDirection
+from aioslsk.user.model import BlockingFlag
+from PySide6.QtCore import QObject, Signal
 
 from src.services import app_config
 from src.services.event_bus import EventBus
-from aioslsk.user.model import BlockingFlag
-from aioslsk.network.network import ListeningConnectionErrorMode
-from aioslsk.shares.model import DirectoryShareMode
-from aioslsk.events import (
-    PrivateMessageEvent,
-    RoomMessageEvent,
-    SearchResultEvent,
-    TransferAddedEvent,
-    TransferProgressEvent,
-    TransferRemovedEvent,
-)
-from aioslsk.transfer.model import TransferDirection
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +85,9 @@ def _parse_blocked(raw: str) -> dict[str, BlockingFlag]:
         | BlockingFlag.INFO
         | BlockingFlag.UPLOADS
     )
-    return {item.strip(): all_flags for item in parts if item.strip()}# ── Parsing de la wishlist ──────────────────────────────────────
+    return {
+        item.strip(): all_flags for item in parts if item.strip()
+    }  # ── Parsing de la wishlist ──────────────────────────────────────
 
 
 def _parse_wishlist(raw: str) -> list["WishlistSettingEntry"]:
@@ -115,11 +115,8 @@ def _parse_wishlist(raw: str) -> list["WishlistSettingEntry"]:
 
     # Fallback CSV (backward compatibility)
     parts = raw.split(",")
-    return [
-        WishlistSettingEntry(query=item.strip(), enabled=True)
-        for item in parts
-        if item.strip()
-    ]
+    return [WishlistSettingEntry(query=item.strip(), enabled=True) for item in parts if item.strip()]
+
 
 # ── Parsing des dossiers partagés ────────────────────────────────
 
@@ -139,9 +136,7 @@ def _parse_share_directory(
         mode = DirectoryShareMode(mode_raw)
     except ValueError:
         mode = DirectoryShareMode.EVERYONE
-    utilisateurs = [
-        u.strip() for u in utilisateurs_raw.split(",") if u.strip()
-    ] if utilisateurs_raw else []
+    utilisateurs = [u.strip() for u in utilisateurs_raw.split(",") if u.strip()] if utilisateurs_raw else []
     return SharedDirectorySettingEntry(
         path=chemin,
         share_mode=mode,
@@ -276,10 +271,15 @@ class SoulseekService(QObject):
         dossier_2_mode = app_config.get("partages.dossier_2_mode", "everyone")
         dossier_2_utilisateurs = app_config.get("partages.dossier_2_utilisateurs", "")
 
-        dossiers_partages = list(filter(None, [
-            _parse_share_directory(dossier_1_chemin, dossier_1_mode, dossier_1_utilisateurs),
-            _parse_share_directory(dossier_2_chemin, dossier_2_mode, dossier_2_utilisateurs),
-        ]))
+        dossiers_partages = list(
+            filter(
+                None,
+                [
+                    _parse_share_directory(dossier_1_chemin, dossier_1_mode, dossier_1_utilisateurs),
+                    _parse_share_directory(dossier_2_chemin, dossier_2_mode, dossier_2_utilisateurs),
+                ],
+            )
+        )
 
         settings = Settings(
             credentials=CredentialsSettings(
@@ -430,14 +430,14 @@ class SoulseekService(QObject):
     def _on_transfer_progress(self, evt: "TransferProgressEvent") -> None:
         """Gère la progression d'un transfert — n'émet à l'EventBus que début et fin."""
         self.transfer_progress.emit(evt)
-        updates = getattr(evt, 'updates', None)
+        updates = getattr(evt, "updates", None)
         if not updates:
             return
         for transfer, prev_snap, cur_snap in updates:
             # Construire une clé unique pour ce transfert
             key = f"{transfer.username}:{transfer.remote_path}:{transfer.direction}"
-            current_bytes = getattr(cur_snap, 'bytes_transfered', 0) if cur_snap else 0
-            total_bytes = getattr(transfer, 'filesize', 0)
+            current_bytes = getattr(cur_snap, "bytes_transfered", 0) if cur_snap else 0
+            total_bytes = getattr(transfer, "filesize", 0)
             if current_bytes <= 0 or (total_bytes > 0 and current_bytes >= total_bytes):
                 # Début ou fin de transfert
                 is_start = current_bytes <= 0
@@ -485,9 +485,7 @@ class SoulseekService(QObject):
         """Met en pause un téléchargement (fire-and-forget)."""
         if not self.is_connected or self._client is None:
             return
-        transfer = self._client.transfers.find_transfer(
-            username, remote_path, TransferDirection.DOWNLOAD
-        )
+        transfer = self._client.transfers.find_transfer(username, remote_path, TransferDirection.DOWNLOAD)
         if transfer:
             asyncio.ensure_future(self._client.transfers.pause(transfer))
             logger.debug("Transfert mis en pause: %s / %s", username, remote_path)
@@ -499,18 +497,14 @@ class SoulseekService(QObject):
         """
         if not self.is_connected or self._client is None:
             return
-        asyncio.ensure_future(
-            self._client.transfers.download(username, remote_path, paused=False)
-        )
+        asyncio.ensure_future(self._client.transfers.download(username, remote_path, paused=False))
         logger.debug("Transfert relancé: %s / %s", username, remote_path)
 
     def abort_transfer(self, username: str, remote_path: str) -> None:
         """Annule/abandonne un téléchargement (fire-and-forget)."""
         if not self.is_connected or self._client is None:
             return
-        transfer = self._client.transfers.find_transfer(
-            username, remote_path, TransferDirection.DOWNLOAD
-        )
+        transfer = self._client.transfers.find_transfer(username, remote_path, TransferDirection.DOWNLOAD)
         if transfer:
             asyncio.ensure_future(self._client.transfers.abort(transfer))
             logger.debug("Transfert annulé: %s / %s", username, remote_path)

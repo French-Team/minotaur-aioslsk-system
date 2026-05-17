@@ -17,14 +17,13 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QClipboard, QColor, QGuiApplication
+from PySide6.QtGui import QAction, QColor, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QDialog,
     QFrame,
     QHBoxLayout,
-    QHeaderView,
     QLabel,
     QMenu,
     QMessageBox,
@@ -68,9 +67,23 @@ _STATUT_ICONES: dict[str, str] = {
 # Rôle Qt pour stocker le tri numérique
 _SortRole = Qt.UserRole + 1
 
+# Index des colonnes
+_COL_USER = 2  # colonne "Utilisateur"
+
+# ── Indicateurs de statut client ────────────────────────────────────────
+
+_STATUT_CLIENT_EMOJI: dict[str, str] = {
+    "ONLINE": "🟢",
+    "AWAY": "🟡",
+    "OFFLINE": "⚫",
+}
+
+_STATUT_CLIENT_DEFAUT = "⚪"
+
 
 class _NumericItem(QTableWidgetItem):
     """QTableWidgetItem qui trie numériquement via _SortRole."""
+
     def __lt__(self, other):
         if isinstance(other, QTableWidgetItem):
             try:
@@ -165,7 +178,7 @@ class HistoryDialog(QDialog):
         titre.setStyleSheet(f"""
             font-size: 16px;
             font-weight: 700;
-            color: {COLORS['TEXT_PRIMARY']};
+            color: {COLORS["TEXT_PRIMARY"]};
         """)
         header.addWidget(titre)
         header.addStretch()
@@ -178,16 +191,16 @@ class HistoryDialog(QDialog):
         self._combo_filtre.addItems(["Tous", "Terminé", "Échoué"])
         self._combo_filtre.setStyleSheet(f"""
             QComboBox {{
-                background-color: {COLORS['BG_SURFACE2']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 10px;
                 font-size: 11px;
                 min-width: 120px;
             }}
             QComboBox:hover {{
-                border-color: {COLORS['ACCENT']};
+                border-color: {COLORS["ACCENT"]};
             }}
         """)
         self._combo_filtre.currentTextChanged.connect(self._on_filtre_changed)
@@ -200,14 +213,14 @@ class HistoryDialog(QDialog):
         btn_vider.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: {COLORS['DANGER']};
-                border: 1px solid {COLORS['DANGER']};
+                color: {COLORS["DANGER"]};
+                border: 1px solid {COLORS["DANGER"]};
                 border-radius: 6px;
                 padding: 6px 14px;
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: rgba({int(COLORS['DANGER'][1:3], 16)}, {int(COLORS['DANGER'][3:5], 16)}, {int(COLORS['DANGER'][5:7], 16)}, 0.12);
+                background-color: rgba({int(COLORS["DANGER"][1:3], 16)}, {int(COLORS["DANGER"][3:5], 16)}, {int(COLORS["DANGER"][5:7], 16)}, 0.12);
             }}
         """)
         btn_vider.clicked.connect(self._on_vider)
@@ -239,8 +252,8 @@ class HistoryDialog(QDialog):
 
         self._table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {COLORS['BG_SURFACE']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
                 gridline-color: transparent;
             }}
@@ -249,14 +262,14 @@ class HistoryDialog(QDialog):
                 font-size: 12px;
             }}
             QTableWidget::item:selected {{
-                background-color: {COLORS['BG_HOVER']};
-                color: {COLORS['TEXT_PRIMARY']};
+                background-color: {COLORS["BG_HOVER"]};
+                color: {COLORS["TEXT_PRIMARY"]};
             }}
             QHeaderView::section {{
-                background-color: {COLORS['BG_SURFACE2']};
-                color: {COLORS['TEXT_TERTIARY']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                color: {COLORS["TEXT_TERTIARY"]};
                 border: none;
-                border-bottom: 1px solid {COLORS['BORDER']};
+                border-bottom: 1px solid {COLORS["BORDER"]};
                 padding: 8px 10px;
                 font-size: 11px;
                 font-weight: 600;
@@ -316,7 +329,6 @@ class HistoryDialog(QDialog):
 
     def _on_vider(self) -> None:
         """Vide tout l'historique."""
-        from PySide6.QtWidgets import QMessageBox
 
         reponse = QMessageBox.question(
             self,
@@ -349,6 +361,7 @@ class BotTelechargement(QFrame):
         self._downloads: dict[str, dict[str, Any]] = {}  # identifiant -> données
         self._setup_done: bool = False
         self._unseen_count: int = 0
+        self._clients_actifs_service: Any = None
 
         self._build_ui()
 
@@ -385,7 +398,7 @@ class BotTelechargement(QFrame):
             if identifiant:
                 data = self._downloads.get(identifiant)
                 if data:
-                    visible = (statut_filter == "tous" or data["statut"] == statut_filter)
+                    visible = statut_filter == "tous" or data["statut"] == statut_filter
                     self._table.setRowHidden(row, not visible)
 
     # ── Connexion backend ────────────────────────────────────────────────
@@ -402,17 +415,52 @@ class BotTelechargement(QFrame):
         svc.transfer_progress.connect(self._on_transfer_progress)
         logger.info("BotTelechargement connecté aux signaux SoulseekService")
 
+    # ── Injection du service clients actifs ───────────────────────────────
+
+    def set_clients_actifs_service(self, svc: Any) -> None:
+        """Injecte le service clients actifs pour les indicateurs de statut."""
+        self._clients_actifs_service = svc
+        svc.client_statut_change.connect(self._on_client_status_changed)
+
+    @staticmethod
+    def _status_to_emoji(status_name: str) -> str:
+        """Convertit un nom de statut (ONLINE, AWAY, OFFLINE) en emoji."""
+        return _STATUT_CLIENT_EMOJI.get(status_name, _STATUT_CLIENT_DEFAUT)
+
+    def _user_display(self, username: str) -> str:
+        """Retourne le texte à afficher dans la colonne Utilisateur (emoji + nom)."""
+        if self._clients_actifs_service is None:
+            return username
+        client = self._clients_actifs_service.obtenir_client(username)
+        if client is None:
+            return f"{_STATUT_CLIENT_DEFAUT} {username}"
+        emoji = self._status_to_emoji(client.statut.name)
+        return f"{emoji} {username}"
+
+    def _on_client_status_changed(self, username: str, nouveau: Any, ancien: Any) -> None:
+        """Un client a changé de statut — met à jour les lignes correspondantes."""
+        if not username:
+            return
+        nouveau_affichage = self._user_display(username)
+        # Chercher toutes les lignes avec cet utilisateur
+        for row in range(self._table.rowCount()):
+            item = self._table.item(row, _COL_USER)
+            if item is not None:
+                texte = item.text()
+                if texte.endswith(f" {username}") or texte == username:
+                    item.setText(nouveau_affichage)
+
     def _on_transfer_added(self, evt: object) -> None:
         """Un nouveau transfert a été ajouté."""
-        transfer = getattr(evt, 'transfer', None)
+        transfer = getattr(evt, "transfer", None)
         if transfer is None:
             return
 
         identifiant = transfer.remote_path
         fichier = identifiant.split("/")[-1].split("\\")[-1]
-        fichiersize = getattr(transfer, 'filesize', 0)
+        fichiersize = getattr(transfer, "filesize", 0)
         statut = self._transfer_statut_label(transfer)
-        username = getattr(transfer, 'username', '')
+        username = getattr(transfer, "username", "")
 
         self.add_download(
             identifiant=identifiant,
@@ -440,7 +488,7 @@ class BotTelechargement(QFrame):
 
     def _on_transfer_removed(self, evt: object) -> None:
         """Un transfert a été supprimé."""
-        transfer = getattr(evt, 'transfer', None)
+        transfer = getattr(evt, "transfer", None)
         if transfer is None:
             return
         self.remove_download(transfer.remote_path)
@@ -448,15 +496,15 @@ class BotTelechargement(QFrame):
 
     def _on_transfer_progress(self, evt: object) -> None:
         """Mise à jour de progression."""
-        updates = getattr(evt, 'updates', None)
+        updates = getattr(evt, "updates", None)
         if not updates:
             return
         for transfer, prev_snap, cur_snap in updates:
-            remote_path = getattr(transfer, 'remote_path', '')
+            remote_path = getattr(transfer, "remote_path", "")
             if not remote_path:
                 continue
-            fichiersize = getattr(transfer, 'filesize', 0)
-            bytes_transfered = getattr(cur_snap, 'bytes_transfered', 0) if cur_snap else 0
+            fichiersize = getattr(transfer, "filesize", 0)
+            bytes_transfered = getattr(cur_snap, "bytes_transfered", 0) if cur_snap else 0
             if fichiersize > 0:
                 progression = (bytes_transfered / fichiersize) * 100.0
             else:
@@ -477,7 +525,8 @@ class BotTelechargement(QFrame):
                 )
 
             self.update_progression(
-                remote_path, progression,
+                remote_path,
+                progression,
                 bytes_transfered=bytes_transfered,
             )
 
@@ -510,7 +559,7 @@ class BotTelechargement(QFrame):
     @staticmethod
     def _transfer_state_to_statut(state: object) -> str:
         """Convertit un TransferState.State en label de statut."""
-        state_name = state.name if hasattr(state, 'name') else str(state)
+        state_name = state.name if hasattr(state, "name") else str(state)
         mapping = {
             "VIRGIN": "attente",
             "QUEUED": "attente",
@@ -529,7 +578,7 @@ class BotTelechargement(QFrame):
     @staticmethod
     def _transfer_statut_label(transfer: object) -> str:
         """Détermine le statut initial d'un transfert."""
-        state = getattr(transfer, 'state', None)
+        state = getattr(transfer, "state", None)
         if state is None:
             return "attente"
         return BotTelechargement._transfer_state_to_statut(state)
@@ -574,8 +623,8 @@ class BotTelechargement(QFrame):
         progress_frame.setFixedHeight(56)
         progress_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['BG_SURFACE2']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
                 padding: 4px 16px;
             }}
@@ -599,14 +648,14 @@ class BotTelechargement(QFrame):
 
         self._lbl_taille = QLabel("0 o / 0 o (0%)")
         self._lbl_taille.setStyleSheet(f"""
-            color: {COLORS['TEXT_SECONDARY']};
+            color: {COLORS["TEXT_SECONDARY"]};
             font-size: 11px;
         """)
         info_layout.addWidget(self._lbl_taille)
 
         self._lbl_vitesse = QLabel("")
         self._lbl_vitesse.setStyleSheet(f"""
-            color: {COLORS['SUCCESS']};
+            color: {COLORS["SUCCESS"]};
             font-size: 11px;
             font-weight: 600;
         """)
@@ -623,8 +672,8 @@ class BotTelechargement(QFrame):
         frame.setFixedHeight(48)
         frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['BG_SURFACE2']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
                 padding: 4px 16px;
             }}
@@ -642,7 +691,7 @@ class BotTelechargement(QFrame):
 
         lbl = QLabel(label)
         lbl.setStyleSheet(f"""
-            color: {COLORS['TEXT_TERTIARY']};
+            color: {COLORS["TEXT_TERTIARY"]};
             font-size: 10px;
             font-weight: 500;
         """)
@@ -683,7 +732,7 @@ class BotTelechargement(QFrame):
         # Filtre par statut
         lbl_filtre = QLabel("Filtrer :")
         lbl_filtre.setStyleSheet(f"""
-            color: {COLORS['TEXT_TERTIARY']};
+            color: {COLORS["TEXT_TERTIARY"]};
             font-size: 11px;
             font-weight: 500;
         """)
@@ -693,16 +742,16 @@ class BotTelechargement(QFrame):
         self._combo_filtre.addItems(["Tous", "En cours", "En attente", "Terminé", "Échoué"])
         self._combo_filtre.setStyleSheet(f"""
             QComboBox {{
-                background-color: {COLORS['BG_SURFACE2']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 10px;
                 font-size: 11px;
                 min-width: 120px;
             }}
             QComboBox:hover {{
-                border-color: {COLORS['ACCENT']};
+                border-color: {COLORS["ACCENT"]};
             }}
             QComboBox::drop-down {{
                 border: none;
@@ -737,16 +786,16 @@ class BotTelechargement(QFrame):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {COLORS['BG_SURFACE2']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 6px 14px;
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: {COLORS['BG_HOVER']};
-                border-color: {COLORS['ACCENT']};
+                background-color: {COLORS["BG_HOVER"]};
+                border-color: {COLORS["ACCENT"]};
             }}
         """)
         return btn
@@ -759,14 +808,14 @@ class BotTelechargement(QFrame):
         btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: {COLORS['DANGER']};
-                border: 1px solid {COLORS['DANGER']};
+                color: {COLORS["DANGER"]};
+                border: 1px solid {COLORS["DANGER"]};
                 border-radius: 6px;
                 padding: 6px 14px;
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: rgba({int(COLORS['DANGER'][1:3], 16)}, {int(COLORS['DANGER'][3:5], 16)}, {int(COLORS['DANGER'][5:7], 16)}, 0.12);
+                background-color: rgba({int(COLORS["DANGER"][1:3], 16)}, {int(COLORS["DANGER"][3:5], 16)}, {int(COLORS["DANGER"][5:7], 16)}, 0.12);
             }}
         """)
         return btn
@@ -797,14 +846,12 @@ class BotTelechargement(QFrame):
             self._table.setColumnWidth(i, width)
 
         # Quand le tri change, ré-appliquer le filtre
-        header.sortIndicatorChanged.connect(lambda: self._apply_filter(
-            self._combo_filtre.currentText().lower()
-        ))
+        header.sortIndicatorChanged.connect(lambda: self._apply_filter(self._combo_filtre.currentText().lower()))
 
         self._table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {COLORS['BG_SURFACE']};
-                border: 1px solid {COLORS['BORDER']};
+                background-color: {COLORS["BG_SURFACE"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
                 gridline-color: transparent;
             }}
@@ -813,14 +860,14 @@ class BotTelechargement(QFrame):
                 font-size: 12px;
             }}
             QTableWidget::item:selected {{
-                background-color: {COLORS['BG_HOVER']};
-                color: {COLORS['TEXT_PRIMARY']};
+                background-color: {COLORS["BG_HOVER"]};
+                color: {COLORS["TEXT_PRIMARY"]};
             }}
             QHeaderView::section {{
-                background-color: {COLORS['BG_SURFACE2']};
-                color: {COLORS['TEXT_TERTIARY']};
+                background-color: {COLORS["BG_SURFACE2"]};
+                color: {COLORS["TEXT_TERTIARY"]};
                 border: none;
-                border-bottom: 1px solid {COLORS['BORDER']};
+                border-bottom: 1px solid {COLORS["BORDER"]};
                 padding: 8px 10px;
                 font-size: 11px;
                 font-weight: 600;
@@ -859,7 +906,7 @@ class BotTelechargement(QFrame):
         self._table.setItem(row, 0, item_fichier)
 
         self._table.setItem(row, 1, QTableWidgetItem(taille))
-        self._table.setItem(row, 2, QTableWidgetItem(user))
+        self._table.setItem(row, 2, QTableWidgetItem(self._user_display(user) if user else ""))
 
         # Progression (col 3) — _NumericItem pour tri correct
         item_prog = _NumericItem(f"{progression:.0f}%")
@@ -1058,9 +1105,7 @@ class BotTelechargement(QFrame):
         # Labels taille
         if total_bytes > 0:
             pct_display = int(total_recus * 100 / total_bytes)
-            taille_texte = (
-                f"{_format_taille(total_recus)} / {_format_taille(total_bytes)} ({pct_display}%)"
-            )
+            taille_texte = f"{_format_taille(total_recus)} / {_format_taille(total_bytes)} ({pct_display}%)"
         else:
             taille_texte = "—"
         self._lbl_taille.setText(taille_texte)
@@ -1128,9 +1173,7 @@ class BotTelechargement(QFrame):
     def _on_clear_termines(self) -> None:
         """Supprime tous les téléchargements terminés du tableau."""
         a_supprimer = [
-            identifiant
-            for identifiant, data in self._downloads.items()
-            if data["statut"] in ("termine", "echoue")
+            identifiant for identifiant, data in self._downloads.items() if data["statut"] in ("termine", "echoue")
         ]
         for identifiant in a_supprimer:
             self.remove_download(identifiant)

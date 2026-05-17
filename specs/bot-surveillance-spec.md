@@ -177,3 +177,63 @@ Hub de monitoring affichant un flux d'événements en temps réel, avec historiq
   - WARN → `WARNING`
   - INFO → `SUCCESS`
   - Badges → `STAT_FILES` / `STAT_AUDIO` / `ACCENT`
+
+---
+
+## ❓ Questions résolues
+
+### Architecture et événements
+
+- [x] **EventBus singleton (QObject) plutôt que signaux Qt dispersés** : Un bus d’événements centralisé évite de connecter chaque service à chaque bot individuellement. Le pattern singleton garantit une instance unique accessible de partout. QObject permet d’utiliser les signaux Qt natifs (thread-safe dans le thread Qt).
+
+- [x] **SurveillanceEvent dataclass avec champs typés** : Une dataclass Python assure l’intégrité des données (id, title, message, source, category, severity, timestamp) sans boilerplate. Plus lisible qu’un dict, plus flexible qu’une classe manuelle.
+
+- [x] **SQLite pour le stockage persistant des événements** : Les événements doivent être conservés entre les sessions pour l’historique et les statistiques. SQLite permet des requêtes filtrées (par date, catégorie, sévérité) et une purge programmée. JSON serait trop lent à filtrer pour des milliers d’entrées.
+
+- [x] **Purge automatique à 7 jours (timer 1h)** : Les événements perdent de la pertinence après une semaine. Un timer horaire évite d’accumuler des millions de lignes. La purge est silencieuse et configurable dans EventBus.
+
+- [x] **Schéma SQLite créé automatiquement (à la première connexion)** : Évite une étape manuelle de migration. `_ensure_schema()` crée la table si elle n’existe pas. Lazy initialization : la DB n’est pas ouverte tant qu’aucun événement n’est émis.
+
+### Interface et flux
+
+- [x] **_EventCard compact (QFrame) plutôt que QTableWidget** : Le flux d’événements est une timeline chronologique, pas un tableau de données. Les cartes permettent un affichage plus riche (icône sévérité, timestamp, titre en gras, boutons hover). QTableWidget serait trop rigide.
+
+- [x] **QScrollArea avec auto-scroll intelligent** : Par défaut, le scroll suit automatiquement les nouveaux événements. Si l’utilisateur scroll vers le haut pour examiner un événement passé, l’auto-scroll se suspend. Un bouton « Retour en bas » apparaît. Évite de perdre le contexte utilisateur.
+
+- [x] **MAX_FEED_ITEMS = 500 (limite mémoire)** : Sans limite, des milliers de cartes dans le QScrollArea finiraient par consommer trop de RAM. 500 est un bon compromis entre visibilité et performance.
+
+- [x] **Toast (3s, fondu, cliquable) pour les erreurs** : Les événements ERROR sont urgents et méritent une notification immédiate, même si l’utilisateur n’est pas sur la page Surveillance. Le toast est non-bloquant (timer 3s) et cliquable pour naviguer vers l’événement. Fondu à la fermeture.
+
+- [x] **Badge footer compteur (non lus)** : Même pattern que les autres bots (incrément à chaque événement reçu, reset à l’affichage). Cohérent avec le système de navigation existant.
+
+### Filtres et recherche
+
+- [x] **Filtres catégorie (boutons toggle) plutôt que ComboBox** : Les 7 catégories sont visibles d’un coup d’œil. Les boutons toggle permettent d’activer/désactiver plusieurs catégories simultanément. Un ComboBox ne permettrait qu’une sélection unique.
+
+- [x] **Recherche textuelle avec debounce 300ms** : Évite de filtrer à chaque frappe (trop de reconstructions). 300ms est le standard UI pour un bon équilibre entre réactivité et performance. Utilise `QTimer.singleShot`.
+
+- [x] **Filtres appliqués par masquage (setVisible) plutôt que reconstruction** : Masquer les cartes non correspondantes est instantané. Reconstruire le flux à chaque changement de filtre serait plus lent et perdrait l’état de scroll.
+
+- [x] **3 stat badges (Erreurs, Avertissements, Total) plutôt que 4-5** : Erreurs et Avertissements sont les deux niveaux critiques à surveiller. Total donne le volume global. INFO est volontairement exclu car trop bruité.
+
+### Historique et détails
+
+- [x] **HistoryModal séparé (QDialog) plutôt que section intégrée** : L’historique est une fonctionnalité avancée consultée ponctuellement. Un dialogue modal évite de surcharger le flux principal. 50 entrées par page avec « Charger plus » évite de tout charger en mémoire.
+
+- [x] **Export CSV + JSON dans HistoryModal** : CSV pour Excel/tableur, JSON pour traitement programmatique. Deux formats courants couvrent la majorité des besoins. Pas de PDF (trop complexe pour un historique d’événements).
+
+- [x] **DetailPopup (QDialog) avec bouton Naviguer** : Les détails complets d’un événement (titre, message, source, catégorie, sévérité, date précise) dans un popup. Le bouton « Naviguer » permet d’aller à la source de l’événement (ex: transfert vers Téléchargement).
+
+- [x] **Cases à cocher + sélection multiple dans HistoryModal** : Permet de supprimer sélectivement des événements (nettoyage ciblé) plutôt que de tout vider. La suppression est définitive (pas de corbeille).
+
+### Intégration et contrôle
+
+- [x] **Pause binaire (suspend collection + affichage)** : Quand la surveillance est en pause, l’EventBus ne reçoit pas les nouveaux événements. Évite de saturer l’affichage pendant une opération massive. Le bouton Pause dans la stat bar donne un contrôle immédiat.
+
+- [x] **Connexion aux services via signaux (connexion_manager, soulseek_client)** : L’EventBus est connecté aux signaux existants (connected, disconnected, error_occurred, transfer_added/removed/progress). Pas de polling, tout est event-driven. Les événements de progression sont limités au début/fin pour éviter le bruit.
+
+- [x] **Connexion inter-bots (Recherche, Wishlist, Bibliothèque, Optimiseur)** : Chaque bot émet ses événements importants vers l’EventBus. Pattern cohérent avec l’architecture événementielle. Évite de dupliquer la logique de logging dans chaque bot.
+
+- [ ] **Alertes hors-page (badge footer + toast ERROR)** : Étape 9 de la spec. Badge compteur dans le footer et toast pour les événements ERROR. Pas encore implémentés.
+
+- [ ] **Tests & polish (performances, purge, exports)** : Étape 10 de la spec. Vérifier purge 7 jours, performances avec 200+ événements, export CSV/JSON. Pas encore fait.

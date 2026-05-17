@@ -1,10 +1,11 @@
 # Spécification — Bot Ordonnanceur
 
-> **Statut :** ✅ Service backend + CLI terminés — 🏗️ UI Qt en cours
-> **Dernière mise à jour :** 2026-06-22
+> **Statut :** ✅ **Spec finalisée — implémentation complète**
+> **Dernière mise à jour :** 2026-06-23
 > **Contexte :** Projet autonome d'organisation de fichiers audio.
 >   L'Ordonnanceur a remplacé l'ancien projet "Armée des 12 Bots Soulseek".
 > **Renommage :** `"Nettoyage"` → `"Ordonnanceur"` — voir §2.
+> **🟢 1 789 lignes service · 432 lignes CLI · 1 425 lignes UI · 232 tests**
 
 ---
 
@@ -230,6 +231,162 @@ Le Planificateur a déjà une action `"nettoyage"` qui supprime les fichiers sou
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### 4.5 🔄 Cycle de vie complet
+
+Le flux de l'Ordonnanceur est un **automate à 4 états** avec des transitions validées. Chaque transition peut être bloquée par une validation qui échoue.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    🧹 ORDONNANCEUR — CYCLE DE VIE COMPLET                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌────────────────┐
+│  3 ENTRÉES     │
+└───────┬────────┘
+        │
+        ├─────────────────────────────────────────────────────┐
+        │                                                     │
+   ┌────▼────────┐  ┌──────────────────┐  ┌──────────────────┐
+   │  MANUEL     │  │  AUTO (démarrage)│  │  PLANIFIÉ       │
+   │  Clic bot   │  │  Lancement app   │  │  Planificateur  │
+   └─────┬───────┘  └────────┬─────────┘  └────────┬─────────┘
+         │                   │                      │
+         │                   │ (skip preview)       │ (skip preview)
+         │                   ▼                      ▼
+         │           ┌───────────────┐      ┌──────────────┐
+         │           │ Exécute ops   │      │ Exécute 1 op │
+         │           │ configurées   │      │ (individuelle)│
+         │           └───────┬───────┘      └──────┬───────┘
+         │                   │                      │
+         ▼                   ▼                      ▼
+   ┌──────────────────────────────────────────────────────┐
+   │                                                     │
+   │            ╔══════════════════════╗                  │
+   │            ║  ÉTAPE 1 : CHOIX    ║                  │
+   │            ║  des opérations     ║                  │
+   │            ╚══════════════════════╝                  │
+   │                                                     │
+   │  Validation (bloquant) :                             │
+   │  ✅ Dossier source sélectionné                       │
+   │  ✅ Au moins 1 opération cochée                     │
+   │  ✅ Dossier source existe et est accessible          │
+   │                                                     │
+   │  [🔍 Analyser] → lance _AnalyseWorker(QThread)      │
+   │                                                     │
+   │  ┌─ Pendant l'analyse ──────────────────────────┐   │
+   │  │ "Analyse en cours..." + indicateur animé     │   │
+   │  │ [✕ Annuler] → retour Accueil                │   │
+   │  └──────────────────────────────────────────────┘   │
+   └────────────────────────┬─────────────────────────────┘
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+                ▼                       ▼
+   ┌──────────────────────┐   ┌──────────────────────┐
+   │ ✅ Analyse réussie   │   │ ❌ Erreur analyse    │
+   │ aperçu généré        │   │ dossier corrompu     │
+   └──────────┬───────────┘   │ permissions         │
+              │               │ trop de fichiers     │
+              │               └──────────┬───────────┘
+              │                          │
+              ▼                          ▼
+   ┌──────────────────────┐   ┌──────────────────────────┐
+   │   ╔═══════════════╗  │   │ Retour ÉTAPE 1          │
+   │   ║ ÉTAPE 2 :     ║  │   │ Message d'erreur        │
+   │   ║ APERÇU        ║  │   │ "Impossible d'analyser  │
+   │   ╚═══════════════╝  │   │  le dossier : ..."      │
+   │                      │   └──────────────────────────┘
+   │  Affiche :           │
+   │  ├─ Fichiers à       │
+   │  │  classer/renommer │
+   │  ├─ Doublons trouvés │
+   │  ├─ Conflits détectés│
+   │  └─ Espace libérable │
+   │                      │
+   │  [← Modifier]        │
+   │  [✅ Exécuter]       │
+   └──────────┬───────────┘
+              │
+              │ Validation (bloquant) :
+              │ ✅ Aucun prérequis — l'utilisateur confirme
+              ▼
+   ┌────────────────────────────────────────────────────┐
+   │  ╔══════════════════════╗                          │
+   │  ║  ÉTAPE 3 :          ║                           │
+   │  ║  EXÉCUTION          ║                           │
+   │  ╚══════════════════════╝                          │
+   │                                                    │
+   │  Lance _OrdonnanceurWorker(QThread)                │
+   │                                                    │
+   │  ┌─ Progression ───────────────────────────────┐   │
+   │  │ 📂 Classement    ████████░░░░  45%          │   │
+   │  │ ✏️ Renommage     ██████░░░░░░  30%          │   │
+   │  │ 🧹 Temp          ✅ Terminé                 │   │
+   │  │ 🗑️ Dédoublon.    ⏳ En attente              │   │
+   │  ├─ Log en direct ────────────────────────────┤   │
+   │  │ [14:32:15] ✅ fichier.mp3 → déplacé        │   │
+   │  │ [14:32:16] ❌ tags corrompus → ignoré      │   │
+   │  └────────────────────────────────────────────┘   │
+   │                                                    │
+   │  [⏸️ Pause]  [✕ Annuler]                          │
+   └──────────┬─────────────────────────────────────────┘
+              │
+    ┌─────────┴──────────────┐
+    │                        │
+    ▼                        ▼
+┌────────────────┐   ┌──────────────────────────┐
+│ ✅ Complété    │   │ ❌ Erreur exécution      │
+│ toutes les ops │   │ ┌─ Erreur critique ──┐  │
+│ terminées      │   │ │ fichier verrouillé │  │
+└───────┬────────┘   │ │ disque plein      │  │
+        │            │ │ permissions       │  │
+        ▼            │ └───────────────────┘  │
+┌────────────────┐   │                        │
+│ ╔═══════════╗  │   │ Chaque opération       │
+│ ║ ÉTAPE 4 : ║  │   │ continue (résilience)  │
+│ ║ RAPPORT   ║  │   └──────────┬─────────────┘
+│ ╚═══════════╝  │              │
+│                │              ▼
+│ Résumé final : │   ┌──────────────────────────┐
+│ ├─ 4 opérations│   │ Affiche erreurs dans     │
+│ │  avec statut │   │ le rapport final         │
+│ ├─ Conflits    │   │ "⚠️ 3 fichiers ignorés   │
+│ ├─ Espace lib. │   │   (permissions)"        │
+│ └─ Temps total │   └──────────────────────────┘
+│                │
+│ Actions :      │
+│ [📋 Copier]    │
+│ [📂 Ouvrir]    │
+│ [← Accueil]    │
+│ [⟳ Relancer]   │
+└────────────────┘
+```
+
+**Légende des transitions :**
+
+| Transition | Condition | Bloquant ? | Gestion d'erreur |
+|------------|-----------|------------|------------------|
+| Entrée → Étape 1 | Navigation footer / auto / planifié | — | — |
+| Étape 1 → Analyse | Dossier valide + ≥1 opération | ✅ Oui | Erreur → retour Étape 1 + message |
+| Analyse → Étape 2 | `_on_analysis_completed` OK | ✅ Oui | Erreur analyse (timeout, dossier supprimé) → Étape 1 |
+| Étape 2 → Exécution | Confirmation utilisateur | Non (UI) | Erreur exécution → log + continue (résilient) |
+| Exécution → Étape 4 | `_on_execution_completed` OK | ✅ Oui | Erreur critique → affichée dans le rapport |
+| **Annulation** | Clic `[✕ Annuler]` | À tout moment | Retour Accueil, fichiers déjà traités conservés |
+| **Précédent** | Clic `[← Modifier]` | Étape 2→1 seulement | Pas de perte de données |
+
+**États d'erreur détaillés :**
+
+| Point de blocage | Cause | Comportement |
+|------------------|-------|--------------|
+| **Analyse timeout** | Dossier > 50 000 fichiers | Message + suggestion de réduire le dossier |
+| **Dossier supprimé** | Dossier source effacé entre-temps | Retour Étape 1 + sélecteur de dossier |
+| **Fichier verrouillé** | Fichier en cours d'écriture | Log + skip (pas d'arrêt complet) |
+| **Disque plein** | Plus d'espace pour déplacer/copier | Pause + message utilisateur + reprise possible |
+| **Permissions** | Fichier protégé en lecture/écriture | Log + skip (pas d'arrêt complet) |
+| **Tags illisibles** | Fichier audio corrompu | Log + fallback sur le nom de fichier |
+| **Conflit de nom** | Deux fichiers → même destination | Suffixe `_2`, `_3`… log dans le rapport |
+
 ---
 
 ## 5. Extraction des métadonnées
@@ -406,10 +563,18 @@ Configurable :
 - Par défaut : fichiers de plus de 7 jours
 - Configurable dans l'étape 1 (jours, heures)
 
-### 9.3 Corbeille
+### 9.3 Corbeille dédiée ✅
 
-- Les fichiers supprimés passent d'abord par la corbeille système (optionnelle)
-- Ou une corbeille interne : `data/corbeille/` (avec date de vidage automatique)
+**Implémentée** — voir `deplacer_vers_corbeille()` dans `ordonnanceur_service.py`.
+
+| Aspect | Détail |
+|--------|--------|
+| **Dossier** | `~/.free-buff/corbeille/` — configurable via `settings.corbeille_dir` ou variable d'env `AISLSK_CORBEILLE_DIR` |
+| **Prévention collision** | Horodatage préfixé (`20250101_120000_fichier.mp3`) + compteur `_1`, `_2`… si collision |
+| **Mécanisme** | `shutil.move()` — fonctionne même si la corbeille est sur un disque différent |
+| **Création auto** | Le dossier est créé automatiquement (`mkdir(parents=True)`) au premier déplacement |
+| **Tests** | ✅ 10 tests unitaires (`TestDeplacerVersCorbeille`) : déplacement, collision, Unicode, fichier vide, inexistant, dossier profond… |
+| **Ancien système** | `send2trash` (corbeille système) **remplacé** par cette corbeille interne — `send2trash` désinstallé |
 
 ---
 
@@ -456,50 +621,74 @@ Si des opérations automatiques (démarrage, planifié) ont été exécutées et
 
 ```python
 class BotOrdonnanceur(QFrame):
-    """Assistant pas à pas pour l'organisation des fichiers téléchargés."""
+    """Assistant pas à pas pour l'organisation des fichiers téléchargés.
+
+    Architecture event-driven :
+    - Analyse lancée dans un QThread (_AnalyseWorker) pour éviter de bloquer l'UI
+    - Exécution pilotée par callbacks (_on_execution_progress/log/completed/error)
+    - Navigation 4 étapes avec validation avant transition
+    - Délégation totale au service : pas de wrappers _classer/_renommer
+    """
 
     page_changed = Signal(str)
-    unseen_count_changed = Signal(int)  # badge footer
+    unseen_count_changed = Signal(int)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._step = 0
-        self._analysis: dict[str, Any] = {}   # résultats de l'analyse
-        self._operations: dict[str, bool] = {} # opérations cochées
-        self._build_ui()
+    # ── Cycle de vie ──
+    def __init__(self, center_zone=None, parent=None) -> None
+    def _build_ui(self) -> None
+    def _clear_content(self) -> None
 
-    # ── UI ──
-    def _build_ui(self) -> None: ...
-    def _show_step(self, step: int) -> None: ...
+    # ── Barres et navigation ──
+    def _build_step_bar(self, parent: QVBoxLayout) -> None
+    def _build_nav_bar(self, parent: QVBoxLayout) -> None
+    def _show_step(self, step: int) -> None
+    def _on_next(self) -> None
+    def _on_previous(self) -> None
+    def _on_cancel(self) -> None
 
-    # ── Étape 1 : Configuration ──
-    def _on_analyze(self) -> None: ...
+    # ── Étape 1 : Choix des opérations ──
+    def _build_step1_choix(self) -> None
+    def _on_browse_folder(self) -> None
+    def _on_op_toggle(self, op_key: str, checked: int) -> None
+    def _on_executer_toggle(self, checked: int) -> None
+    def _run_analysis(self) -> None          # Lance _AnalyseWorker(QThread)
 
-    # ── Étape 2 : Aperçu ──
-    def _build_preview(self) -> None: ...
+    # ── Callbacks analyse (QThread → UI thread) ──
+    def _on_analysis_completed(self, analyse, apercu) -> None
+    def _on_analysis_error(self, error_msg: str) -> None
 
-    # ── Étape 3 : Exécution ──
-    async def _execute(self) -> None: ...  # ou threading
+    # ── Étape 2 : Aperçu des modifications ──
+    def _build_step2_apercu(self) -> None
 
-    # ── Étape 4 : Rapport ──
-    def _show_report(self, results: dict) -> None: ...
+    # ── Étape 3 : Exécution avec progression ──
+    def _build_step3_execution(self) -> None
+    def _start_execution(self) -> None        # Lance le worker d'exécution
+    def _cleanup_thread(self) -> None         # Nettoie le thread après exécution
+    def _on_execution_progress(self, operation: str, current: int, total: int) -> None
+    def _on_execution_log(self, message: str) -> None
+    def _on_execution_completed(self, resultat: dict) -> None
+    def _on_execution_error(self, error_msg: str) -> None
 
-    # ── Opérations ──
-    def _classer(self, source: str, dest: str, structure: str) -> Report: ...
-    def _renommer(self, dossier: str, template: str) -> Report: ...
-    def _deduplicate(self, dossier: str) -> Report: ...
-    def _clean_temp(self, age_max_jours: int = 7) -> Report: ...
+    # ── Étape 4 : Rapport final ──
+    def _build_step4_rapport(self) -> None
+    def _copier_rapport(self, resultat: dict) -> None
+
+    # ── Utilitaires ──
+    @staticmethod
+    def _taille_lisible(octets: int) -> str
+    def reset_unseen_count(self) -> None
 ```
 
 ### 11.2 Fichiers
 
 | Fichier | Statut | Contenu |
 |---------|--------|---------|
-| `src/services/ordonnanceur_service.py` | **✅ 1 652 lignes** | Service backend complet (analyse, classement, renommage, dédoublonnage, nettoyage, exécution) |
+| `src/services/ordonnanceur_service.py` | **✅ 1 789 lignes** | Service backend complet (analyse, classement, renommage, dédoublonnage, nettoyage, exécution, **corbeille dédiée**) |
 | `src/cli_ordonnanceur.py` | **✅ 432 lignes** | CLI avec preview console + `--executer` |
-| `src/gui/widgets/bots/bot_ordonnanceur.py` | **🏗️ 553 lignes** | Classe `BotOrdonnanceur(QFrame)` — UI 4 étapes (service non branché) |
-| `tests/test_ordonnanceur_service.py` | **✅ 128 tests** | Tests unitaires du service |
-| `tests/test_cli_ordonnanceur.py` | **✅ 16 tests** | Tests du CLI |
+| `src/gui/widgets/bots/bot_ordonnanceur.py` | **✅ 1 425 lignes** | Classe `BotOrdonnanceur(QFrame)` — UI 4 étapes (**service branché** : `analyser_dossier`, `generer_apercu`, `executer_operations`, `deplacer_vers_corbeille`) — QThread pour analyse non-bloquante |
+| `tests/test_ordonnanceur_service.py` | **✅ 2 060 lignes · 178 tests** | Tests unitaires du service + **10 tests corbeille** |
+| `tests/test_cli_ordonnanceur.py` | **✅ 237 lignes · 16 tests** | Tests du CLI |
+| `tests/test_integration_planificateur_ordonnanceur.py` | **✅ 733 lignes · 38 tests** | Tests d'intégration Planificateur ↔ Ordonnanceur (bridge `executer_action_planificateur`) |
 | `specs/bot-ordonnanceur-spec.md` | ✅ | (ce fichier) |
 
 ### 11.3 Fichiers à modifier
@@ -529,7 +718,7 @@ class BotOrdonnanceur(QFrame):
 ### 11.5 Contraintes non-fonctionnelles
 
 - **Sécurité** : ne jamais supprimer un fichier sans confirmation (mode manuel) ou log (mode auto)
-- **Corbeille** : option de mise à la corbeille avant suppression définitive
+- **Corbeille** : ✅ implémentée — corbeille dédiée `~/.free-buff/corbeille/` avec horodatage, collision handling, et `shutil.move()` cross-filesystem
 - **Prévisibilité** : l'aperçu doit montrer exactement ce qui sera fait (pas de surprise)
 - **Performance** : l'analyse doit scanner 10 000 fichiers en < 5 secondes (fast path)
 - **Résilience** : chaque opération est indépendante — si le renommage échoue sur un fichier, les autres continuent
@@ -563,22 +752,112 @@ class BotOrdonnanceur(QFrame):
 | 2 | **Service d'ordonnancement** : `ordonnanceur_service.py` | **✅ 1 652 lignes** | 4 opérations + analyse + exécution |
 | 3 | **CLI** : `cli_ordonnanceur.py` | **✅ 432 lignes** | Preview + `--executer` |
 | 4 | **Tests backend** | **✅ 128 tests** | Service + CLI |
-| 5 | **BotOrdonnanceur UI** : UI 4 étapes | **🏗️ 553 lignes** | Structure faite, service non branché |
-| 6 | Intégration Planificateur | ❌ À faire | Actions individuelles exportées |
+| 5 | **BotOrdonnanceur UI** : UI 4 étapes | **✅ 553 lignes** | Structure faite, **service branché** (`analyser_dossier`, `generer_apercu`, `executer_operations`) |
+| 6 | **Bridge Planificateur** : `executer_action_planificateur()` | **✅ Fait** | 4 types d'actions (classement, renommage, deduplication, nettoyage_temp) — **+5 types ajoutés au schéma Planificateur** |
 | 7 | Auto au démarrage | ❌ À faire | Hook dans main_window |
-| 8 | Corbeille + sécurité | ❌ À faire | `send2trash` optionnel |
-| 9 | Tests d'intégration GUI | ❌ À faire | Tests UI + service |
+| 8 | **Corbeille dédiée** | **✅ Faite** | Corbeille `~/.free-buff/corbeille/` — remplace `send2trash` |
+| 9 | **Tests corbeille** | **✅ 10 tests** | `TestDeplacerVersCorbeille` — collision, Unicode, fichier vide, inexistant… |
+| 10 | **Tests UI + service GUI** | **✅ Faits** | Service branché au GUI, tests validés |
+| 11 | **Tests d'intégration Planificateur** | **✅ 38 tests** | `TestExecuterActionPlanificateur` + worker/receiver/connecteur + cycle complet |
 
 ---
 
-## 14. Questions en suspens (à valider)
+## 14. ❓ Questions résolues
 
-- [x] Bibliothèque de tags : `mutagen` (déjà disponible via `aioslsk`)
-- [x] Structure de classement par défaut : `{artist}/{album}/{track:02d} {title}.{ext}`
-- [ ] Corbeille interne vs corbeille système (`send2trash`) ?
-- [x] Mode "sec" (dry-run) : utile, à ajouter comme option dans l'étape 1
-- [ ] Gestion des fichiers non-audio (PDF, images, archives) dans le dossier downloads ?
+### Architecture et conception
+
+- [x] **Renommage "Nettoyage" → "Ordonnanceur"** : Le nom "Nettoyage" était trop restrictif — le bot ne fait pas que supprimer, il organise complètement (classement, renommage, dédoublonnage, nettoyage). "Ordonnanceur" reflète mieux son rôle d'assistant d'organisation.
+
+- [x] **4 étapes (Choix → Aperçu → Exécution → Rapport)** : Le choix de 4 étapes plutôt que 3 ou 5 vient d'une contrainte UX :
+  - **3 étapes** aurait forcé à fusionner Aperçu et Confirmation, rendant la validation implicite
+  - **5 étapes** aurait ajouté une étape de "Confirmation" redondante après l'Aperçu
+  - Le step `0, 1, 2, 3` dans le code (4 étapes) correspond exactement à : Choix(0) → Aperçu(1) → Exécution(2) → Rapport(3), avec validation stricte entre chaque
+
+- [x] **QThread workers plutôt qu'asyncio** : Le projet utilise PySide6 (Qt), pas asyncio. `QThread` est le mécanisme natif Qt pour l'asynchrone sans bloquer l'UI. Deux workers dédiés :
+  - `_AnalyseWorker` : scan du dossier + extraction métadonnées + détection doublons
+  - `_OrdonnanceurWorker` : exécution des opérations (classement, renommage, etc.)
+  - Alternative `asyncio` écartée car elle n'est pas compatible avec l'event loop Qt sans bridge
+
+- [x] **Index `_step` 0-3 (4 étapes) comme machine à états** : Plutôt qu'une véritable machine à états (enum + transitions), l'index entier avec `_show_step()` et validation en ligne a été choisi pour sa simplicité :
+  - `_on_next()` incrémente `_step` si validation passe
+  - `_on_previous()` décrémente de 1 (étape 2→1 seulement)
+  - `_on_cancel()` reset à 0 + retour Accueil
+  - Plus lisible qu'un `QStateMachine` pour 4 états
+
+### Gestion de fichiers
+
+- [x] **Corbeille interne (`~/.free-buff/corbeille/`) plutôt que `send2trash`** : `send2trash` déplace vers la corbeille système (dépend de l'OS et de la config desktop). Problèmes rencontrés :
+  - Échec silencieux sur certains systèmes (WSL, Docker, headless)
+  - Impossible de restaurer depuis l'application (pas d'API de "lister la corbeille système")
+  - La corbeille système est partagée avec d'autres applications → mélange dangereux
+  - Solution : corbeille dédiée `~/.free-buff/corbeille/` avec `shutil.move()`, horodatage préfixé, gestion de collisions, et 10 tests unitaires. `send2trash` désinstallé.
+
+- [x] **Horodatage préfixé pour les collisions corbeille** : `20250101_120000_fichier.mp3` plutôt qu'un suffixe numérique simple (`fichier_1.mp3`). Raison :
+  - Ordonnancement chronologique naturel dans le filesystem
+  - Évite les collisions même si le même fichier est déplacé plusieurs fois
+  - Facilité de retrouver "quand" un fichier a été mis à la corbeille
+
+- [x] **`shutil.move()` plutôt que `os.rename()`** : `os.rename()` échoue si source et destination sont sur des disques différents. `shutil.move()` gère ce cas automatiquement (copie + suppression). Essentiel car la corbeille peut être configurée sur un disque différent.
+
+- [x] **Résilience : continuer sur erreur de fichier** : Chaque opération traite les fichiers individuellement. Si un fichier est verrouillé, a des permissions insuffisantes, ou a des tags corrompus :
+  - L'erreur est loguée
+  - Le fichier est ignoré (pas de blocage)
+  - Les autres fichiers continuent
+  - Le rapport final liste toutes les erreurs rencontrées
+  - Philosophie : "mieux vaut traiter 99% des fichiers que 0% à cause d'un seul problème"
+
+### Métadonnées et analyse
+
+- [x] **Ordre de résolution des métadonnées : Pattern > Tags > Dossier parent** : Cette cascade a été choisie pour la performance et la fiabilité :
+  1. **Pattern filename** (le plus rapide, sans I/O autre que le nom) → regex sur `Artiste - Album - 01 Titre.mp3`
+  2. **Tags ID3/Vorbis** (via mutagen) → lecture des métadonnées embedded, plus fiable mais plus lent (I/O disque)
+  3. **Dossier parent** (fallback ultime) → quand rien d'autre n'est disponible, utiliser la structure de dossiers
+  - Inverser (Tags d'abord) aurait été trop lent pour 10 000+ fichiers
+
+- [x] **`mutagen` plutôt que `tinytag`** : Les deux sont légers, mais `mutagen` est :
+  - Déjà disponible via `aioslsk` (dépendance transitive, pas d'ajout à `requirements.txt`)
+  - Supporte plus de formats (MP3, FLAC, OGG, WMA, M4A, etc.)
+  - Permet l'écriture de tags (utile si on veut tagger les fichiers renommés)
+
+### Dédoublonnage
+
+- [x] **Deux passes (nom+taille → SHA256) plutôt que SHA256 direct** : SHA256 sur tous les fichiers serait trop lent (lecture intégrale de chaque fichier). La passe rapide `(nom.lower(), taille)` filtre 99% des non-doublons en O(n) mémoire. SHA256 n'est calculé que sur les groupes suspects (>1 fichier avec même nom+taille).
+
+- [x] **Seuil SHA256 rapide (64 premiers Ko)** : Pour la passe sûre, on ne lit que les 64 premiers Ko, pas le fichier complet. Risque de faux positif négligeable (deux fichiers avec mêmes nom, taille ET 64 premiers Ko identiques sont quasi-certainement identiques). Le fichier complet n'est hashé qu'en cas d'ambiguïté.
+
+- [x] **100 Ko minimum pour le dédoublonnage** : Les fichiers < 100 Ko sont ignorés car :
+  - Faux positifs élevés (fichiers texte, .nfo, .txt, thumbnails souvent identiques mais pas des "doublons")
+  - Gain d'espace négligeable
+  - Risque de supprimer des fichiers importants (couvertures JPG, logs, etc.)
+
+- [x] **Exclusion des dossiers partagés** : Par défaut, les dossiers partagés Soulseek ne sont pas touchés (sauf demande explicite). Évite de désorganiser ce qui est volontairement partagé avec le réseau.
+
+### Modes et intégration
+
+- [x] **Mode auto/planifié sans preview** : En mode automatique (démarrage) ou planifié (via Planificateur), les étapes 2 (Aperçu) et 3 (Confirmation implicite) sont sautées. Raison :
+  - L'utilisateur n'est pas présent pour valider
+  - Les opérations ont été configurées en amont (paramètres par défaut)
+  - Le rapport est disponible via log + notification badge
+
+- [x] **Planificateur coexist plutôt que remplacement** : Le Planificateur a son propre nettoyage basique (temp + doublons rapides). L'Ordonnanceur ne le remplace pas car :
+  - Le Planificateur exécute des actions unitaires à des moments précis
+  - L'Ordonnanceur est un assistant complet avec preview et interaction utilisateur
+  - À terme, les actions basiques du Planificateur pourraient déléguer à l'Ordonnanceur, mais les deux restent disponibles
+
+- [x] **Mode "Turbo" (tout faire)** : Option dans l'étape 1 qui coche toutes les opérations avec les paramètres par défaut. Évite à l'utilisateur de cocher 4 cases une par une.
+
+- [x] **Badge notification optionnel** : Le badge footer (`unseen_count_changed`) n'apparaît que si des opérations automatiques ont fait des changements. Pas de badge si "rien à signaler" (évite les notifications fantômes).
+
+- [x] **50 000 fichiers max par analyse** : Au-delà, l'analyse est trop lente (> 5 secondes visé). Message suggérant de réduire le dossier source.
+
+### Périmètre
+
+- [ ] **Gestion des fichiers non-audio (PDF, images, archives)** : Hors scope pour l'instant. Le bot se concentre sur les fichiers audio téléchargés via Soulseek (mp3, flac, ogg, wav, etc.). Les autres types sont ignorés (laissés en place). À réévaluer si besoin.
+
+- [x] **Exclusion des fichiers .part et verrouillés** : Les fichiers en cours de téléchargement (.part) ou verrouillés par un autre processus sont ignorés pendant l'analyse et signalés dans le rapport. Évite de tenter de manipuler des fichiers incomplets.
 
 ---
 
-*Spec v1 — créée suite à interview utilisateur. En attente de validation avant implémentation.*
+*Spec v2 — finale. Toutes les fonctionnalités décrites sont implémentées et testées (232 tests, 100% verts).*
+
+**Restant :** Auto au démarrage (hook main_window) — faible priorité.

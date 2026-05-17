@@ -11,8 +11,6 @@ Composants :
 
 from __future__ import annotations
 
-from typing import Callable
-
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -23,14 +21,12 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from src.services import app_config
-
 
 # ═════════════════════════════════════════════════════════════════
 #  ConfigSection — groupe d'options
@@ -58,9 +54,7 @@ class ConfigSection(QFrame):
         # ── Titre de section ──
         title_label = QLabel(titre)
         title_label.setObjectName("configSectionTitle")
-        title_label.setStyleSheet(
-            "color: #6c5ce7; font-size: 13px; font-weight: 700;"
-        )
+        title_label.setStyleSheet("color: #6c5ce7; font-size: 13px; font-weight: 700;")
         layout.addWidget(title_label)
 
         # Séparateur
@@ -117,17 +111,13 @@ class ConfigToggle(QFrame):
 
         self._label = QLabel(label)
         self._label.setObjectName("configLabel")
-        self._label.setStyleSheet(
-            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
-        )
+        self._label.setStyleSheet("color: #e4e4ec; font-size: 12px; font-weight: 600;")
         text_layout.addWidget(self._label)
 
         if description:
             self._desc = QLabel(description)
             self._desc.setObjectName("configDesc")
-            self._desc.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px;"
-            )
+            self._desc.setStyleSheet("color: #5a5a6a; font-size: 10px;")
             self._desc.setWordWrap(True)
             text_layout.addWidget(self._desc)
 
@@ -251,17 +241,13 @@ class ConfigEntry(QFrame):
 
         self._label = QLabel(label)
         self._label.setObjectName("configLabel")
-        self._label.setStyleSheet(
-            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
-        )
+        self._label.setStyleSheet("color: #e4e4ec; font-size: 12px; font-weight: 600;")
         text_layout.addWidget(self._label)
 
         if description:
             self._desc = QLabel(description)
             self._desc.setObjectName("configDesc")
-            self._desc.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px;"
-            )
+            self._desc.setStyleSheet("color: #5a5a6a; font-size: 10px;")
             text_layout.addWidget(self._desc)
 
         layout.addLayout(text_layout, 1)
@@ -339,17 +325,13 @@ class ConfigCombo(QFrame):
 
         self._label = QLabel(label)
         self._label.setObjectName("configLabel")
-        self._label.setStyleSheet(
-            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
-        )
+        self._label.setStyleSheet("color: #e4e4ec; font-size: 12px; font-weight: 600;")
         text_layout.addWidget(self._label)
 
         if description:
             self._desc = QLabel(description)
             self._desc.setObjectName("configDesc")
-            self._desc.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px;"
-            )
+            self._desc.setStyleSheet("color: #5a5a6a; font-size: 10px;")
             text_layout.addWidget(self._desc)
 
         layout.addLayout(text_layout, 1)
@@ -440,17 +422,13 @@ class ConfigSpin(QFrame):
 
         self._label = QLabel(label)
         self._label.setObjectName("configLabel")
-        self._label.setStyleSheet(
-            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
-        )
+        self._label.setStyleSheet("color: #e4e4ec; font-size: 12px; font-weight: 600;")
         text_layout.addWidget(self._label)
 
         if description:
             self._desc = QLabel(description)
             self._desc.setObjectName("configDesc")
-            self._desc.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px;"
-            )
+            self._desc.setStyleSheet("color: #5a5a6a; font-size: 10px;")
             text_layout.addWidget(self._desc)
 
         layout.addLayout(text_layout, 1)
@@ -533,17 +511,13 @@ class ConfigFilePicker(QFrame):
 
         self._label = QLabel(label)
         self._label.setObjectName("configLabel")
-        self._label.setStyleSheet(
-            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
-        )
+        self._label.setStyleSheet("color: #e4e4ec; font-size: 12px; font-weight: 600;")
         text_layout.addWidget(self._label)
 
         if description:
             self._desc = QLabel(description)
             self._desc.setObjectName("configDesc")
-            self._desc.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px;"
-            )
+            self._desc.setStyleSheet("color: #5a5a6a; font-size: 10px;")
             text_layout.addWidget(self._desc)
 
         layout.addLayout(text_layout, 1)
@@ -667,17 +641,13 @@ class ConfigDirectoryPicker(QFrame):
 
         self._label = QLabel(label)
         self._label.setObjectName("configLabel")
-        self._label.setStyleSheet(
-            "color: #e4e4ec; font-size: 12px; font-weight: 600;"
-        )
+        self._label.setStyleSheet("color: #e4e4ec; font-size: 12px; font-weight: 600;")
         text_layout.addWidget(self._label)
 
         if description:
             self._desc = QLabel(description)
             self._desc.setObjectName("configDesc")
-            self._desc.setStyleSheet(
-                "color: #5a5a6a; font-size: 10px;"
-            )
+            self._desc.setStyleSheet("color: #5a5a6a; font-size: 10px;")
             text_layout.addWidget(self._desc)
 
         layout.addLayout(text_layout, 1)
@@ -828,9 +798,7 @@ def highlight_widget(widget: QWidget, duree_ms: int = 1500) -> None:
 
     # 2. Animation de surbrillance — bordure seule, pas de fond coloré
     style_original = widget.styleSheet()
-    widget.setStyleSheet(
-        "border: 2px solid rgba(108, 92, 231, 0.5);"
-    )
+    widget.setStyleSheet("border: 2px solid rgba(108, 92, 231, 0.5);")
     QTimer.singleShot(duree_ms, lambda: widget.setStyleSheet(style_original))
 
 
@@ -867,10 +835,7 @@ class ConfigPage(QFrame):
         # ── Titre de page ──
         header = QLabel(titre)
         header.setObjectName("configPageTitle")
-        header.setStyleSheet(
-            "color: #6c5ce7; font-size: 16px; font-weight: 700;"
-            " padding: 16px 16px 8px 16px;"
-        )
+        header.setStyleSheet("color: #6c5ce7; font-size: 16px; font-weight: 700; padding: 16px 16px 8px 16px;")
         outer.addWidget(header)
 
         # ── Zone scrollable ──
@@ -902,9 +867,7 @@ class ConfigPage(QFrame):
         """Ajoute un message placeholder (quand aucune option n'est encore disponible)."""
         placeholder = QLabel(text)
         placeholder.setObjectName("configPlaceholder")
-        placeholder.setStyleSheet(
-            "color: #3a3a4a; font-size: 12px; padding: 16px;"
-        )
+        placeholder.setStyleSheet("color: #3a3a4a; font-size: 12px; padding: 16px;")
         self._layout.insertWidget(self._layout.count() - 1, placeholder)
 
     def _find_widget_by_key(self, config_key: str) -> QWidget | None:

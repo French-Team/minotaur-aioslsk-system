@@ -7,10 +7,8 @@ positionnés en haut à droite de la fenêtre, avec auto-disparition.
 
 import logging
 
-from PySide6.QtCore import QPropertyAnimation, QPoint, Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -24,15 +22,15 @@ logger = logging.getLogger(__name__)
 
 _SEVERITY_COLORS: dict[str, tuple[str, str]] = {
     "ERROR": ("#e74c3c", "#ffffff"),  # rouge, texte blanc
-    "WARN":  ("#f39c12", "#ffffff"),  # orange, texte blanc
-    "INFO":  ("#3498db", "#ffffff"),  # bleu, texte blanc
+    "WARN": ("#f39c12", "#ffffff"),  # orange, texte blanc
+    "INFO": ("#3498db", "#ffffff"),  # bleu, texte blanc
 }
 
-_TOAST_DURATION_MS = 4000      # 4 secondes avant disparition
-_FADE_DURATION_MS = 300        # durée du fade in/out
-_TOAST_SPACING = 8             # espacement entre toasts
-_TOAST_MARGIN = 16             # marge depuis le bord
-_MAX_TOASTS = 5                # nombre max de toasts simultanés
+_TOAST_DURATION_MS = 4000  # 4 secondes avant disparition
+_FADE_DURATION_MS = 300  # durée du fade in/out
+_TOAST_SPACING = 8  # espacement entre toasts
+_TOAST_MARGIN = 16  # marge depuis le bord
+_MAX_TOASTS = 5  # nombre max de toasts simultanés
 
 
 class _ToastCard(QFrame):
@@ -93,6 +91,7 @@ class _ToastCard(QFrame):
         style = self.styleSheet()
         # On utilise un QGraphicsOpacityEffect
         from PySide6.QtWidgets import QGraphicsOpacityEffect
+
         effect = QGraphicsOpacityEffect(self)
         effect.setOpacity(self._opacity)
         self.setGraphicsEffect(effect)

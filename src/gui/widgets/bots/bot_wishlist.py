@@ -27,19 +27,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.services import app_config
-from src.services.soulseek_client import soulseek_service
-from src.services.event_bus import EventBus
 from src.gui.theme_fragments.colors import COLORS, rgba
-
+from src.services import app_config
+from src.services.event_bus import EventBus
+from src.services.soulseek_client import soulseek_service
 
 # ── Constantes ──────────────────────────────────────────────────
 
 _CONFIG_KEY_WISHLIST = "recherche.souhaits"
 
-_STYLE_STATUS_ACTIVE = COLORS['SUCCESS']
-_STYLE_STATUS_INACTIVE = COLORS['TEXT_SECONDARY']
-_STYLE_STATUS_ERROR = COLORS['DANGER_BTN']
+_STYLE_STATUS_ACTIVE = COLORS["SUCCESS"]
+_STYLE_STATUS_INACTIVE = COLORS["TEXT_SECONDARY"]
+_STYLE_STATUS_ERROR = COLORS["DANGER_BTN"]
 
 _LABEL_STATUS: dict[str, str] = {
     "active": "🟢 Actif",
@@ -60,9 +59,9 @@ _COLOR_STATUS: dict[str, str] = {
 class WishlistCard(QFrame):
     """Carte affichant un souhait individuel avec ses infos et actions."""
 
-    toggled = Signal(str, bool)       # (query, new_enabled)
-    edit_requested = Signal(str)       # (query)
-    delete_requested = Signal(str)     # (query)
+    toggled = Signal(str, bool)  # (query, new_enabled)
+    edit_requested = Signal(str)  # (query)
+    delete_requested = Signal(str)  # (query)
     search_now_requested = Signal(str)  # (query)
 
     def __init__(self, data: dict, parent: QWidget | None = None) -> None:
@@ -127,8 +126,7 @@ class WishlistCard(QFrame):
 
         results_icon = "📅" if data.get("results", 0) > 0 else "📭"
         meta_text = (
-            f"{results_icon} {data.get('results', 0)} résultat(s) "
-            f"• Dernière : {data.get('last_search', 'jamais')}"
+            f"{results_icon} {data.get('results', 0)} résultat(s) • Dernière : {data.get('last_search', 'jamais')}"
         )
         meta_lbl = QLabel(meta_text)
         meta_lbl.setStyleSheet(
@@ -150,11 +148,11 @@ class WishlistCard(QFrame):
         row3 = QHBoxLayout()
         row3.setSpacing(6)
 
-        self._edit_btn = _ActionButton("✏️ Modifier", COLORS['ACCENT'])
+        self._edit_btn = _ActionButton("✏️ Modifier", COLORS["ACCENT"])
         self._edit_btn.clicked.connect(lambda: self.edit_requested.emit(self._query))
         row3.addWidget(self._edit_btn)
 
-        self._search_btn = _ActionButton("🔍 Chercher", COLORS['SUCCESS'])
+        self._search_btn = _ActionButton("🔍 Chercher", COLORS["SUCCESS"])
         self._search_btn.clicked.connect(lambda: self.search_now_requested.emit(self._query))
         row3.addWidget(self._search_btn)
 
@@ -238,11 +236,7 @@ class _StatCard(QFrame):
     def __init__(self, value: str | int, label: str, color: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("statCardBadge")
-        self.setStyleSheet(
-            "#statCardBadge {"
-            f"  background: {COLORS['BG_BTN']}; border-radius: 4px;"
-            "}"
-        )
+        self.setStyleSheet(f"#statCardBadge {{  background: {COLORS['BG_BTN']}; border-radius: 4px;}}")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 3, 10, 3)
@@ -257,8 +251,7 @@ class _StatCard(QFrame):
 
         label_lbl = QLabel(label)
         label_lbl.setStyleSheet(
-            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 11px;"
-            " background: transparent; border: none;"
+            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 11px; background: transparent; border: none;"
         )
         layout.addWidget(label_lbl)
 
@@ -288,7 +281,7 @@ class BotWishlist(QFrame):
         self._local_metadata: dict[str, dict] = {}  # query → {results, last_search, status}
         self._filter: str = "all"  # all | active | inactive | error
         self._search_text: str = ""
-        self._edit_mode: bool = False   # True pendant l'édition inline
+        self._edit_mode: bool = False  # True pendant l'édition inline
         self._edit_old_query: str = ""
 
         # Layout principal
@@ -298,10 +291,7 @@ class BotWishlist(QFrame):
 
         # ── 1. En-tête ──
         header = QLabel("📋 Wishlist — Souhaits automatiques")
-        header.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;"
-            " padding: 0 0 12px 0;"
-        )
+        header.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700; padding: 0 0 12px 0;")
         layout.addWidget(header)
 
         # ── 2. Résumé (stats) ──
@@ -394,12 +384,8 @@ class BotWishlist(QFrame):
         self._scroll_area.setWidget(self._list_widget)
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self._scroll_area.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll_area.setStyleSheet("QScrollArea { background: transparent; }")
 
         layout.addWidget(self._scroll_area, 1)
@@ -479,10 +465,7 @@ class BotWishlist(QFrame):
                 entries = []
         else:
             # Fallback CSV : "query1, query2"
-            entries = [
-                {"query": q.strip(), "enabled": True}
-                for q in raw.split(",") if q.strip()
-            ]
+            entries = [{"query": q.strip(), "enabled": True} for q in raw.split(",") if q.strip()]
 
         queries = [e["query"] for e in entries]
 
@@ -496,13 +479,15 @@ class BotWishlist(QFrame):
             query = entry["query"]
             enabled = entry.get("enabled", True)
             meta = self._local_metadata.get(query, {})
-            result.append({
-                "query": query,
-                "enabled": enabled,
-                "results": meta.get("results", 0),
-                "last_search": meta.get("last_search", "jamais"),
-                "status": meta.get("status", "active" if enabled else "inactive"),
-            })
+            result.append(
+                {
+                    "query": query,
+                    "enabled": enabled,
+                    "results": meta.get("results", 0),
+                    "last_search": meta.get("last_search", "jamais"),
+                    "status": meta.get("status", "active" if enabled else "inactive"),
+                }
+            )
         return result
 
     def _save_wishlist(self) -> None:
@@ -517,27 +502,26 @@ class BotWishlist(QFrame):
             key = w["query"]
             if key not in self._local_metadata:
                 self._local_metadata[key] = {}
-            self._local_metadata[key].update({
-                "enabled": w["enabled"],
-                "results": w.get("results", 0),
-                "last_search": w.get("last_search", "jamais"),
-                "status": w.get("status", "active" if w["enabled"] else "inactive"),
-            })
+            self._local_metadata[key].update(
+                {
+                    "enabled": w["enabled"],
+                    "results": w.get("results", 0),
+                    "last_search": w.get("last_search", "jamais"),
+                    "status": w.get("status", "active" if w["enabled"] else "inactive"),
+                }
+            )
 
         # Persister dans app_config (JSON structuré : query + enabled)
-        entries = [
-            {"query": w["query"], "enabled": w["enabled"]}
-            for w in self._wishlist
-        ]
+        entries = [{"query": w["query"], "enabled": w["enabled"]} for w in self._wishlist]
         app_config.set(_CONFIG_KEY_WISHLIST, json.dumps(entries, ensure_ascii=False))
 
         # Synchroniser avec le client Soulseek s'il est connecté
         if soulseek_service.is_connected and soulseek_service.client is not None:
             try:
                 from aioslsk.settings import WishlistSettingEntry
+
                 soulseek_service.client.settings.searches.wishlist = [
-                    WishlistSettingEntry(query=w["query"], enabled=w["enabled"])
-                    for w in self._wishlist
+                    WishlistSettingEntry(query=w["query"], enabled=w["enabled"]) for w in self._wishlist
                 ]
             except Exception:
                 pass  # Échec non bloquant
@@ -554,13 +538,15 @@ class BotWishlist(QFrame):
         # Vérifier les doublons
         if any(w["query"].lower() == query.lower() for w in self._wishlist):
             return
-        self._wishlist.append({
-            "query": query,
-            "enabled": True,
-            "results": 0,
-            "last_search": "jamais",
-            "status": "active",
-        })
+        self._wishlist.append(
+            {
+                "query": query,
+                "enabled": True,
+                "results": 0,
+                "last_search": "jamais",
+                "status": "active",
+            }
+        )
         self._save_wishlist()
         self.refresh()
 
@@ -646,7 +632,7 @@ class BotWishlist(QFrame):
         inactive = sum(1 for w in self._wishlist if w.get("status") == "inactive")
         errors = sum(1 for w in self._wishlist if w.get("status") == "error")
 
-        self._stats_layout.addWidget(_StatCard(total, "Total", COLORS['ACCENT']))
+        self._stats_layout.addWidget(_StatCard(total, "Total", COLORS["ACCENT"]))
         self._stats_layout.addWidget(_StatCard(active, "Actifs", _STYLE_STATUS_ACTIVE))
         self._stats_layout.addWidget(_StatCard(inactive, "Inactifs", _STYLE_STATUS_INACTIVE))
         self._stats_layout.addWidget(_StatCard(errors, "Erreurs", _STYLE_STATUS_ERROR))
@@ -664,14 +650,10 @@ class BotWishlist(QFrame):
         filtered = self._get_filtered_wishlist()
 
         if not filtered:
-            empty_lbl = QLabel(
-                "Aucun souhait trouvé.\n"
-                "Clique sur « ➕ Ajouter un souhait » pour en créer un."
-            )
+            empty_lbl = QLabel("Aucun souhait trouvé.\nClique sur « ➕ Ajouter un souhait » pour en créer un.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(
-                f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; padding: 40px;"
-                " background: transparent;"
+                f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; padding: 40px; background: transparent;"
             )
             self._list_layout.insertWidget(0, empty_lbl)
             return
@@ -699,10 +681,7 @@ class BotWishlist(QFrame):
         # Filtre textuel
         if self._search_text:
             text = self._search_text.lower()
-            result = [
-                w for w in result
-                if text in w["query"].lower()
-            ]
+            result = [w for w in result if text in w["query"].lower()]
 
         return result
 

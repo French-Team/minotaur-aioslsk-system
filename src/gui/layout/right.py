@@ -103,7 +103,7 @@ class RightZone(QFrame):
         content_layout.addWidget(self._tabs, 1)
 
         # Assemblage
-        main_layout.addWidget(self._handle, 0)   # pas d'étirement
+        main_layout.addWidget(self._handle, 0)  # pas d'étirement
         main_layout.addWidget(self._content, 1)  # stretch = prend l'espace
 
         # ── État初始 ──

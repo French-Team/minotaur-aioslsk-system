@@ -11,14 +11,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest import MonkeyPatch
-
 from PySide6.QtWidgets import QApplication
+from pytest import MonkeyPatch
 
 from src.gui.widgets.bots.bot_wishlist import BotWishlist
 from src.services import app_config
 from src.services.event_bus import EventBus
-
 
 # ═════════════════════════════════════════════════════════════════
 #  Fixtures
@@ -233,7 +231,7 @@ class TestToggleWish:
         """Activer un souhait inactif."""
         bot.add_wish("Test")
         bot.toggle_wish("Test", False)  # d'abord désactiver
-        bot.toggle_wish("Test", True)   # puis réactiver
+        bot.toggle_wish("Test", True)  # puis réactiver
         assert bot._wishlist[0]["enabled"] is True
         assert bot._wishlist[0]["status"] == "active"
 

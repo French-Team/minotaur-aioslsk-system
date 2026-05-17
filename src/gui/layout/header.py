@@ -7,7 +7,7 @@ quand l'utilisateur est connecté.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QWidget
 
 from src.gui.widgets.connexions import ConnexionHeaderWidget
@@ -45,4 +45,3 @@ class HeaderZone(QFrame):
     def connexion_widget(self) -> ConnexionHeaderWidget:
         """Widget de connexion dans le header."""
         return self._connexion
-    

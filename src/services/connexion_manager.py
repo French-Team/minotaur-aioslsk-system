@@ -17,8 +17,8 @@ from threading import Event
 
 from PySide6.QtCore import QObject, QThread, Signal
 
-from src.services.error_translator import traduire, afficher
 import src.services.app_config as app_config
+from src.services.error_translator import afficher, traduire
 from src.services.event_bus import EventBus
 from src.services.soulseek_client import soulseek_service
 
@@ -27,31 +27,109 @@ logger = logging.getLogger(__name__)
 
 # ── Utilitaires ─────────────────────────────────────────────────
 
+
 def _generer_identifiants() -> tuple[str, str]:
     """Génère un nom d'utilisateur réaliste et un mot de passe aléatoires."""
 
     # ── Banques de mots ─────────────────────────────────────────────
     prenoms = [
-        "Alex", "Ben", "Max", "Leo", "Jay", "Kim", "Sam", "Jules",
-        "Tom", "Eli", "Zoe", "Mia", "Noa", "Lou", "Amy", "Eden",
-        "Sasha", "Charlie", "Romy", "Enzo", "Nina", "Hugo", "Lena",
+        "Alex",
+        "Ben",
+        "Max",
+        "Leo",
+        "Jay",
+        "Kim",
+        "Sam",
+        "Jules",
+        "Tom",
+        "Eli",
+        "Zoe",
+        "Mia",
+        "Noa",
+        "Lou",
+        "Amy",
+        "Eden",
+        "Sasha",
+        "Charlie",
+        "Romy",
+        "Enzo",
+        "Nina",
+        "Hugo",
+        "Lena",
     ]
     musiques = [
-        "Electro", "Techno", "Wave", "Beats", "Bass", "Mix",
-        "Groove", "Pulse", "Rhythm", "Sound", "Drop", "Loop",
-        "Vibes", "Flow", "Trance", "Pop", "Rock", "Jazz",
-        "Funk", "Soul", "Punk", "Blues", "House", "Disco",
-        "Reggae", "Metal", "Dub", "Step", "Swing", "Bop",
+        "Electro",
+        "Techno",
+        "Wave",
+        "Beats",
+        "Bass",
+        "Mix",
+        "Groove",
+        "Pulse",
+        "Rhythm",
+        "Sound",
+        "Drop",
+        "Loop",
+        "Vibes",
+        "Flow",
+        "Trance",
+        "Pop",
+        "Rock",
+        "Jazz",
+        "Funk",
+        "Soul",
+        "Punk",
+        "Blues",
+        "House",
+        "Disco",
+        "Reggae",
+        "Metal",
+        "Dub",
+        "Step",
+        "Swing",
+        "Bop",
     ]
     adjectifs = [
-        "Cool", "Fast", "Wild", "Neo", "Retro", "Ultra", "Mega",
-        "Super", "Hyper", "Deep", "Dark", "Pure", "Acid", "Free",
-        "Chill", "Raw", "Smooth", "Electric", "Lunar", "Solar",
+        "Cool",
+        "Fast",
+        "Wild",
+        "Neo",
+        "Retro",
+        "Ultra",
+        "Mega",
+        "Super",
+        "Hyper",
+        "Deep",
+        "Dark",
+        "Pure",
+        "Acid",
+        "Free",
+        "Chill",
+        "Raw",
+        "Smooth",
+        "Electric",
+        "Lunar",
+        "Solar",
     ]
     styles = [
-        "Dance", "Techno", "Electro", "House", "Trance", "Dub",
-        "Funk", "Jazz", "Retro", "Synth", "Digital", "Audio",
-        "Sonic", "Wave", "Neo", "Acid", "Ambient", "Minimal",
+        "Dance",
+        "Techno",
+        "Electro",
+        "House",
+        "Trance",
+        "Dub",
+        "Funk",
+        "Jazz",
+        "Retro",
+        "Synth",
+        "Digital",
+        "Audio",
+        "Sonic",
+        "Wave",
+        "Neo",
+        "Acid",
+        "Ambient",
+        "Minimal",
     ]
 
     # ── Patterns de composition ──
@@ -77,15 +155,14 @@ def _generer_identifiants() -> tuple[str, str]:
     if secrets.randbelow(100) < 20:
         username = username.lower()
 
-    password = "".join(
-        secrets.choice(string.ascii_letters + string.digits) for _ in range(12)
-    )
+    password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
     return username, password
 
 
 # ═══════════════════════════════════════════════════════════════════
 #  Thread asynchrone
 # ═══════════════════════════════════════════════════════════════════
+
 
 class _AsyncEventLoopThread(QThread):
     """Thread Qt qui fait tourner une boucle asyncio.
@@ -132,6 +209,7 @@ class _AsyncEventLoopThread(QThread):
 #  Gestionnaire de connexion
 # ═══════════════════════════════════════════════════════════════════
 
+
 class ConnexionManager(QObject):
     """Gère la connexion à Soulseek depuis l'interface Qt.
 
@@ -163,9 +241,7 @@ class ConnexionManager(QObject):
         self._current_search_ticket: int | None = None
 
         # Transférer les signaux du service
-        self._service.search_result_received.connect(
-            self.search_result_received.emit
-        )
+        self._service.search_result_received.connect(self.search_result_received.emit)
 
         # ── Connexion des signaux à l'EventBus ──
         self.connected.connect(
@@ -363,9 +439,7 @@ class ConnexionManager(QObject):
             app_config.set("reseau.mot_de_passe", password)
             self.connected.emit(username)
             self.generating.emit(False)
-            self.status_changed.emit(
-                f"✅ Nouveau compte créé — {username}"
-            )
+            self.status_changed.emit(f"✅ Nouveau compte créé — {username}")
         except TimeoutError:
             logger.error("Délai de connexion dépassé (30s) — serveur injoignable")
             self.error_occurred.emit("⏱️ Délai de connexion dépassé. Le serveur Soulseek est peut-être injoignable.")

@@ -9,10 +9,8 @@ from pathlib import Path
 from typing import Any, Generator
 
 import pytest
-from pytest import MonkeyPatch, FixtureRequest
-
 from PySide6.QtWidgets import QApplication
-
+from pytest import FixtureRequest, MonkeyPatch
 
 # ── QApplication (nécessaire pour les widgets Qt) ────────────────
 

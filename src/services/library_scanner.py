@@ -13,6 +13,7 @@ Architecture ::
         v
     LibraryDB (SQLite + scan disque)
 """
+
 from __future__ import annotations
 
 import logging

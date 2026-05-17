@@ -104,8 +104,7 @@ def add_to_history(
              statut, vitesse_moyenne, vitesse_bytes, date_debut)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (identifiant, fichier, utilisateur, taille, taille_bytes,
-         statut, vitesse_moyenne, vitesse_bytes, date_debut),
+        (identifiant, fichier, utilisateur, taille, taille_bytes, statut, vitesse_moyenne, vitesse_bytes, date_debut),
     )
     conn.commit()
     logger.debug("Historique ajouté : %s (%s)", fichier, statut)

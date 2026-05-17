@@ -2,7 +2,6 @@
 CSS fragment — connexion (header, avatar, username).
 """
 
-from .colors import COLORS
 
 CSS = """\
 /* ---- En-tete de connexion ---- */

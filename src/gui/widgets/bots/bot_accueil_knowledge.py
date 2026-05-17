@@ -19,17 +19,25 @@ KNOWLEDGE: dict[str, dict] = {
     # ═══════════════════════════════════════════════════════════
     # Navigation vers les bots
     # ═══════════════════════════════════════════════════════════
-
     "chercher": {
         "keywords": [
-            "chercher", "recherche", "rechercher", "trouver", "cherche",
-            "fichier", "fichiers", "search", "file", "files", "trouve",
+            "chercher",
+            "recherche",
+            "rechercher",
+            "trouver",
+            "cherche",
+            "fichier",
+            "fichiers",
+            "search",
+            "file",
+            "files",
+            "trouve",
             "recherches",
         ],
         "icon": "🔍",
         "response": "Bien sûr ! Le bot <b>Recherche</b> est spécialisé "
-                    "dans la recherche de fichiers sur Soulseek. "
-                    "Je t'envoie vers lui !",
+        "dans la recherche de fichiers sur Soulseek. "
+        "Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Recherche"},
         ],
@@ -38,17 +46,24 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "telechargement": {
         "keywords": [
-            "téléchargement", "telechargement", "télécharger", "telecharger",
-            "dl", "download", "downloads", "télécharge", "telecharge",
-            "fichier en cours", "mes téléchargements",
+            "téléchargement",
+            "telechargement",
+            "télécharger",
+            "telecharger",
+            "dl",
+            "download",
+            "downloads",
+            "télécharge",
+            "telecharge",
+            "fichier en cours",
+            "mes téléchargements",
         ],
         "icon": "📥",
         "response": "Pas de souci ! Le bot <b>Téléchargement</b> s'occupe "
-                    "de gérer, suivre et prioriser tes téléchargements. "
-                    "Je te l'envoie !",
+        "de gérer, suivre et prioriser tes téléchargements. "
+        "Je te l'envoie !",
         "actions": [
             {"type": "navigate", "bot": "Téléchargement"},
         ],
@@ -57,17 +72,27 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "aide": {
         "keywords": [
-            "aide", "help", "assistance", "besoin d'aide", "comment",
-            "guide", "explication", "explications", "aide-moi",
-            "help me", "problème", "probleme", "bug", "souci",
+            "aide",
+            "help",
+            "assistance",
+            "besoin d'aide",
+            "comment",
+            "guide",
+            "explication",
+            "explications",
+            "aide-moi",
+            "help me",
+            "problème",
+            "probleme",
+            "bug",
+            "souci",
         ],
         "icon": "❓",
         "response": "Tu as besoin d'explications ou d'aide ? "
-                    "Le bot <b>Aide</b> connaît tout sur l'application "
-                    "et ses 12 bots. Je te redirige vers lui !",
+        "Le bot <b>Aide</b> connaît tout sur l'application "
+        "et ses 12 bots. Je te redirige vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Aide"},
         ],
@@ -76,34 +101,47 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "bibliotheque": {
         "keywords": [
-            "bibliothèque", "bibliotheque", "library", "biblio",
-            "explorer", "parcourir", "dossier", "dossiers",
-            "fichier partagé", "fichiers partagés",
-            "fichier local", "fichiers locaux",
-            "scanne", "scan", "scanner",
-            "scan bibliothèque", "bibliothèque partagée",
-            "partage", "partagé", "shared",
-            "dossier partagé", "dossiers partagés",
+            "bibliothèque",
+            "bibliotheque",
+            "library",
+            "biblio",
+            "explorer",
+            "parcourir",
+            "dossier",
+            "dossiers",
+            "fichier partagé",
+            "fichiers partagés",
+            "fichier local",
+            "fichiers locaux",
+            "scanne",
+            "scan",
+            "scanner",
+            "scan bibliothèque",
+            "bibliothèque partagée",
+            "partage",
+            "partagé",
+            "shared",
+            "dossier partagé",
+            "dossiers partagés",
         ],
         "icon": "📚",
         "response": "Le bot <b>Bibliothèque</b> est ton explorateur "
-                    "de fichiers partagés !<br><br>"
-                    "🔹 <b>Scan</b> — analyse tes dossiers partagés "
-                    "avec progression en direct<br>"
-                    "🔹 <b>Arborescence</b> — navigue par dossier "
-                    "dans l'arbre à gauche<br>"
-                    "🔹 <b>Tableau</b> — tous les fichiers avec "
-                    "nom, taille, durée, débit, dossier<br>"
-                    "🔹 <b>Recherche</b> — filtre par mot-clé "
-                    "dans un dossier ou partout<br>"
-                    "🔹 <b>Tris</b> — clique sur les en-têtes "
-                    "de colonne pour trier<br>"
-                    "🔹 <b>Menu contextuel</b> — infos, lecture, "
-                    "suppression au clic droit<br><br>"
-                    "Je t'envoie vers lui !",
+        "de fichiers partagés !<br><br>"
+        "🔹 <b>Scan</b> — analyse tes dossiers partagés "
+        "avec progression en direct<br>"
+        "🔹 <b>Arborescence</b> — navigue par dossier "
+        "dans l'arbre à gauche<br>"
+        "🔹 <b>Tableau</b> — tous les fichiers avec "
+        "nom, taille, durée, débit, dossier<br>"
+        "🔹 <b>Recherche</b> — filtre par mot-clé "
+        "dans un dossier ou partout<br>"
+        "🔹 <b>Tris</b> — clique sur les en-têtes "
+        "de colonne pour trier<br>"
+        "🔹 <b>Menu contextuel</b> — infos, lecture, "
+        "suppression au clic droit<br><br>"
+        "Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Bibliothèque"},
         ],
@@ -112,17 +150,26 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "utilisateurs": {
         "keywords": [
-            "utilisateurs", "utilisateur", "user", "users", "amis",
-            "ami", "contact", "contacts", "friends", "friend",
-            "liste d'amis", "messagerie", "messages",
+            "utilisateurs",
+            "utilisateur",
+            "user",
+            "users",
+            "amis",
+            "ami",
+            "contact",
+            "contacts",
+            "friends",
+            "friend",
+            "liste d'amis",
+            "messagerie",
+            "messages",
         ],
         "icon": "👤",
         "response": "Le bot <b>Utilisateurs</b> gère tes contacts, "
-                    "ta liste d'amis et la messagerie. "
-                    "Je t'envoie vers lui !",
+        "ta liste d'amis et la messagerie. "
+        "Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Utilisateurs"},
         ],
@@ -131,16 +178,19 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "wishlist": {
         "keywords": [
-            "wishlist", "souhait", "souhaits", "liste de souhaits",
-            "automatique", "recherche auto",
+            "wishlist",
+            "souhait",
+            "souhaits",
+            "liste de souhaits",
+            "automatique",
+            "recherche auto",
         ],
         "icon": "📋",
         "response": "Le bot <b>Wishlist</b> s'occupe des souhaits "
-                    "automatiques et des recherches planifiées. "
-                    "Je te redirige vers lui !",
+        "automatiques et des recherches planifiées. "
+        "Je te redirige vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Wishlist"},
         ],
@@ -149,17 +199,23 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "surveillance": {
         "keywords": [
-            "surveillance", "surveiller", "monitor", "alertes",
-            "alerte", "notification", "notifications", "notifier",
-            "en direct", "live",
+            "surveillance",
+            "surveiller",
+            "monitor",
+            "alertes",
+            "alerte",
+            "notification",
+            "notifications",
+            "notifier",
+            "en direct",
+            "live",
         ],
         "icon": "👁️",
         "response": "Le bot <b>Surveillance</b> te tient informé "
-                    "avec des notifications et alertes en direct. "
-                    "Je t'envoie vers lui !",
+        "avec des notifications et alertes en direct. "
+        "Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Surveillance"},
         ],
@@ -168,17 +224,24 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "planificateur": {
         "keywords": [
-            "planificateur", "planifier", "planning", "scheduler",
-            "programmer", "tâche", "tâches", "actions planifiées",
-            "automatisation", "rappel", "rappels",
+            "planificateur",
+            "planifier",
+            "planning",
+            "scheduler",
+            "programmer",
+            "tâche",
+            "tâches",
+            "actions planifiées",
+            "automatisation",
+            "rappel",
+            "rappels",
         ],
         "icon": "📅",
         "response": "Le bot <b>Planificateur</b> gère les actions "
-                    "planifiées et automatisées. "
-                    "Je te redirige vers lui !",
+        "planifiées et automatisées. "
+        "Je te redirige vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Planificateur"},
         ],
@@ -187,17 +250,24 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "ordonnanceur": {
         "keywords": [
-            "ordonnanceur", "nettoyage", "nettoyer", "clean",
-            "organiser", "organisation", "ranger", "trier", "classer",
-            "renommer", "dédoublonner",
+            "ordonnanceur",
+            "nettoyage",
+            "nettoyer",
+            "clean",
+            "organiser",
+            "organisation",
+            "ranger",
+            "trier",
+            "classer",
+            "renommer",
+            "dédoublonner",
         ],
         "icon": "🧹",
         "response": "Le bot <b>Ordonnanceur</b> t'aide à organiser, "
-                    "classer et nettoyer tes fichiers téléchargés. "
-                    "Je t'envoie vers lui !",
+        "classer et nettoyer tes fichiers téléchargés. "
+        "Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Ordonnanceur"},
         ],
@@ -206,36 +276,49 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
-    "statistiques": {
+    "clients-actifs": {
         "keywords": [
-            "statistiques", "stats", "statistique", "statistiques",
-            "tableau de bord", "dashboard", "données", "data",
-            "graphique", "analytics",
+            "clients actifs",
+            "clients-actifs",
+            "client actif",
+            "clients",
+            "utilisateurs suivis",
+            "suivi utilisateur",
+            "tracking",
+            "en ligne",
+            "hors ligne",
+            "connecté",
+            "déconnecté",
         ],
-        "icon": "📊",
-        "response": "Le bot <b>Statistiques</b> te montre les "
-                    "données et le tableau de bord de ton activité. "
-                    "Je te redirige vers lui !",
+        "icon": "👥",
+        "response": "Le bot <b>Clients Actifs</b> te permet de suivre "
+        "le statut de tes contacts en temps réel : qui est "
+        "en ligne, qui est joignable, leurs slots et files "
+        "d'attente. Je te redirige vers lui !",
         "actions": [
-            {"type": "navigate", "bot": "Statistiques"},
+            {"type": "navigate", "bot": "Clients Actifs"},
         ],
         "suggestions": [
-            {"label": "📊 Voir les stats", "action": "statistiques"},
+            {"label": "👥 Voir les clients", "action": "clients-actifs"},
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "assistant": {
         "keywords": [
-            "assistant", "config", "configuration", "paramètre",
-            "paramètres", "settings", "setup", "réglages",
-            "préférences", "preferences", "configurer",
+            "assistant",
+            "config",
+            "configuration",
+            "paramètre",
+            "paramètres",
+            "settings",
+            "setup",
+            "réglages",
+            "préférences",
+            "preferences",
+            "configurer",
         ],
         "icon": "⚙️",
-        "response": "Le bot <b>Assistant</b> t'aide à configurer "
-                    "et paramétrer l'application. "
-                    "Je t'envoie vers lui !",
+        "response": "Le bot <b>Assistant</b> t'aide à configurer et paramétrer l'application. Je t'envoie vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Assistant"},
         ],
@@ -244,20 +327,25 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     # ═══════════════════════════════════════════════════════════
     # Dialogues généraux
     # ═══════════════════════════════════════════════════════════
-
     "bonjour": {
         "keywords": [
-            "bonjour", "salut", "hey", "hello", "hi", "coucou",
-            "bonsoir", "yo", "cc",
+            "bonjour",
+            "salut",
+            "hey",
+            "hello",
+            "hi",
+            "coucou",
+            "bonsoir",
+            "yo",
+            "cc",
         ],
         "icon": "👋",
         "response": "Salut ! Comment vas-tu aujourd'hui ? "
-                    "N'hésite pas à me dire ce que tu veux faire. "
-                    "Je suis là pour t'aider ! 😊",
+        "N'hésite pas à me dire ce que tu veux faire. "
+        "Je suis là pour t'aider ! 😊",
         "suggestions": [
             {"label": "🔍 Chercher", "action": "chercher"},
             {"label": "📥 Téléchargements", "action": "telechargement"},
@@ -265,40 +353,53 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Retour", "action": "welcome"},
         ],
     },
-
     "merci": {
         "keywords": [
-            "merci", "thanks", "thank you", "merci beaucoup",
-            "super", "génial", "genial", "parfait", "cool",
+            "merci",
+            "thanks",
+            "thank you",
+            "merci beaucoup",
+            "super",
+            "génial",
+            "genial",
+            "parfait",
+            "cool",
         ],
         "icon": "🙏",
-        "response": "Avec plaisir ! Tu sais où me trouver si tu as "
-                    "besoin d'autre chose. 😊",
+        "response": "Avec plaisir ! Tu sais où me trouver si tu as besoin d'autre chose. 😊",
         "suggestions": [
             {"label": "🔍 Chercher", "action": "chercher"},
             {"label": "❓ Aide", "action": "aide"},
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "qui_es_tu": {
         "keywords": [
-            "qui es-tu", "qui es tu", "c'est quoi", "tu es qui",
-            "t'es qui", "présente-toi", "présentation", "explique",
-            "armée", "armee", "12 bots", "douze bots",
+            "qui es-tu",
+            "qui es tu",
+            "c'est quoi",
+            "tu es qui",
+            "t'es qui",
+            "présente-toi",
+            "présentation",
+            "explique",
+            "armée",
+            "armee",
+            "12 bots",
+            "douze bots",
         ],
         "icon": "🖐️",
         "response": "Je suis le bot <b>Accueil</b>, ton assistant "
-                    "personnel sur Soulseek !<br><br>"
-                    "Je fais partie de <b>l'Armée des 12 Bots</b>, "
-                    "une équipe de bots conçus pour t'offrir "
-                    "une expérience complète sur Soulseek.<br><br>"
-                    "Les autres bots sont : <b>Recherche</b>, "
-                    "<b>Téléchargement</b>, <b>Bibliothèque</b>, "
-                    "<b>Utilisateurs</b>, <b>Wishlist</b>, "
-                    "<b>Surveillance</b>, <b>Planificateur</b>, "
-                    "<b>Ordonnanceur</b>, <b>Statistiques</b>, "
-                    "<b>Assistant</b>, et <b>Aide</b>.",
+        "personnel sur Soulseek !<br><br>"
+        "Je fais partie de <b>l'Armée des 12 Bots</b>, "
+        "une équipe de bots conçus pour t'offrir "
+        "une expérience complète sur Soulseek.<br><br>"
+        "Les autres bots sont : <b>Recherche</b>, "
+        "<b>Téléchargement</b>, <b>Bibliothèque</b>, "
+        "<b>Utilisateurs</b>, <b>Wishlist</b>, "
+        "<b>Surveillance</b>, <b>Planificateur</b>, "
+        "<b>Ordonnanceur</b>, <b>Clients Actifs</b>, "
+        "<b>Assistant</b>, et <b>Aide</b>.",
         "suggestions": [
             {"label": "🎯 Voir les 12 bots", "action": "about"},
             {"label": "🔍 Chercher", "action": "chercher"},
@@ -306,50 +407,56 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "soulseek": {
         "keywords": [
-            "soulseek", "slsk", "c'est quoi soulseek",
-            "à quoi ça sert", "a quoi ca sert", "réseau",
-            "p2p", "peer to peer",
+            "soulseek",
+            "slsk",
+            "c'est quoi soulseek",
+            "à quoi ça sert",
+            "a quoi ca sert",
+            "réseau",
+            "p2p",
+            "peer to peer",
         ],
         "icon": "💬",
         "response": "Soulseek est un réseau de partage de fichiers "
-                    "pair-à-pair (P2P) spécialisé dans la musique "
-                    "indépendante et les fichiers rares.<br><br>"
-                    "Avec cette appli et l'<b>Aide des 12 Bots</b>, "
-                    "tu peux chercher des fichiers, télécharger, "
-                    "discuter avec d'autres utilisateurs, et bien plus "
-                    "— le tout de façon automatisée et simplifiée !",
+        "pair-à-pair (P2P) spécialisé dans la musique "
+        "indépendante et les fichiers rares.<br><br>"
+        "Avec cette appli et l'<b>Aide des 12 Bots</b>, "
+        "tu peux chercher des fichiers, télécharger, "
+        "discuter avec d'autres utilisateurs, et bien plus "
+        "— le tout de façon automatisée et simplifiée !",
         "suggestions": [
             {"label": "🔍 Chercher", "action": "chercher"},
             {"label": "❓ Aide", "action": "aide"},
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "quoi_de_neuf": {
         "keywords": [
-            "quoi de neuf", "nouveau", "nouveauté", "nouveautés",
-            "news", "actu", "actualité",
+            "quoi de neuf",
+            "nouveau",
+            "nouveauté",
+            "nouveautés",
+            "news",
+            "actu",
+            "actualité",
         ],
         "icon": "✨",
         "response": "Tout va bien de mon côté ! 😊<br><br>"
-                    "Si tu veux voir ce qui se passe en ce moment, "
-                    "tu peux jeter un œil aux bots "
-                    "<b>Surveillance</b> (alertes en direct) "
-                    "ou <b>Statistiques</b> (tableau de bord).",
+        "Si tu veux voir ce qui se passe en ce moment, "
+        "tu peux jeter un œil aux bots "
+        "<b>Surveillance</b> (alertes en direct) "
+        "ou <b>Clients Actifs</b> (suivi des clients).",
         "suggestions": [
             {"label": "👁️ Surveillance", "action": "surveillance"},
-            {"label": "📊 Statistiques", "action": "statistiques"},
+            {"label": "👥 Clients Actifs", "action": "clients-actifs"},
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     # ═══════════════════════════════════════════════════════════
     # Messages utilisateur non reconnus → plusieurs fallbacks
     # ═══════════════════════════════════════════════════════════
-
     "fallback": {
         "keywords": [
             # Ceci est une entrée spéciale qui ne match jamais
@@ -357,9 +464,9 @@ KNOWLEDGE: dict[str, dict] = {
         ],
         "icon": "🤔",
         "response": "Je n'ai pas bien compris ta demande. "
-                    "Peux-tu reformuler ?<br><br>"
-                    "Tu peux aussi utiliser les suggestions "
-                    "ci-dessous pour me guider !",
+        "Peux-tu reformuler ?<br><br>"
+        "Tu peux aussi utiliser les suggestions "
+        "ci-dessous pour me guider !",
         "suggestions": [
             {"label": "🔍 Chercher", "action": "chercher"},
             {"label": "📥 Téléchargements", "action": "telechargement"},
@@ -368,19 +475,31 @@ KNOWLEDGE: dict[str, dict] = {
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
-
     "fallback_insulte": {
         "keywords": [
-            "connard", "con", "idiot", "imbécile", "imbecile",
-            "nul", "naze", "m*rde", "merde", "putain", "fuck",
-            "salope", "enculé", "encule", "batard", "bâtard",
+            "connard",
+            "con",
+            "idiot",
+            "imbécile",
+            "imbecile",
+            "nul",
+            "naze",
+            "m*rde",
+            "merde",
+            "putain",
+            "fuck",
+            "salope",
+            "enculé",
+            "encule",
+            "batard",
+            "bâtard",
         ],
         "icon": "😅",
         "response": "Woah, doucement ! 😅<br><br>"
-                    "Je suis là pour t'aider, pas pour me disputer. "
-                    "Si quelque chose ne va pas, dis-moi ce qui "
-                    "ne fonctionne pas et je ferai de mon mieux "
-                    "pour t'aider !",
+        "Je suis là pour t'aider, pas pour me disputer. "
+        "Si quelque chose ne va pas, dis-moi ce qui "
+        "ne fonctionne pas et je ferai de mon mieux "
+        "pour t'aider !",
         "suggestions": [
             {"label": "🫤 Désolé…", "action": "welcome"},
             {"label": "❓ Aide", "action": "aide"},

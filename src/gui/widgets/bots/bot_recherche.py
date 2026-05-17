@@ -35,11 +35,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.theme_fragments.colors import COLORS, rgba
-from src.services.search_history import SearchHistory
+from src.gui.theme_fragments.colors import COLORS
 from src.services.event_bus import EventBus
+from src.services.search_history import SearchHistory
 
 if TYPE_CHECKING:
+    from src.services.clients_actifs_service import ClientsActifsService
     from src.services.connexion_manager import ConnexionManager
 
 logger = logging.getLogger(__name__)
@@ -70,8 +71,15 @@ COL_VITESSE = 7
 COL_DL = 8
 
 COLUMNS = [
-    "Extension", "Fichier", "Taille", "Bitrate", "Durée",
-    "Utilisateur", "Slots", "Vitesse", "DL",
+    "Extension",
+    "Fichier",
+    "Taille",
+    "Bitrate",
+    "Durée",
+    "Utilisateur",
+    "Slots",
+    "Vitesse",
+    "DL",
 ]
 """Libellés des colonnes du tableau."""
 
@@ -178,19 +186,19 @@ class FiltresRechercheModal(QDialog):
         self.setStyleSheet(
             f"""
             QDialog {{
-                background: {COLORS['BG_SURFACE']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
             }}
             QLabel {{
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
                 font-size: 12px;
             }}
             QGroupBox {{
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
                 font-weight: 600;
                 font-size: 12px;
-                border: 1px solid {COLORS['BORDER']};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 margin-top: 12px;
                 padding-top: 16px;
@@ -201,27 +209,27 @@ class FiltresRechercheModal(QDialog):
                 padding: 0 6px;
             }}
             QSpinBox {{
-                background: {COLORS.get('BG_INPUT', '#1a1a2a')};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS.get("BG_INPUT", "#1a1a2a")};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 4px;
                 padding: 4px 6px;
             }}
             QSpinBox:focus {{
-                border-color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
             }}
             QCheckBox {{
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
                 spacing: 8px;
             }}
             QSlider::groove:horizontal {{
-                border: 1px solid {COLORS['BORDER']};
+                border: 1px solid {COLORS["BORDER"]};
                 height: 6px;
-                background: {COLORS.get('BG_INPUT', '#1a1a2a')};
+                background: {COLORS.get("BG_INPUT", "#1a1a2a")};
                 border-radius: 3px;
             }}
             QSlider::handle:horizontal {{
-                background: {COLORS['PRIMARY']};
+                background: {COLORS["PRIMARY"]};
                 border: none;
                 width: 14px;
                 height: 14px;
@@ -229,17 +237,17 @@ class FiltresRechercheModal(QDialog):
                 border-radius: 7px;
             }}
             QSlider::handle:horizontal:hover {{
-                background: {COLORS['PRIMARY_HOVER']};
+                background: {COLORS["PRIMARY_HOVER"]};
             }}
             QLineEdit {{
-                background: {COLORS.get('BG_INPUT', '#1a1a2a')};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS.get("BG_INPUT", "#1a1a2a")};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 4px;
                 padding: 4px 8px;
             }}
             QLineEdit:focus {{
-                border-color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
             }}
             """
         )
@@ -250,9 +258,7 @@ class FiltresRechercheModal(QDialog):
 
         # ── Titre ──
         header = QLabel("🔍 Filtres avancés")
-        header.setStyleSheet(
-            f"color: {COLORS['PRIMARY']}; font-size: 16px; font-weight: 700;"
-        )
+        header.setStyleSheet(f"color: {COLORS['PRIMARY']}; font-size: 16px; font-weight: 700;")
         layout.addWidget(header)
 
         # ── Groupe : Qualité ──
@@ -342,37 +348,35 @@ class FiltresRechercheModal(QDialog):
 
         # ── Boutons ──
         layout.addStretch(1)
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Cancel | QDialogButtonBox.Apply
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Apply)
         buttons.accepted.connect(self._on_apply)
         buttons.rejected.connect(self.reject)
         buttons.button(QDialogButtonBox.Apply).setStyleSheet(
             f"""
             QPushButton {{
-                background: {COLORS['PRIMARY']};
-                color: {COLORS['TEXT_WHITE']};
+                background: {COLORS["PRIMARY"]};
+                color: {COLORS["TEXT_WHITE"]};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 20px;
                 font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS['PRIMARY_HOVER']};
+                background: {COLORS["PRIMARY_HOVER"]};
             }}
             """
         )
         buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
             f"""
             QPushButton {{
-                background: {COLORS['BG_SURFACE2']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE2"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 8px 20px;
             }}
             QPushButton:hover {{
-                background: {COLORS['BG_HOVER']};
+                background: {COLORS["BG_HOVER"]};
             }}
             """
         )
@@ -401,9 +405,7 @@ class FiltresRechercheModal(QDialog):
         self._size_min.setValue(self.result_state.get("size_min", 0))
         self._size_max.setValue(self.result_state.get("size_max", 0))
         self._username_input.setText(self.result_state.get("username", ""))
-        self._slots_check.setChecked(
-            self.result_state.get("slots_libres_only", False)
-        )
+        self._slots_check.setChecked(self.result_state.get("slots_libres_only", False))
 
     def _save_state(self) -> None:
         """Sauvegarde les valeurs des contrôles dans result_state."""
@@ -465,17 +467,12 @@ class HistoryPopup(QDialog):
 
         # Titre
         self._title_label = QLabel(f"📜 Historique ({len(entries)} recherche(s))")
-        self._title_label.setStyleSheet(
-            f"color: {COLORS['PRIMARY']}; font-size: 16px; font-weight: 700;"
-        )
+        self._title_label.setStyleSheet(f"color: {COLORS['PRIMARY']}; font-size: 16px; font-weight: 700;")
         layout.addWidget(self._title_label)
 
         if not entries:
             empty = QLabel("Aucune recherche pour l'instant.")
-            empty.setStyleSheet(
-                f"color: {COLORS['TEXT_SECONDARY']}; font-size: 13px; "
-                f"padding: 20px;"
-            )
+            empty.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 13px; padding: 20px;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(empty, 1)
             self._close_btn(layout)
@@ -485,9 +482,7 @@ class HistoryPopup(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet(
-            f"background: transparent; border: none;"
-        )
+        scroll.setStyleSheet(f"background: transparent; border: none;")
 
         list_widget = QWidget()
         self._list_layout = QVBoxLayout(list_widget)
@@ -536,9 +531,9 @@ class HistoryPopup(QDialog):
             btn.setStyleSheet(
                 f"""
                 QPushButton {{
-                    background: {COLORS['BG_SURFACE']};
-                    color: {COLORS['TEXT_PRIMARY']};
-                    border: 1px solid {COLORS['BORDER']};
+                    background: {COLORS["BG_SURFACE"]};
+                    color: {COLORS["TEXT_PRIMARY"]};
+                    border: 1px solid {COLORS["BORDER"]};
                     border-radius: 6px;
                     padding: 8px 12px;
                     font-size: 12px;
@@ -546,23 +541,19 @@ class HistoryPopup(QDialog):
                 }}
                 QPushButton:hover {{
                     background: rgba(COLORS['PRIMARY'], '15');
-                    border-color: {COLORS['PRIMARY']};
+                    border-color: {COLORS["PRIMARY"]};
                 }}
                 """
             )
 
             if count > 0:
-                btn.setText(
-                    btn.text() + f"  —  {count} résultat{'s' if count > 1 else ''}"
-                )
+                btn.setText(btn.text() + f"  —  {count} résultat{'s' if count > 1 else ''}")
 
             if ts:
                 date_part = ts[:10] if "T" in ts else ts
                 btn.setText(btn.text() + f"  ({date_part})")
 
-            btn.clicked.connect(
-                lambda checked, e=entry: self._on_select(e)
-            )
+            btn.clicked.connect(lambda checked, e=entry: self._on_select(e))
             row_layout.addWidget(btn, 1)
 
             # Bouton ✕ pour supprimer cette entrée
@@ -574,7 +565,7 @@ class HistoryPopup(QDialog):
                 f"""
                 QPushButton {{
                     background: transparent;
-                    color: #999;
+                    color: #999999;
                     border: 1px solid transparent;
                     border-radius: 14px;
                     font-size: 11px;
@@ -582,15 +573,13 @@ class HistoryPopup(QDialog):
                     padding: 0;
                 }}
                 QPushButton:hover {{
-                    color: {COLORS['DANGER_BTN']};
-                    background: {COLORS['DANGER_BG_HOVER']};
-                    border-color: {COLORS['DANGER_BTN']};
+                    color: {COLORS["DANGER_BTN"]};
+                    background: {COLORS["DANGER_BG_HOVER"]};
+                    border-color: {COLORS["DANGER_BTN"]};
                 }}
                 """
             )
-            x_btn.clicked.connect(
-                lambda checked, e=entry: self._on_remove_entry(e)
-            )
+            x_btn.clicked.connect(lambda checked, e=entry: self._on_remove_entry(e))
             row_layout.addWidget(x_btn)
 
             self._list_layout.addWidget(row)
@@ -618,16 +607,11 @@ class HistoryPopup(QDialog):
 
         # Mettre à jour le titre
         if self._title_label:
-            self._title_label.setText(
-                f"📜 Historique ({len(self._entries)} recherche(s))"
-            )
+            self._title_label.setText(f"📜 Historique ({len(self._entries)} recherche(s))")
 
         if not self._entries:
             empty = QLabel("Aucune recherche pour l'instant.")
-            empty.setStyleSheet(
-                f"color: {COLORS['TEXT_SECONDARY']}; font-size: 13px; "
-                f"padding: 20px;"
-            )
+            empty.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 13px; padding: 20px;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._list_layout.addWidget(empty)
             self._list_layout.addStretch(1)
@@ -648,15 +632,15 @@ class HistoryPopup(QDialog):
             f"""
             #clearHistoryBtn {{
                 background: transparent;
-                color: {COLORS['DANGER_BTN']};
-                border: 1px solid {COLORS['DANGER_BTN']};
+                color: {COLORS["DANGER_BTN"]};
+                border: 1px solid {COLORS["DANGER_BTN"]};
                 border-radius: 6px;
                 padding: 8px 14px;
                 font-size: 12px;
                 font-weight: 600;
             }}
             #clearHistoryBtn:hover {{
-                background: {COLORS['DANGER_BG_HOVER']};
+                background: {COLORS["DANGER_BG_HOVER"]};
             }}
             """
         )
@@ -670,8 +654,8 @@ class HistoryPopup(QDialog):
         btn.setStyleSheet(
             f"""
             QPushButton {{
-                background: {COLORS['PRIMARY']};
-                color: {COLORS['TEXT_WHITE']};
+                background: {COLORS["PRIMARY"]};
+                color: {COLORS["TEXT_WHITE"]};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 20px;
@@ -679,7 +663,7 @@ class HistoryPopup(QDialog):
                 font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS['PRIMARY_HOVER']};
+                background: {COLORS["PRIMARY_HOVER"]};
             }}
             """
         )
@@ -714,6 +698,7 @@ class BotRecherche(QFrame):
         self.setFrameShape(QFrame.NoFrame)
 
         self._connexion_manager = connexion_manager
+        self._clients_actifs_service: ClientsActifsService | None = None
         self._searching = False
         self._search_timer: QTimer | None = None
         self._result_count = 0
@@ -739,6 +724,12 @@ class BotRecherche(QFrame):
         self._setup_ui()
         self._update_connected_state()
 
+    # ── Injection des services ─────────────────────────────────
+
+    def setup(self, clients_actifs_service: ClientsActifsService) -> None:
+        """Injecte le service clients actifs pour la recherche ciblée."""
+        self._clients_actifs_service = clients_actifs_service
+
     # ── Construction de l'interface ─────────────────────────────
 
     def _setup_ui(self) -> None:
@@ -752,18 +743,16 @@ class BotRecherche(QFrame):
         title_row.setSpacing(8)
 
         title = QLabel("🔍 Recherche Soulseek")
-        title.setStyleSheet(
-            f"color: {COLORS['PRIMARY']}; font-size: 18px; font-weight: 700;"
-        )
+        title.setStyleSheet(f"color: {COLORS['PRIMARY']}; font-size: 18px; font-weight: 700;")
         title_row.addWidget(title)
 
         # Badge de filtres actifs (caché si aucun filtre)
         self._filtres_badge = QLabel("")
         self._filtres_badge.setStyleSheet(
             f"""
-            color: {COLORS['WARNING']};
+            color: {COLORS["WARNING"]};
             background: rgba(COLORS['WARNING'], '20');
-            border: 1px solid {COLORS['WARNING']};
+            border: 1px solid {COLORS["WARNING"]};
             border-radius: 8px;
             padding: 2px 8px;
             font-size: 10px;
@@ -781,16 +770,16 @@ class BotRecherche(QFrame):
             f"""
             #filtresBtn {{
                 background: transparent;
-                color: {COLORS['TEXT_SECONDARY']};
-                border: 1px solid {COLORS['BORDER']};
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 3px 10px;
                 font-size: 11px;
                 font-weight: 600;
             }}
             #filtresBtn:hover {{
-                border-color: {COLORS['PRIMARY']};
-                color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
+                color: {COLORS["PRIMARY"]};
             }}
             """
         )
@@ -807,8 +796,8 @@ class BotRecherche(QFrame):
             f"""
             #audioFilterBtn {{
                 background: rgba(COLORS['PRIMARY'], '20');
-                color: {COLORS['PRIMARY']};
-                border: 1px solid {COLORS['PRIMARY']};
+                color: {COLORS["PRIMARY"]};
+                border: 1px solid {COLORS["PRIMARY"]};
                 border-radius: 6px;
                 padding: 3px 10px;
                 font-size: 11px;
@@ -816,17 +805,17 @@ class BotRecherche(QFrame):
             }}
             #audioFilterBtn:checked {{
                 background: rgba(COLORS['PRIMARY'], '20');
-                border-color: {COLORS['PRIMARY']};
-                color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
+                color: {COLORS["PRIMARY"]};
             }}
             #audioFilterBtn:!checked {{
                 background: transparent;
-                border-color: {COLORS['BORDER']};
-                color: {COLORS['TEXT_SECONDARY']};
+                border-color: {COLORS["BORDER"]};
+                color: {COLORS["TEXT_SECONDARY"]};
             }}
             #audioFilterBtn:hover {{
-                border-color: {COLORS['PRIMARY']};
-                color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
+                color: {COLORS["PRIMARY"]};
             }}
             """
         )
@@ -843,8 +832,8 @@ class BotRecherche(QFrame):
             f"""
             #modeDispoBtn {{
                 background: transparent;
-                color: {COLORS['TEXT_SECONDARY']};
-                border: 1px solid {COLORS['BORDER']};
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 3px 10px;
                 font-size: 11px;
@@ -852,12 +841,12 @@ class BotRecherche(QFrame):
             }}
             #modeDispoBtn:checked {{
                 background: rgba(COLORS['SUCCESS'], '30');
-                border-color: {COLORS['SUCCESS']};
-                color: {COLORS['SUCCESS']};
+                border-color: {COLORS["SUCCESS"]};
+                color: {COLORS["SUCCESS"]};
             }}
             #modeDispoBtn:hover {{
-                border-color: {COLORS['SUCCESS']};
-                color: {COLORS['SUCCESS']};
+                border-color: {COLORS["SUCCESS"]};
+                color: {COLORS["SUCCESS"]};
             }}
             """
         )
@@ -887,15 +876,12 @@ class BotRecherche(QFrame):
         banner_layout.setSpacing(8)
 
         self._browse_icon = QLabel("👤")
-        self._browse_icon.setStyleSheet(
-            f"font-size: 14px; background: transparent; border: none;"
-        )
+        self._browse_icon.setStyleSheet(f"font-size: 14px; background: transparent; border: none;")
         banner_layout.addWidget(self._browse_icon)
 
         self._browse_label = QLabel("")
         self._browse_label.setStyleSheet(
-            f"color: {COLORS['PRIMARY']}; font-size: 13px; font-weight: 600; "
-            f"background: transparent; border: none;"
+            f"color: {COLORS['PRIMARY']}; font-size: 13px; font-weight: 600; background: transparent; border: none;"
         )
         banner_layout.addWidget(self._browse_label, 1)
 
@@ -906,16 +892,16 @@ class BotRecherche(QFrame):
             f"""
             #browseBackBtn {{
                 background: transparent;
-                color: {COLORS['TEXT_SECONDARY']};
-                border: 1px solid {COLORS['BORDER']};
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 12px;
                 font-size: 11px;
                 font-weight: 600;
             }}
             #browseBackBtn:hover {{
-                border-color: {COLORS['PRIMARY']};
-                color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
+                color: {COLORS["PRIMARY"]};
             }}
             """
         )
@@ -944,15 +930,12 @@ class BotRecherche(QFrame):
         room_banner_layout.setSpacing(8)
 
         room_icon = QLabel("💬")
-        room_icon.setStyleSheet(
-            f"font-size: 14px; background: transparent; border: none;"
-        )
+        room_icon.setStyleSheet(f"font-size: 14px; background: transparent; border: none;")
         room_banner_layout.addWidget(room_icon)
 
         self._room_label = QLabel("")
         self._room_label.setStyleSheet(
-            f"color: {COLORS['WARNING']}; font-size: 13px; font-weight: 600; "
-            f"background: transparent; border: none;"
+            f"color: {COLORS['WARNING']}; font-size: 13px; font-weight: 600; background: transparent; border: none;"
         )
         room_banner_layout.addWidget(self._room_label, 1)
 
@@ -963,16 +946,16 @@ class BotRecherche(QFrame):
             f"""
             #roomBackBtn {{
                 background: transparent;
-                color: {COLORS['TEXT_SECONDARY']};
-                border: 1px solid {COLORS['BORDER']};
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 12px;
                 font-size: 11px;
                 font-weight: 600;
             }}
             #roomBackBtn:hover {{
-                border-color: {COLORS['WARNING']};
-                color: {COLORS['WARNING']};
+                border-color: {COLORS["WARNING"]};
+                color: {COLORS["WARNING"]};
             }}
             """
         )
@@ -1000,18 +983,18 @@ class BotRecherche(QFrame):
         self._room_input.setStyleSheet(
             f"""
             #roomInput {{
-                background: {COLORS['BG_SURFACE']};
-                color: {COLORS['WARNING']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                color: {COLORS["WARNING"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 8px 8px;
                 font-size: 12px;
             }}
             #roomInput:focus {{
-                border-color: {COLORS['WARNING']};
+                border-color: {COLORS["WARNING"]};
             }}
             #roomInput:disabled {{
-                color: {COLORS['TEXT_DISABLED']};
+                color: {COLORS["TEXT_DISABLED"]};
             }}
             """
         )
@@ -1019,24 +1002,22 @@ class BotRecherche(QFrame):
 
         self._search_input = QLineEdit()
         self._search_input.setObjectName("rechercheInput")
-        self._search_input.setPlaceholderText(
-            "Rechercher des fichiers audio sur Soulseek…"
-        )
+        self._search_input.setPlaceholderText("Rechercher des fichiers audio sur Soulseek…")
         self._search_input.setStyleSheet(
             f"""
             #rechercheInput {{
-                background: {COLORS['BG_SURFACE']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 8px 12px;
                 font-size: 14px;
             }}
             #rechercheInput:focus {{
-                border-color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
             }}
             #rechercheInput:disabled {{
-                color: {COLORS['TEXT_DISABLED']};
+                color: {COLORS["TEXT_DISABLED"]};
             }}
             """
         )
@@ -1049,8 +1030,8 @@ class BotRecherche(QFrame):
         self._search_btn.setStyleSheet(
             f"""
             #rechercheBtn {{
-                background: {COLORS['PRIMARY']};
-                color: {COLORS['TEXT_WHITE']};
+                background: {COLORS["PRIMARY"]};
+                color: {COLORS["TEXT_WHITE"]};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 20px;
@@ -1058,11 +1039,11 @@ class BotRecherche(QFrame):
                 font-weight: 600;
             }}
             #rechercheBtn:hover {{
-                background: {COLORS['PRIMARY_HOVER']};
+                background: {COLORS["PRIMARY_HOVER"]};
             }}
             #rechercheBtn:disabled {{
-                background: {COLORS['BG_BTN_DISABLED']};
-                color: {COLORS['TEXT_DISABLED']};
+                background: {COLORS["BG_BTN_DISABLED"]};
+                color: {COLORS["TEXT_DISABLED"]};
             }}
             """
         )
@@ -1076,8 +1057,8 @@ class BotRecherche(QFrame):
         self._stop_btn.setStyleSheet(
             f"""
             #stopBtn {{
-                background: {COLORS['DANGER_BTN']};
-                color: {COLORS['TEXT_WHITE']};
+                background: {COLORS["DANGER_BTN"]};
+                color: {COLORS["TEXT_WHITE"]};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 16px;
@@ -1085,20 +1066,49 @@ class BotRecherche(QFrame):
                 font-weight: 600;
             }}
             #stopBtn:hover {{
-                background: {COLORS['DANGER_BTN_HOVER']};
+                background: {COLORS["DANGER_BTN_HOVER"]};
             }}
             """
         )
         self._stop_btn.clicked.connect(self._on_stop)
         search_row.addWidget(self._stop_btn)
 
+        # ── Checkbox clients actifs ──
+        self._clients_actifs_cb = QCheckBox("🔒 Actifs")
+        self._clients_actifs_cb.setToolTip(
+            "Limiter la recherche aux clients actifs connus (plus rapide, moins de bruit)"
+        )
+        self._clients_actifs_cb.setStyleSheet(
+            f"""
+            QCheckBox {{
+                color: {COLORS["TEXT_SECONDARY"]};
+                font-size: 12px;
+                font-weight: 500;
+                spacing: 4px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {COLORS["BORDER"]};
+                border-radius: 3px;
+                background: {COLORS["BG_SURFACE"]};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {COLORS["SUCCESS"]};
+                border-color: {COLORS["SUCCESS"]};
+            }}
+            QCheckBox:hover {{
+                color: {COLORS["TEXT_PRIMARY"]};
+            }}
+            """
+        )
+        search_row.addWidget(self._clients_actifs_cb)
+
         outer.addLayout(search_row)
 
         # ── Barre d'état / compteur ──
         self._status_label = QLabel("")
-        self._status_label.setStyleSheet(
-            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px;"
-        )
+        self._status_label.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px;")
         outer.addWidget(self._status_label)
 
         # ── Suggestions d'historique ──
@@ -1114,16 +1124,16 @@ class BotRecherche(QFrame):
             f"""
             #historyBtn {{
                 background: transparent;
-                color: {COLORS['TEXT_SECONDARY']};
-                border: 1px solid {COLORS['BORDER']};
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 10px;
                 padding: 4px 10px;
                 font-size: 10px;
                 font-weight: 600;
             }}
             #historyBtn:hover {{
-                border-color: {COLORS['PRIMARY']};
-                color: {COLORS['PRIMARY']};
+                border-color: {COLORS["PRIMARY"]};
+                color: {COLORS["PRIMARY"]};
             }}
             """
         )
@@ -1147,33 +1157,33 @@ class BotRecherche(QFrame):
         self._table.setStyleSheet(
             f"""
             #resultTable {{
-                background: {COLORS['BG_SURFACE']};
-                alternate-background-color: {COLORS.get('BG_SURFACE2', '#2a2a3a')};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                alternate-background-color: {COLORS.get("BG_SURFACE2", "#2a2a3a")};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 gridline-color: transparent;
                 font-size: 12px;
             }}
             #resultTable::item {{
                 padding: 4px 8px;
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
             }}
             #resultTable::item:selected {{
                 background: rgba(COLORS['PRIMARY'], '50');
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
             }}
             QHeaderView::section {{
-                background: {COLORS.get('BG_HEADER', COLORS['BG_SURFACE2'])};
-                color: {COLORS['TEXT_PRIMARY']};
+                background: {COLORS.get("BG_HEADER", COLORS["BG_SURFACE2"])};
+                color: {COLORS["TEXT_PRIMARY"]};
                 border: none;
-                border-bottom: 1px solid {COLORS['BORDER']};
-                border-right: 1px solid {COLORS['BORDER']};
+                border-bottom: 1px solid {COLORS["BORDER"]};
+                border-right: 1px solid {COLORS["BORDER"]};
                 padding: 6px 8px;
                 font-weight: 700;
                 font-size: 11px;
             }}
             QHeaderView::section:hover {{
-                background: {COLORS['BG_HOVER']};
+                background: {COLORS["BG_HOVER"]};
             }}
             """
         )
@@ -1225,10 +1235,7 @@ class BotRecherche(QFrame):
 
     def _update_connected_state(self) -> None:
         """Met à jour l'interface selon l'état de connexion."""
-        connected = (
-            self._connexion_manager is not None
-            and self._connexion_manager.is_connected
-        )
+        connected = self._connexion_manager is not None and self._connexion_manager.is_connected
         self._search_input.setEnabled(connected)
         self._search_btn.setEnabled(connected and not self._searching)
 
@@ -1245,9 +1252,7 @@ class BotRecherche(QFrame):
         """Lance une recherche sur Soulseek."""
         query = self._search_input.text().strip()
         if len(query) < 2:
-            self._status_label.setText(
-                "📝 Minimum 2 caractères pour lancer une recherche"
-            )
+            self._status_label.setText("📝 Minimum 2 caractères pour lancer une recherche")
             return
 
         if self._connexion_manager is None or not self._connexion_manager.is_connected:
@@ -1275,22 +1280,34 @@ class BotRecherche(QFrame):
 
         if self._room_name:
             # Mode salon : recherche dans un salon spécifique
-            self._status_label.setText(
-                f"🔍 Recherche de « {query} » dans #{self._room_name}…"
-            )
+            self._status_label.setText(f"🔍 Recherche de « {query} » dans #{self._room_name}…")
             self._connexion_manager.search_room(self._room_name, query)
             self._search_history.add(
-                query, type_="room", username=self._room_name,
+                query,
+                type_="room",
+                username=self._room_name,
             )
         elif self._browse_username:
             # Mode utilisateur : recherche chez un utilisateur spécifique
-            self._status_label.setText(
-                f"🔍 Recherche de « {query} » chez {self._browse_username}…"
-            )
+            self._status_label.setText(f"🔍 Recherche de « {query} » chez {self._browse_username}…")
             self._connexion_manager.search_user(self._browse_username, query)
             self._search_history.add(
-                query, type_="user", username=self._browse_username,
+                query,
+                type_="user",
+                username=self._browse_username,
             )
+        elif self._clients_actifs_cb.isChecked() and self._clients_actifs_service is not None:
+            # Mode clients actifs : recherche chez chaque client connu
+            actifs = [c for c in self._clients_actifs_service.clients_actifs() if c.statut.name in ("ONLINE", "AWAY")]
+            if not actifs:
+                self._status_label.setText("⚠️ Aucun client actif connu — bascule en recherche globale")
+                self._connexion_manager.search(query)
+                self._search_history.add(query, type_="global")
+            else:
+                self._status_label.setText(f"🔍 Recherche de « {query} » chez {len(actifs)} client(s) actif(s)…")
+                for client in actifs:
+                    self._connexion_manager.search_user(client.username, query)
+                self._search_history.add(query, type_="clients_actifs")
         else:
             # Mode global : recherche standard
             self._status_label.setText(f"🔍 Recherche de « {query} » en cours…")
@@ -1317,9 +1334,7 @@ class BotRecherche(QFrame):
         if self._connexion_manager is not None:
             self._connexion_manager.stop_search()
         self._reset_search_state()
-        self._status_label.setText(
-            f"⏹ Recherche arrêtée — {self._result_count} résultat(s) affiché(s)"
-        )
+        self._status_label.setText(f"⏹ Recherche arrêtée — {self._result_count} résultat(s) affiché(s)")
 
         # Notifier l'EventBus
         EventBus().emit_event(
@@ -1333,17 +1348,13 @@ class BotRecherche(QFrame):
     def _on_audio_filter_toggled(self, checked: bool) -> None:
         """Bascule le filtre audio automatique mp3/flac/ogg."""
         self._audio_filter_enabled = checked
-        self._audio_filter_btn.setText(
-            "🔊 Audio seulement" if checked else "🔊 Tous les fichiers"
-        )
+        self._audio_filter_btn.setText("🔊 Audio seulement" if checked else "🔊 Tous les fichiers")
         self._apply_filters()
 
     def _on_mode_dispo_toggled(self, checked: bool) -> None:
         """Bascule le mode disponibilité (slots libres uniquement)."""
         self._mode_dispo_enabled = checked
-        self._mode_dispo_btn.setText(
-            "🟢 Mode dispo" if checked else "🔴 Mode dispo"
-        )
+        self._mode_dispo_btn.setText("🟢 Mode dispo" if checked else "🔴 Mode dispo")
         self._apply_filters()
 
     def _on_search_result(self, evt: object) -> None:
@@ -1385,36 +1396,18 @@ class BotRecherche(QFrame):
 
             if self._result_count >= MAX_RESULTS:
                 if self._room_name:
-                    status = (
-                        f"⚠️ {MAX_RESULTS} résultats max dans #{self._room_name}"
-                        f" — affinez votre recherche"
-                    )
+                    status = f"⚠️ {MAX_RESULTS} résultats max dans #{self._room_name} — affinez votre recherche"
                 elif self._browse_username:
-                    status = (
-                        f"⚠️ {MAX_RESULTS} résultats max chez"
-                        f" {self._browse_username}"
-                        f" — affinez votre recherche"
-                    )
+                    status = f"⚠️ {MAX_RESULTS} résultats max chez {self._browse_username} — affinez votre recherche"
                 else:
-                    status = (
-                        f"⚠️ {MAX_RESULTS} résultats max — affinez votre recherche"
-                    )
+                    status = f"⚠️ {MAX_RESULTS} résultats max — affinez votre recherche"
             else:
-                status = (
-                    f"✅ {self._result_count} résultat"
-                    f"{'s' if self._result_count > 1 else ''}"
-                )
+                status = f"✅ {self._result_count} résultat{'s' if self._result_count > 1 else ''}"
                 if query_text:
                     if self._room_name:
-                        status += (
-                            f" — recherche « {query_text} »"
-                            f" dans #{self._room_name}"
-                        )
+                        status += f" — recherche « {query_text} » dans #{self._room_name}"
                     elif self._browse_username:
-                        status += (
-                            f" — recherche « {query_text} »"
-                            f" chez {self._browse_username}"
-                        )
+                        status += f" — recherche « {query_text} » chez {self._browse_username}"
                     else:
                         status += f" — recherche « {query_text} »"
             self._status_label.setText(status)
@@ -1423,18 +1416,22 @@ class BotRecherche(QFrame):
         if query_text and self._result_count > 0:
             if self._room_name:
                 self._search_history.update_count(
-                    query_text, type_="room", username=self._room_name,
+                    query_text,
+                    type_="room",
+                    username=self._room_name,
                     count=self._result_count,
                 )
             elif self._browse_username:
                 self._search_history.update_count(
-                    query_text, type_="user",
+                    query_text,
+                    type_="user",
                     username=self._browse_username,
                     count=self._result_count,
                 )
             else:
                 self._search_history.update_count(
-                    query_text, type_="global",
+                    query_text,
+                    type_="global",
                     count=self._result_count,
                 )
 
@@ -1467,9 +1464,7 @@ class BotRecherche(QFrame):
             self._search_btn.setVisible(True)
             self._search_btn.setEnabled(True)
             self._search_btn.setText("Rechercher")
-            self._status_label.setText(
-                "⏱️ La recherche continue en arrière-plan…"
-            )
+            self._status_label.setText("⏱️ La recherche continue en arrière-plan…")
 
     # ── Filtres avancés ─────────────────────────────────────────
 
@@ -1551,11 +1546,7 @@ class BotRecherche(QFrame):
         """
         self._update_filtres_badge()
 
-        has_filters = (
-            self._filtres_compte > 0
-            or not self._audio_filter_enabled
-            or self._mode_dispo_enabled
-        )
+        has_filters = self._filtres_compte > 0 or not self._audio_filter_enabled or self._mode_dispo_enabled
 
         if not has_filters:
             # Aucun filtre : tout afficher
@@ -1603,25 +1594,17 @@ class BotRecherche(QFrame):
                 if self._mode_dispo_enabled:
                     extra.append("🟢 dispo")
                 if self._filtres_compte > 0:
-                    extra.append(
-                        f"{self._filtres_compte} filtre{'s' if self._filtres_compte > 1 else ''}"
-                    )
+                    extra.append(f"{self._filtres_compte} filtre{'s' if self._filtres_compte > 1 else ''}")
                 suffix = f" — {' + '.join(extra)}" if extra else ""
-                self._status_label.setText(
-                    f"✅ {visible_count}/{total} résultat{'s' if total > 1 else ''}{suffix}"
-                )
+                self._status_label.setText(f"✅ {visible_count}/{total} résultat{'s' if total > 1 else ''}{suffix}")
             else:
                 extra = []
                 if self._mode_dispo_enabled:
                     extra.append("🟢 dispo")
                 if self._filtres_compte > 0:
-                    extra.append(
-                        f"{self._filtres_compte} filtre{'s' if self._filtres_compte > 1 else ''}"
-                    )
+                    extra.append(f"{self._filtres_compte} filtre{'s' if self._filtres_compte > 1 else ''}")
                 suffix = f" — {' + '.join(extra)}" if extra else ""
-                self._status_label.setText(
-                    f"✅ {total} résultat{'s' if total > 1 else ''}{suffix}"
-                )
+                self._status_label.setText(f"✅ {total} résultat{'s' if total > 1 else ''}{suffix}")
 
     # ── Menu contextuel ──────────────────────────────────────────
 
@@ -1649,24 +1632,24 @@ class BotRecherche(QFrame):
         menu.setStyleSheet(
             f"""
             QMenu {{
-                background: {COLORS['BG_SURFACE']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px;
             }}
             QMenu::item {{
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-size: 12px;
             }}
             QMenu::item:selected {{
                 background: rgba(COLORS['PRIMARY'], '30');
-                color: {COLORS['PRIMARY']};
+                color: {COLORS["PRIMARY"]};
             }}
             QMenu::separator {{
                 height: 1px;
-                background: {COLORS['BORDER']};
+                background: {COLORS["BORDER"]};
                 margin: 4px 8px;
             }}
             """
@@ -1679,25 +1662,19 @@ class BotRecherche(QFrame):
 
         # ── 👤 Voir les fichiers de l'utilisateur ──
         browse_action = QAction(f"👤 Voir les fichiers de {username}", self)
-        browse_action.triggered.connect(
-            lambda: self._on_browse_user(username)
-        )
+        browse_action.triggered.connect(lambda: self._on_browse_user(username))
         menu.addAction(browse_action)
 
         menu.addSeparator()
 
         # ── 📋 Copier le nom du fichier ──
         copy_action = QAction("📋 Copier le nom du fichier", self)
-        copy_action.triggered.connect(
-            lambda: QApplication.clipboard().setText(filename)
-        )
+        copy_action.triggered.connect(lambda: QApplication.clipboard().setText(filename))
         menu.addAction(copy_action)
 
         # ── 🚫 Bloquer l'utilisateur ──
         block_action = QAction(f"🚫 Bloquer {username}", self)
-        block_action.triggered.connect(
-            lambda: self._on_block_user(username)
-        )
+        block_action.triggered.connect(lambda: self._on_block_user(username))
         menu.addAction(block_action)
 
         # Afficher le menu à la position globale
@@ -1711,17 +1688,13 @@ class BotRecherche(QFrame):
         self._browse_username = username
         self._browse_label.setText(f"Fichiers de {username}")
         self._browse_banner.setVisible(True)
-        self._search_input.setPlaceholderText(
-            f"Rechercher des fichiers partagés par {username}…"
-        )
+        self._search_input.setPlaceholderText(f"Rechercher des fichiers partagés par {username}…")
 
     def _exit_browse_mode(self) -> None:
         """Quitte le mode navigation utilisateur."""
         self._browse_username = None
         self._browse_banner.setVisible(False)
-        self._search_input.setPlaceholderText(
-            "Rechercher des fichiers audio sur Soulseek…"
-        )
+        self._search_input.setPlaceholderText("Rechercher des fichiers audio sur Soulseek…")
         self._reset_search_state()
         self._clear_results()
         self._status_label.setText("")
@@ -1735,18 +1708,14 @@ class BotRecherche(QFrame):
         self._room_label.setText(f"Salon : #{room}")
         self._room_banner.setVisible(True)
         self._room_input.setText(room)
-        self._search_input.setPlaceholderText(
-            f"Rechercher dans #{room}…"
-        )
+        self._search_input.setPlaceholderText(f"Rechercher dans #{room}…")
 
     def _exit_room_mode(self) -> None:
         """Quitte le mode recherche dans un salon."""
         self._room_name = None
         self._room_banner.setVisible(False)
         self._room_input.clear()
-        self._search_input.setPlaceholderText(
-            "Rechercher des fichiers audio sur Soulseek…"
-        )
+        self._search_input.setPlaceholderText("Rechercher des fichiers audio sur Soulseek…")
         self._reset_search_state()
         self._clear_results()
         self._status_label.setText("")
@@ -1755,9 +1724,7 @@ class BotRecherche(QFrame):
         """Lance une recherche des fichiers d'un utilisateur."""
         query = self._search_input.text().strip()
         if not query:
-            self._status_label.setText(
-                "📝 Entrez un terme de recherche avant de parcourir un utilisateur"
-            )
+            self._status_label.setText("📝 Entrez un terme de recherche avant de parcourir un utilisateur")
             return
         if self._connexion_manager is None:
             return
@@ -1771,9 +1738,7 @@ class BotRecherche(QFrame):
         self._result_count = 0
         self._searching = True
         self._stop_btn.setVisible(True)
-        self._status_label.setText(
-            f"🔍 Recherche de « {query} » chez {username}…"
-        )
+        self._status_label.setText(f"🔍 Recherche de « {query} » chez {username}…")
         self._connexion_manager.search_user(username, query)
 
     def _on_block_user(self, username: str) -> None:
@@ -1860,9 +1825,7 @@ class BotRecherche(QFrame):
         # ── Colonne 6 : Slots ──
         slots_text = "🟢" if has_free_slots else "🔴"
         slots_item = TableItem(slots_text)
-        slots_item.setToolTip(
-            "Slots libres" if has_free_slots else "File d'attente"
-        )
+        slots_item.setToolTip("Slots libres" if has_free_slots else "File d'attente")
         slots_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self._table.setItem(row, COL_SLOTS, slots_item)
 
@@ -1878,18 +1841,18 @@ class BotRecherche(QFrame):
         dl_btn.setStyleSheet(
             f"""
             QPushButton {{
-                background: {COLORS['PRIMARY']};
-                color: {COLORS['TEXT_WHITE']};
+                background: {COLORS["PRIMARY"]};
+                color: {COLORS["TEXT_WHITE"]};
                 border: none;
                 border-radius: 14px;
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background: {COLORS['PRIMARY_HOVER']};
+                background: {COLORS["PRIMARY_HOVER"]};
             }}
             QPushButton:disabled {{
-                background: {COLORS['BG_BTN_DISABLED']};
-                color: {COLORS['TEXT_DISABLED']};
+                background: {COLORS["BG_BTN_DISABLED"]};
+                color: {COLORS["TEXT_DISABLED"]};
             }}
             """
         )
@@ -1936,23 +1899,21 @@ class BotRecherche(QFrame):
             btn.setStyleSheet(
                 f"""
                 QPushButton {{
-                    background: {COLORS['BG_SURFACE']};
-                    color: {COLORS['TEXT_SECONDARY']};
-                    border: 1px solid {COLORS['BORDER']};
+                    background: {COLORS["BG_SURFACE"]};
+                    color: {COLORS["TEXT_SECONDARY"]};
+                    border: 1px solid {COLORS["BORDER"]};
                     border-radius: 10px;
                     padding: 3px 10px;
                     font-size: 10px;
                 }}
                 QPushButton:hover {{
                     background: rgba(COLORS['PRIMARY'], '20');
-                    border-color: {COLORS['PRIMARY']};
-                    color: {COLORS['PRIMARY']};
+                    border-color: {COLORS["PRIMARY"]};
+                    color: {COLORS["PRIMARY"]};
                 }}
                 """
             )
-            btn.clicked.connect(
-                lambda checked, e=entry: self._on_suggestion_clicked(e)
-            )
+            btn.clicked.connect(lambda checked, e=entry: self._on_suggestion_clicked(e))
             self._suggestions_row.layout().addWidget(btn)
             self._suggestions_widgets.append(btn)
 
@@ -1988,7 +1949,8 @@ class BotRecherche(QFrame):
     def _open_history_popup(self) -> None:
         """Ouvre la popup d'historique complet."""
         dialog = HistoryPopup(
-            self._search_history.get_all(), self,
+            self._search_history.get_all(),
+            self,
             history=self._search_history,
         )
         dialog.clear_requested.connect(self._on_history_clear)

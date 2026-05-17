@@ -27,7 +27,7 @@ import json
 import logging
 import sqlite3
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -92,9 +92,15 @@ class SurveillanceEvent:
 
     SEVERITIES = ("INFO", "WARN", "ERROR")
     CATEGORIES = (
-        "reseau", "transfert", "recherche", "bibliotheque",
-        "configuration", "erreur", "bot",
-        "wishlist", "optimiseur",
+        "reseau",
+        "transfert",
+        "recherche",
+        "bibliotheque",
+        "configuration",
+        "erreur",
+        "bot",
+        "wishlist",
+        "optimiseur",
     )
 
     def __post_init__(self) -> None:
@@ -193,24 +199,12 @@ class EventBus(QObject):
             self._db.execute(_SQL_CREATE_TABLE)
 
             # Lister les colonnes communes (safe même si l'ancienne table a moins de colonnes)
-            old_cols = [
-                col[1]
-                for col in self._db.execute(
-                    "PRAGMA table_info(events_old)"
-                ).fetchall()
-            ]
-            new_cols = [
-                col[1]
-                for col in self._db.execute(
-                    "PRAGMA table_info(events)"
-                ).fetchall()
-            ]
+            old_cols = [col[1] for col in self._db.execute("PRAGMA table_info(events_old)").fetchall()]
+            new_cols = [col[1] for col in self._db.execute("PRAGMA table_info(events)").fetchall()]
             common = [c for c in new_cols if c in old_cols]
             if common:
                 cols = ", ".join(common)
-                self._db.execute(
-                    f"INSERT INTO events ({cols}) SELECT {cols} FROM events_old"
-                )
+                self._db.execute(f"INSERT INTO events ({cols}) SELECT {cols} FROM events_old")
             self._db.execute("DROP TABLE events_old")
 
             # Recréer les index
@@ -344,9 +338,7 @@ class EventBus(QObject):
         stats: dict[str, Any] = {}
 
         # Total
-        stats["total"] = self._db.execute(
-            "SELECT COUNT(*) FROM events"
-        ).fetchone()[0]
+        stats["total"] = self._db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
 
         # Erreurs 24h
         cutoff = (datetime.now() - timedelta(hours=24)).isoformat(timespec="seconds")
@@ -406,9 +398,7 @@ class EventBus(QObject):
     def get_event(self, event_id: int) -> SurveillanceEvent | None:
         """Retourne un événement par son id, ou None si introuvable."""
         assert self._db is not None
-        row = self._db.execute(
-            "SELECT * FROM events WHERE id = ?", (event_id,)
-        ).fetchone()
+        row = self._db.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
         if row is None:
             return None
         return self._row_to_event(row)

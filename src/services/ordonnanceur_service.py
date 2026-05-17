@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import shutil
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -23,15 +24,70 @@ from typing import Any, Callable
 from mutagen import File as MutagenFile
 from mutagen.easyid3 import EasyID3
 
+from src.config import settings
+
 logger = logging.getLogger(__name__)
+
+
+# ── Corbeille dédiée ──────────────────────────────────────────────────
+
+
+def deplacer_vers_corbeille(chemin: Path) -> Path:
+    """Déplace un fichier vers la corbeille dédiée au lieu de le supprimer définitivement.
+
+    La corbeille est un dossier configurable (``corbeille_dir`` dans les settings).
+    Pour éviter les collisions de noms, un horodatage est préfixé au nom du fichier.
+
+    Args:
+        chemin: Chemin du fichier à déplacer.
+
+    Returns:
+        Le chemin de destination dans la corbeille.
+
+    Raises:
+        FileNotFoundError: Si le fichier source n'existe pas.
+        OSError: Si le déplacement échoue (permissions, disque, etc.).
+    """
+    if not chemin.exists():
+        raise FileNotFoundError(f"Fichier introuvable : {chemin}")
+
+    corbeille = settings.corbeille_dir
+    corbeille.mkdir(parents=True, exist_ok=True)
+
+    # Préfixe horodaté pour éviter les collisions
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    dest = corbeille / f"{timestamp}_{chemin.name}"
+
+    # Si le nom existe déjà, ajouter un suffixe incrémental
+    compteur = 1
+    while dest.exists():
+        dest = corbeille / f"{timestamp}_{chemin.stem}_{compteur}{chemin.suffix}"
+        compteur += 1
+
+    shutil.move(str(chemin), str(dest))
+    logger.info("Déplacé vers corbeille : %s → %s", chemin, dest)
+    return dest
 
 
 # ── Constantes ──────────────────────────────────────────────────────
 
 # Extensions audio supportées par mutagen
 AUDIO_EXTENSIONS = {
-    ".mp3", ".flac", ".ogg", ".opus", ".m4a", ".m4b", ".mp4",
-    ".aac", ".wav", ".wv", ".ape", ".wma", ".aiff", ".dsf", ".dff",
+    ".mp3",
+    ".flac",
+    ".ogg",
+    ".opus",
+    ".m4a",
+    ".m4b",
+    ".mp4",
+    ".aac",
+    ".wav",
+    ".wv",
+    ".ape",
+    ".wma",
+    ".aiff",
+    ".dsf",
+    ".dff",
 }
 
 # Taille minimale pour considérer un fichier comme valide (100 Ko)
@@ -69,32 +125,34 @@ TEMPLATE_CLASSEMENT_DEFAUT = "{artist}/{album}/{track:02d} {title}.{ext}"
 
 # Presets de classement
 CLASSEMENT_PRESETS: dict[str, str] = {
-    "artiste-album":    "{artist}/{album}/{track:02d} {title}.{ext}",
-    "artiste":          "{artist}/{track:02d} {title}.{ext}",
-    "genre-artiste":    "{genre}/{artist}/{album}/{track:02d} {title}.{ext}",
-    "annee-artiste":    "{year}/{artist}/{album}/{track:02d} {title}.{ext}",
-    "aucun":            "{filename}",
+    "artiste-album": "{artist}/{album}/{track:02d} {title}.{ext}",
+    "artiste": "{artist}/{track:02d} {title}.{ext}",
+    "genre-artiste": "{genre}/{artist}/{album}/{track:02d} {title}.{ext}",
+    "annee-artiste": "{year}/{artist}/{album}/{track:02d} {title}.{ext}",
+    "aucun": "{filename}",
 }
 
 # Presets de renommage
 RENOMMAGE_PRESETS: dict[str, str] = {
-    "standard":         "{artist} - {album} - {track:02d} {title}.{ext}",
-    "artiste-titre":    "{artist} - {title}.{ext}",
-    "piste-titre":      "{track:02d} {title}.{ext}",
-    "album-piste":      "{album} - {track:02d} {title}.{ext}",
+    "standard": "{artist} - {album} - {track:02d} {title}.{ext}",
+    "artiste-titre": "{artist} - {title}.{ext}",
+    "piste-titre": "{track:02d} {title}.{ext}",
+    "album-piste": "{album} - {track:02d} {title}.{ext}",
 }
 
 
 # ── Types ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class FichierInfo:
     """Informations extraites d'un fichier audio."""
+
     path: Path
     filename: str
     extension: str
-    size: int                          # octets
-    modified: float                     # timestamp mtime
+    size: int  # octets
+    modified: float  # timestamp mtime
 
     # Métadonnées extraites
     artist: str | None = None
@@ -103,30 +161,31 @@ class FichierInfo:
     track: int | None = None
     year: int | None = None
     genre: str | None = None
-    quality: str | None = None          # bitrate / profondeur
+    quality: str | None = None  # bitrate / profondeur
 
     # Infos techniques
-    bitrate: int | None = None           # bps
-    sample_rate: int | None = None       # Hz
-    duration: float | None = None        # secondes
-    codec: str | None = None             # mp3, flac, etc.
+    bitrate: int | None = None  # bps
+    sample_rate: int | None = None  # Hz
+    duration: float | None = None  # secondes
+    codec: str | None = None  # mp3, flac, etc.
 
     # Dédoublonnage
-    hash_sha256: str | None = None       # SHA256 (64 premiers Ko)
+    hash_sha256: str | None = None  # SHA256 (64 premiers Ko)
 
     # Résultats d'analyse
-    source_metadata: str = "inconnu"     # "tag", "pattern", "dossier", "inconnu"
+    source_metadata: str = "inconnu"  # "tag", "pattern", "dossier", "inconnu"
     erreur: str | None = None
 
 
 @dataclass
 class AnalyseResultat:
     """Résultat complet d'une analyse de dossier."""
+
     dossier_source: Path
     fichiers: list[FichierInfo]
     total_fichiers: int
     total_audio: int
-    total_taille: int                    # octets
+    total_taille: int  # octets
     doublons_potentiels: list[list[FichierInfo]] = field(default_factory=list)
     doublons_confirmes: list[list[FichierInfo]] = field(default_factory=list)
     doublons_resolus: list[dict[str, Any]] = field(default_factory=list)
@@ -140,25 +199,22 @@ class AnalyseResultat:
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
+
 def _taille_lisible(octets: int) -> str:
     """Formate une taille en octets en chaîne lisible."""
     if octets < 1024:
         return f"{octets} o"
-    elif octets < 1024 ** 2:
+    elif octets < 1024**2:
         return f"{octets / 1024:.1f} Ko"
-    elif octets < 1024 ** 3:
-        return f"{octets / 1024 ** 2:.1f} Mo"
+    elif octets < 1024**3:
+        return f"{octets / 1024**2:.1f} Mo"
     else:
-        return f"{octets / 1024 ** 3:.2f} Go"
+        return f"{octets / 1024**3:.2f} Go"
 
 
 def _est_fichier_audio(path: Path) -> bool:
     """Vérifie si le fichier est un fichier audio supporté."""
-    return (
-        path.is_file()
-        and path.suffix.lower() in AUDIO_EXTENSIONS
-        and path.stat().st_size >= TAILLE_MIN_VALIDE
-    )
+    return path.is_file() and path.suffix.lower() in AUDIO_EXTENSIONS and path.stat().st_size >= TAILLE_MIN_VALIDE
 
 
 def _identifier_codec(path: Path, mutagen_obj: Any) -> str:
@@ -273,6 +329,7 @@ def _extraire_tags(mutagen_obj: Any, path: Path) -> dict[str, str]:
 
 # ── Service ─────────────────────────────────────────────────────────
 
+
 class OrdonnanceurService:
     """Service d'analyse et d'organisation des fichiers audio.
 
@@ -311,7 +368,8 @@ class OrdonnanceurService:
 
         logger.info(
             "Scan %s: %d fichiers audio trouvés",
-            dossier, len(fichiers),
+            dossier,
+            len(fichiers),
         )
         return sorted(fichiers)
 
@@ -369,9 +427,7 @@ class OrdonnanceurService:
                 info.track = _parser_piste(raw_track)
 
         # ── 2. Fallback: parsing du nom de fichier ──
-        if info.source_metadata == "inconnu" or (
-            info.title is None and info.filename
-        ):
+        if info.source_metadata == "inconnu" or (info.title is None and info.filename):
             extrait = self._parser_nom_fichier(path.stem)
             if extrait:
                 if info.artist is None:
@@ -438,14 +494,15 @@ class OrdonnanceurService:
         if doublons:
             fichiers_suspects = [f for g in doublons for f in g]
             doublons_confirme = self._detecter_doublons_hash(fichiers_suspects)
-            doublons_resolus = [
-                self._resoudre_doublons(g) for g in doublons_confirme
-            ]
+            doublons_resolus = [self._resoudre_doublons(g) for g in doublons_confirme]
 
         logger.info(
             "Analyse %s: %d fichiers, %s, %d potentiels, %d confirmés",
-            dossier, total_audio, _taille_lisible(total_taille),
-            len(doublons), len(doublons_confirme),
+            dossier,
+            total_audio,
+            _taille_lisible(total_taille),
+            len(doublons),
+            len(doublons_confirme),
         )
 
         return AnalyseResultat(
@@ -655,14 +712,14 @@ class OrdonnanceurService:
     def _appliquer_template(self, template: str, info: FichierInfo) -> str:
         """Applique un template avec les variables du fichier."""
         variables = {
-            "artist":   self._fallback(info.artist, "Inconnu"),
-            "album":    self._fallback(info.album, "Inconnu"),
-            "title":    self._fallback(info.title, Path(info.path).stem),
-            "track":    info.track if info.track is not None else 0,
+            "artist": self._fallback(info.artist, "Inconnu"),
+            "album": self._fallback(info.album, "Inconnu"),
+            "title": self._fallback(info.title, Path(info.path).stem),
+            "track": info.track if info.track is not None else 0,
             "track:02d": f"{info.track:02d}" if info.track is not None else "00",
-            "year":     self._fallback(str(info.year) if info.year else None, "0000"),
-            "genre":    self._fallback(info.genre, "Inconnu"),
-            "ext":      info.extension.lstrip("."),
+            "year": self._fallback(str(info.year) if info.year else None, "0000"),
+            "genre": self._fallback(info.genre, "Inconnu"),
+            "ext": info.extension.lstrip("."),
             "filename": Path(info.path).stem,
         }
 
@@ -727,7 +784,8 @@ class OrdonnanceurService:
         if "renommage" in selected_ops:
             # Tous les fichiers audio sauf ceux déjà bien nommés
             a_renommer = [
-                f for f in analyse.fichiers
+                f
+                for f in analyse.fichiers
                 if f.artist or f.title  # au moins un champ exploitable
             ]
             estimations["renommage"] = {
@@ -736,15 +794,9 @@ class OrdonnanceurService:
 
         if "dedoublonner" in selected_ops:
             # Utiliser les doublons confirmés si disponibles, sinon les potentiels
-            groupes = (
-                analyse.doublons_confirmes
-                if analyse.doublons_confirmes
-                else analyse.doublons_potentiels
-            )
+            groupes = analyse.doublons_confirmes if analyse.doublons_confirmes else analyse.doublons_potentiels
             nb_doublons = sum(len(g) - 1 for g in groupes)
-            taille_economisee = sum(
-                sum(f.size for f in g[1:]) for g in groupes
-            ) if groupes else 0
+            taille_economisee = sum(sum(f.size for f in g[1:]) for g in groupes) if groupes else 0
             estimations["dedoublonner"] = {
                 "groupes": len(groupes),
                 "fichiers_a_supprimer": nb_doublons,
@@ -799,11 +851,13 @@ class OrdonnanceurService:
             if nouveau_nom == info.filename:
                 continue  # déjà bien nommé
 
-            fichiers.append({
-                "info": info,
-                "nom_actuel": info.filename,
-                "nouveau_nom": nouveau_nom,
-            })
+            fichiers.append(
+                {
+                    "info": info,
+                    "nom_actuel": info.filename,
+                    "nouveau_nom": nouveau_nom,
+                }
+            )
             conflits_dict[nouveau_nom].append(info)
 
         # Détection des conflits : plusieurs fichiers → même nouveau nom
@@ -860,7 +914,9 @@ class OrdonnanceurService:
                 continue  # pas d'artiste → pas classable
 
             nouveau_chemin = self.generer_chemin_classement(
-                info, racine=racine, template=template,
+                info,
+                racine=racine,
+                template=template,
             )
 
             chemin_str = str(nouveau_chemin)
@@ -868,12 +924,14 @@ class OrdonnanceurService:
             if info.path and chemin_str == str(info.path):
                 continue  # déjà au bon endroit
 
-            fichiers.append({
-                "info": info,
-                "chemin_actuel": info.path,
-                "nouveau_chemin": nouveau_chemin,
-                "artiste": info.artist,
-            })
+            fichiers.append(
+                {
+                    "info": info,
+                    "chemin_actuel": info.path,
+                    "nouveau_chemin": nouveau_chemin,
+                    "artiste": info.artist,
+                }
+            )
             artistes[info.artist] += 1
             conflits_dict[chemin_str].append(info)
 
@@ -946,11 +1004,13 @@ class OrdonnanceurService:
         conflits: list[dict[str, Any]] = []
         for nom, indices in garde_noms.items():
             if len(indices) > 1:
-                conflits.append({
-                    "nom_conflit": nom,
-                    "fichiers": [groupes[i]["garde"].filename for i in indices],
-                    "nb": len(indices),
-                })
+                conflits.append(
+                    {
+                        "nom_conflit": nom,
+                        "fichiers": [groupes[i]["garde"].filename for i in indices],
+                        "nb": len(indices),
+                    }
+                )
 
         # ── Résolution par suffixes _2, _3… (optionnelle) ──
         conflits_resolus: list[dict[str, Any]] = []
@@ -969,18 +1029,22 @@ class OrdonnanceurService:
                     else:
                         nouveau = f"{stem}_{i + 1}{ext}"
                         groupes[idx]["garde_nouveau_nom"] = nouveau
-                    resolutions.append({
-                        "fichier": nom_base,
-                        "groupe_idx": idx,
-                        "nom_original": nom_base,
-                        "nouveau_nom": nouveau,
-                    })
+                    resolutions.append(
+                        {
+                            "fichier": nom_base,
+                            "groupe_idx": idx,
+                            "nom_original": nom_base,
+                            "nouveau_nom": nouveau,
+                        }
+                    )
 
-                conflits_resolus.append({
-                    "nom_conflit": nom_base,
-                    "fichiers": conflit["fichiers"],
-                    "resolutions": resolutions,
-                })
+                conflits_resolus.append(
+                    {
+                        "nom_conflit": nom_base,
+                        "fichiers": conflit["fichiers"],
+                        "resolutions": resolutions,
+                    }
+                )
             conflits = []  # vidé après résolution (cohérent avec resoudre_conflits)
 
         return {
@@ -1044,11 +1108,13 @@ class OrdonnanceurService:
                 stat = p.stat()
                 age = maintenant - stat.st_mtime
                 if age >= age_max_secondes:
-                    fichiers.append({
-                        "chemin": p,
-                        "taille": stat.st_size,
-                        "age_jours": round(age / 86400, 1),
-                    })
+                    fichiers.append(
+                        {
+                            "chemin": p,
+                            "taille": stat.st_size,
+                            "age_jours": round(age / 86400, 1),
+                        }
+                    )
                     taille_totale += stat.st_size
             except OSError:
                 continue
@@ -1113,17 +1179,21 @@ class OrdonnanceurService:
                             entry["nouveau_nom"] = nouveau
                             break
 
-                    resolutions.append({
-                        "fichier": nom_original,
-                        "nom_original": nom_base,
-                        "nouveau_nom": nouveau,
-                    })
+                    resolutions.append(
+                        {
+                            "fichier": nom_original,
+                            "nom_original": nom_base,
+                            "nouveau_nom": nouveau,
+                        }
+                    )
 
-                conflits_resolus.append({
-                    "nom_conflit": nom_base,
-                    "fichiers": fichiers_noms,
-                    "resolutions": resolutions,
-                })
+                conflits_resolus.append(
+                    {
+                        "nom_conflit": nom_base,
+                        "fichiers": fichiers_noms,
+                        "resolutions": resolutions,
+                    }
+                )
 
             else:
                 # Conflit de classement
@@ -1149,17 +1219,21 @@ class OrdonnanceurService:
                             entry["nouveau_chemin"] = Path(nouveau_chemin_str)
                             break
 
-                    resolutions.append({
-                        "fichier": nom_original,
-                        "chemin_original": chemin_base,
-                        "nouveau_chemin": nouveau_chemin_str,
-                    })
+                    resolutions.append(
+                        {
+                            "fichier": nom_original,
+                            "chemin_original": chemin_base,
+                            "nouveau_chemin": nouveau_chemin_str,
+                        }
+                    )
 
-                conflits_resolus.append({
-                    "chemin": chemin_base,
-                    "fichiers": fichiers_noms,
-                    "resolutions": resolutions,
-                })
+                conflits_resolus.append(
+                    {
+                        "chemin": chemin_base,
+                        "fichiers": fichiers_noms,
+                        "resolutions": resolutions,
+                    }
+                )
 
         # Conflits vidés (tous résolus)
         apercu["conflits"] = []
@@ -1206,7 +1280,8 @@ class OrdonnanceurService:
 
         if "renommage" in selected_ops:
             template = options.get(
-                "template_renommage", TEMPLATE_RENOMMAGE_DEFAUT,
+                "template_renommage",
+                TEMPLATE_RENOMMAGE_DEFAUT,
             )
             apercu["renommage"] = self.preparer_renommage(analyse, template=template)
             if resoudre:
@@ -1215,11 +1290,14 @@ class OrdonnanceurService:
 
         if "classement" in selected_ops:
             template = options.get(
-                "template_classement", TEMPLATE_CLASSEMENT_DEFAUT,
+                "template_classement",
+                TEMPLATE_CLASSEMENT_DEFAUT,
             )
             racine = options.get("racine_classement", "")
             apercu["classement"] = self.preparer_classement(
-                analyse, racine=racine, template=template,
+                analyse,
+                racine=racine,
+                template=template,
             )
             if resoudre:
                 self.resoudre_conflits(apercu["classement"])
@@ -1227,7 +1305,8 @@ class OrdonnanceurService:
 
         if "dedoublonner" in selected_ops:
             apercu["deduplication"] = self.preparer_deduplication(
-                analyse, resoudre_conflits=resoudre,
+                analyse,
+                resoudre_conflits=resoudre,
             )
             total_fichiers_confernes += apercu["deduplication"]["total_doublons"]
             total_taille_economisee += apercu["deduplication"]["total_economise"]
@@ -1236,7 +1315,8 @@ class OrdonnanceurService:
             dossier_temp = options.get("dossier_temp", "data/tmp")
             age_max = options.get("age_max_jours", 7)
             apercu["nettoyage"] = self.preparer_nettoyage(
-                dossier_temp, age_max_jours=age_max,
+                dossier_temp,
+                age_max_jours=age_max,
             )
             total_fichiers_confernes += apercu["nettoyage"]["total"]
             total_taille_economisee += apercu["nettoyage"]["taille_totale"]
@@ -1284,7 +1364,10 @@ class OrdonnanceurService:
 
         if "renommage" in apercu:
             ops, errs, dets = self._executer_renommage(
-                apercu["renommage"], apercu=apercu, simuler=simuler, on_progress=on_progress,
+                apercu["renommage"],
+                apercu=apercu,
+                simuler=simuler,
+                on_progress=on_progress,
             )
             operations["renommage"] = ops
             erreurs.extend(errs)
@@ -1292,7 +1375,9 @@ class OrdonnanceurService:
 
         if "classement" in apercu:
             ops, errs, dets = self._executer_classement(
-                apercu["classement"], simuler=simuler, on_progress=on_progress,
+                apercu["classement"],
+                simuler=simuler,
+                on_progress=on_progress,
             )
             operations["classement"] = ops
             erreurs.extend(errs)
@@ -1300,7 +1385,9 @@ class OrdonnanceurService:
 
         if "deduplication" in apercu:
             ops, errs, dets = self._executer_deduplication(
-                apercu["deduplication"], simuler=simuler, on_progress=on_progress,
+                apercu["deduplication"],
+                simuler=simuler,
+                on_progress=on_progress,
             )
             operations["deduplication"] = ops
             erreurs.extend(errs)
@@ -1308,7 +1395,9 @@ class OrdonnanceurService:
 
         if "nettoyage" in apercu:
             ops, errs, dets = self._executer_nettoyage(
-                apercu["nettoyage"], simuler=simuler, on_progress=on_progress,
+                apercu["nettoyage"],
+                simuler=simuler,
+                on_progress=on_progress,
             )
             operations["nettoyage"] = ops
             erreurs.extend(errs)
@@ -1349,20 +1438,20 @@ class OrdonnanceurService:
             tente += 1
 
             if simuler:
-                details.append({
-                    "operation": "renommage",
-                    "type": "simulation",
-                    "ancien": str(ancien),
-                    "nouveau": str(nouveau),
-                })
+                details.append(
+                    {
+                        "operation": "renommage",
+                        "type": "simulation",
+                        "ancien": str(ancien),
+                        "nouveau": str(nouveau),
+                    }
+                )
                 reussi += 1
                 continue
 
             try:
                 if nouveau.exists():
-                    raise FileExistsError(
-                        f"Le fichier destination existe déjà : {nouveau}"
-                    )
+                    raise FileExistsError(f"Le fichier destination existe déjà : {nouveau}")
                 ancien.rename(nouveau)
                 # Mettre à jour le path dans FichierInfo pour les opérations suivantes
                 info.path = nouveau
@@ -1374,24 +1463,30 @@ class OrdonnanceurService:
                             ce["chemin_actuel"] = nouveau
 
                 reussi += 1
-                details.append({
-                    "operation": "renommage",
-                    "type": "reussi",
-                    "ancien": str(ancien),
-                    "nouveau": str(nouveau),
-                })
+                details.append(
+                    {
+                        "operation": "renommage",
+                        "type": "reussi",
+                        "ancien": str(ancien),
+                        "nouveau": str(nouveau),
+                    }
+                )
             except Exception as e:
-                erreurs.append({
-                    "operation": "renommage",
-                    "fichier": str(ancien),
-                    "erreur": str(e),
-                })
-                details.append({
-                    "operation": "renommage",
-                    "type": "erreur",
-                    "ancien": str(ancien),
-                    "erreur": str(e),
-                })
+                erreurs.append(
+                    {
+                        "operation": "renommage",
+                        "fichier": str(ancien),
+                        "erreur": str(e),
+                    }
+                )
+                details.append(
+                    {
+                        "operation": "renommage",
+                        "type": "erreur",
+                        "ancien": str(ancien),
+                        "erreur": str(e),
+                    }
+                )
 
         ops = {"tente": tente, "reussi": reussi, "echoue": tente - reussi}
         return ops, erreurs, details
@@ -1416,41 +1511,47 @@ class OrdonnanceurService:
             tente += 1
 
             if simuler:
-                details.append({
-                    "operation": "classement",
-                    "type": "simulation",
-                    "source": str(source),
-                    "destination": str(dest),
-                })
+                details.append(
+                    {
+                        "operation": "classement",
+                        "type": "simulation",
+                        "source": str(source),
+                        "destination": str(dest),
+                    }
+                )
                 reussi += 1
                 continue
 
             try:
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 if dest.exists():
-                    raise FileExistsError(
-                        f"Le fichier destination existe déjà : {dest}"
-                    )
+                    raise FileExistsError(f"Le fichier destination existe déjà : {dest}")
                 source.rename(dest)
                 reussi += 1
-                details.append({
-                    "operation": "classement",
-                    "type": "reussi",
-                    "source": str(source),
-                    "destination": str(dest),
-                })
+                details.append(
+                    {
+                        "operation": "classement",
+                        "type": "reussi",
+                        "source": str(source),
+                        "destination": str(dest),
+                    }
+                )
             except Exception as e:
-                erreurs.append({
-                    "operation": "classement",
-                    "fichier": str(source),
-                    "erreur": str(e),
-                })
-                details.append({
-                    "operation": "classement",
-                    "type": "erreur",
-                    "source": str(source),
-                    "erreur": str(e),
-                })
+                erreurs.append(
+                    {
+                        "operation": "classement",
+                        "fichier": str(source),
+                        "erreur": str(e),
+                    }
+                )
+                details.append(
+                    {
+                        "operation": "classement",
+                        "type": "erreur",
+                        "source": str(source),
+                        "erreur": str(e),
+                    }
+                )
 
         ops = {"tente": tente, "reussi": reussi, "echoue": tente - reussi}
         return ops, erreurs, details
@@ -1485,74 +1586,88 @@ class OrdonnanceurService:
                 if not simuler:
                     try:
                         if nouveau_path.exists():
-                            raise FileExistsError(
-                                f"Le fichier garde destination existe déjà : {nouveau_path}"
-                            )
+                            raise FileExistsError(f"Le fichier garde destination existe déjà : {nouveau_path}")
                         ancien_path.rename(nouveau_path)
                         garde.path = nouveau_path
                         renomme_gardes += 1
-                        details.append({
-                            "operation": "deduplication_renommage_garde",
-                            "type": "reussi",
-                            "ancien": str(ancien_path),
-                            "nouveau": str(nouveau_path),
-                        })
+                        details.append(
+                            {
+                                "operation": "deduplication_renommage_garde",
+                                "type": "reussi",
+                                "ancien": str(ancien_path),
+                                "nouveau": str(nouveau_path),
+                            }
+                        )
                     except Exception as e:
-                        erreurs.append({
-                            "operation": "deduplication_renommage_garde",
-                            "fichier": str(ancien_path),
-                            "erreur": str(e),
-                        })
-                        details.append({
-                            "operation": "deduplication_renommage_garde",
-                            "type": "erreur",
-                            "ancien": str(ancien_path),
-                            "erreur": str(e),
-                        })
+                        erreurs.append(
+                            {
+                                "operation": "deduplication_renommage_garde",
+                                "fichier": str(ancien_path),
+                                "erreur": str(e),
+                            }
+                        )
+                        details.append(
+                            {
+                                "operation": "deduplication_renommage_garde",
+                                "type": "erreur",
+                                "ancien": str(ancien_path),
+                                "erreur": str(e),
+                            }
+                        )
                 else:
                     renomme_gardes += 1
-                    details.append({
-                        "operation": "deduplication_renommage_garde",
-                        "type": "simulation",
-                        "ancien": str(ancien_path),
-                        "nouveau": str(nouveau_path),
-                    })
+                    details.append(
+                        {
+                            "operation": "deduplication_renommage_garde",
+                            "type": "simulation",
+                            "ancien": str(ancien_path),
+                            "nouveau": str(nouveau_path),
+                        }
+                    )
 
             # ── Suppression des doublons ──
             for f in supprimables:
                 tente_suppression += 1
 
                 if simuler:
-                    details.append({
-                        "operation": "deduplication_suppression",
-                        "type": "simulation",
-                        "fichier": str(f.path),
-                        "taille": f.size,
-                    })
+                    details.append(
+                        {
+                            "operation": "deduplication_suppression",
+                            "type": "simulation",
+                            "fichier": str(f.path),
+                            "taille": f.size,
+                        }
+                    )
                     supprime += 1
                     continue
 
                 try:
-                    f.path.unlink()
+                    deplacer_vers_corbeille(f.path)
                     supprime += 1
-                    details.append({
-                        "operation": "deduplication_suppression",
-                        "type": "reussi",
-                        "fichier": str(f.path),
-                        "taille": f.size,
-                    })
+                    details.append(
+                        {
+                            "operation": "deduplication_suppression",
+                            "type": "reussi",
+                            "fichier": str(f.path),
+                            "taille": f.size,
+                        }
+                    )
                 except Exception as e:
-                    erreurs.append({
-                        "operation": "deduplication_suppression",
-                        "fichier": str(f.path),
-                        "erreur": str(e),
-                    })
-                    details.append({
-                        "operation": "deduplication_suppression",
-                        "type": "erreur",
-                        "fichier": str(f.path),
-                        "erreur": str(e),
-                    })
+                    erreurs.append(
+                        {
+                            "operation": "deduplication_suppression",
+                            "fichier": str(f.path),
+                            "erreur": str(e),
+                        }
+                    )
+                    details.append(
+                        {
+                            "operation": "deduplication_suppression",
+                            "type": "erreur",
+                            "fichier": str(f.path),
+                            "erreur": str(e),
+                        }
+                    )
 
         ops = {
             "supprime": supprime,
@@ -1584,36 +1699,44 @@ class OrdonnanceurService:
             taille_total += taille
 
             if simuler:
-                details.append({
-                    "operation": "nettoyage",
-                    "type": "simulation",
-                    "fichier": str(chemin),
-                    "taille": taille,
-                })
+                details.append(
+                    {
+                        "operation": "nettoyage",
+                        "type": "simulation",
+                        "fichier": str(chemin),
+                        "taille": taille,
+                    }
+                )
                 supprime += 1
                 continue
 
             try:
-                chemin.unlink()
+                deplacer_vers_corbeille(chemin)
                 supprime += 1
-                details.append({
-                    "operation": "nettoyage",
-                    "type": "reussi",
-                    "fichier": str(chemin),
-                    "taille": taille,
-                })
+                details.append(
+                    {
+                        "operation": "nettoyage",
+                        "type": "reussi",
+                        "fichier": str(chemin),
+                        "taille": taille,
+                    }
+                )
             except Exception as e:
-                erreurs.append({
-                    "operation": "nettoyage",
-                    "fichier": str(chemin),
-                    "erreur": str(e),
-                })
-                details.append({
-                    "operation": "nettoyage",
-                    "type": "erreur",
-                    "fichier": str(chemin),
-                    "erreur": str(e),
-                })
+                erreurs.append(
+                    {
+                        "operation": "nettoyage",
+                        "fichier": str(chemin),
+                        "erreur": str(e),
+                    }
+                )
+                details.append(
+                    {
+                        "operation": "nettoyage",
+                        "type": "erreur",
+                        "fichier": str(chemin),
+                        "erreur": str(e),
+                    }
+                )
 
         ops = {
             "tente": tente,
@@ -1635,8 +1758,78 @@ class OrdonnanceurService:
         """Remplace les patterns de parsing."""
         self._filename_patterns = list(patterns)
 
+    # ── Intégration Planificateur ────────────────────────────────────────
+
+    def executer_action_planificateur(
+        self,
+        action_type: str,
+        params: dict[str, Any],
+        on_progress: Callable[[str, int, int], None] | None = None,
+    ) -> dict[str, Any]:
+        """Exécute une action individuelle pour le Planificateur.
+
+        Args:
+            action_type: 'classement', 'renommage', 'deduplication', 'nettoyage_temp'
+            params: Paramètres (dossier, template, age_jours, etc.)
+            on_progress: Callback de progression (section, fait, total)
+
+        Returns:
+            Dict avec 'succes', 'message', 'details'
+        """
+        dossier = params.get("dossier", "")
+
+        try:
+            if action_type == "renommage":
+                template = params.get("template", TEMPLATE_RENOMMAGE_DEFAUT)
+                analyse = self.analyser_dossier(dossier)
+                apercu = self.preparer_renommage(analyse, template=template)
+                ops, erreurs, details = self._executer_renommage(apercu, simuler=False, on_progress=on_progress)
+                msg = f"Renommage : {ops.get('reussi', 0)}/{ops.get('total', 0)} fichiers renommés"
+
+            elif action_type == "classement":
+                template = params.get("template", TEMPLATE_CLASSEMENT_DEFAUT)
+                analyse = self.analyser_dossier(dossier)
+                apercu = self.preparer_classement(analyse, template=template)
+                ops, erreurs, details = self._executer_classement(apercu, simuler=False, on_progress=on_progress)
+                msg = f"Classement : {ops.get('reussi', 0)}/{ops.get('total', 0)} fichiers classés"
+
+            elif action_type == "deduplication":
+                analyse = self.analyser_dossier(dossier)
+                apercu = self.preparer_deduplication(analyse)
+                ops, erreurs, details = self._executer_deduplication(apercu, simuler=False, on_progress=on_progress)
+                msg = f"Dédoublonnage : {ops.get('supprime', 0)} doublons supprimés"
+
+            elif action_type == "nettoyage_temp":
+                age_jours = params.get("age_jours", 7)
+                apercu = self.preparer_nettoyage(dossier, age_max_jours=age_jours)
+                ops, erreurs, details = self._executer_nettoyage(apercu, simuler=False, on_progress=on_progress)
+                msg = f"Nettoyage : {ops.get('supprime', 0)} fichiers supprimés ({ops.get('taille_lisible', '0 o')})"
+
+            else:
+                return {"succes": False, "message": f"Type d'action inconnu : {action_type}", "details": []}
+
+            succes = len(erreurs) == 0
+            if not succes:
+                msg += f" — {len(erreurs)} erreur(s)"
+
+            return {
+                "succes": succes,
+                "message": msg,
+                "details": details,
+                "ops": ops,
+                "erreurs": erreurs,
+            }
+
+        except Exception as e:
+            return {
+                "succes": False,
+                "message": f"Erreur lors de {action_type} : {e}",
+                "details": [],
+            }
+
 
 # ── Helpers utilitaires (module-level) ────────────────────────────────
+
 
 def _parser_piste(raw: str | None) -> int | None:
     """Parse un numéro de piste depuis une chaîne."""

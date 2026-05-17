@@ -4,7 +4,7 @@ Widgets pour l'affichage des clients actifs / joignables.
 Composants :
   - ClientsHeaderWidget : bouton cliquable dans le header (colonne 1)
   - ClientRow : ligne individuelle d'un client (nom | statut | actions)
-  - ClientsActifsPage : page centrale listant tous les clients
+  - ClientsActifsHeader : en-tête listant tous les clients
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 # ── Constantes ───────────────────────────────────────────────────
 _OFF = "#3a3a4a"
 _GREEN = "#00e676"
@@ -32,6 +31,7 @@ _GRAY = "#5a5a6a"
 # ═══════════════════════════════════════════════════════════════════
 #  Header — widget cliquable dans la bannière
 # ═══════════════════════════════════════════════════════════════════
+
 
 class ClientsHeaderWidget(QFrame):
     """Bouton cliquable dans le header — colonne 1.
@@ -55,17 +55,13 @@ class ClientsHeaderWidget(QFrame):
         # Ligne 1 — titre "👥  Clients"
         self._title = QLabel("👥  Clients")
         self._title.setObjectName("clientsHeaderTitle")
-        self._title.setStyleSheet(
-            "color: #6c5ce7; font-size: 11px; font-weight: 600;"
-        )
+        self._title.setStyleSheet("color: #6c5ce7; font-size: 11px; font-weight: 600;")
         layout.addWidget(self._title)
 
         # Ligne 2 — statut
         self._statut = QLabel("Actif : 0  /  Joignable : 0")
         self._statut.setObjectName("clientsHeaderStatut")
-        self._statut.setStyleSheet(
-            "color: #e4e4ec; font-size: 13px; font-weight: 500;"
-        )
+        self._statut.setStyleSheet("color: #e4e4ec; font-size: 13px; font-weight: 500;")
         layout.addWidget(self._statut)
 
     # ── API publique ─────────────────────────────────────────────
@@ -82,6 +78,7 @@ class ClientsHeaderWidget(QFrame):
 # ═══════════════════════════════════════════════════════════════════
 #  Ligne client
 # ═══════════════════════════════════════════════════════════════════
+
 
 class ClientRow(QFrame):
     """Ligne d'affichage d'un client Soulseek.
@@ -111,24 +108,17 @@ class ClientRow(QFrame):
         # ── Nom du client ──
         self._name_label = QLabel(nom)
         self._name_label.setObjectName("clientRowName")
-        self._name_label.setStyleSheet(
-            "color: #e4e4ec; font-size: 13px; font-weight: 600;"
-            " min-width: 160px;"
-        )
+        self._name_label.setStyleSheet("color: #e4e4ec; font-size: 13px; font-weight: 600; min-width: 160px;")
         layout.addWidget(self._name_label)
 
         # ── Statut (actif / joignable) ──
         self._led_actif = self._make_led(actif)
         self._label_actif = QLabel("Actif" if actif else "Inactif")
-        self._label_actif.setStyleSheet(
-            f"color: {_GREEN if actif else _GRAY}; font-size: 12px;"
-        )
+        self._label_actif.setStyleSheet(f"color: {_GREEN if actif else _GRAY}; font-size: 12px;")
 
         self._led_joignable = self._make_led(joignable)
         self._label_joignable = QLabel("Joignable" if joignable else "Non joignable")
-        self._label_joignable.setStyleSheet(
-            f"color: {_GREEN if joignable else _GRAY}; font-size: 12px;"
-        )
+        self._label_joignable.setStyleSheet(f"color: {_GREEN if joignable else _GRAY}; font-size: 12px;")
 
         layout.addWidget(self._led_actif)
         layout.addWidget(self._label_actif)
@@ -156,9 +146,7 @@ class ClientRow(QFrame):
     @staticmethod
     def _make_led(on: bool) -> QLabel:
         led = QLabel("●")
-        led.setStyleSheet(
-            f"color: {_GREEN if on else _OFF}; font-size: 10px;"
-        )
+        led.setStyleSheet(f"color: {_GREEN if on else _OFF}; font-size: 10px;")
         led.setFixedWidth(12)
         return led
 
@@ -180,8 +168,9 @@ class ClientRow(QFrame):
 #  Page centrale — liste des clients actifs / joignables
 # ═══════════════════════════════════════════════════════════════════
 
-class ClientsActifsPage(QFrame):
-    """Page centrale listant les clients actifs et joignables.
+
+class ClientsActifsHeader(QFrame):
+    """En-tête listant les clients actifs et joignables.
 
     Chaque client est affiché sur une ligne avec :
       - nom
@@ -199,18 +188,13 @@ class ClientsActifsPage(QFrame):
 
         # ── En-tête de page ──
         header = QLabel("Clients actifs et joignables")
-        header.setStyleSheet(
-            "color: #6c5ce7; font-size: 16px; font-weight: 700;"
-            " padding-bottom: 8px;"
-        )
+        header.setStyleSheet("color: #6c5ce7; font-size: 16px; font-weight: 700; padding-bottom: 8px;")
         layout.addWidget(header)
 
         # Légende
         stats = QLabel("Actif : 0  •  Joignable : 0  •  Total : 0")
         stats.setObjectName("clientsStats")
-        stats.setStyleSheet(
-            "color: #5a5a6a; font-size: 12px; padding-bottom: 12px;"
-        )
+        stats.setStyleSheet("color: #5a5a6a; font-size: 12px; padding-bottom: 12px;")
         layout.addWidget(stats)
 
         # ── Zone scrollable avec les lignes ──
@@ -288,7 +272,4 @@ class ClientsActifsPage(QFrame):
     def _update_stats(self) -> None:
         stats = self.findChild(QLabel, "clientsStats")
         if stats:
-            stats.setText(
-                f"Actif : {self._actifs}  •  Joignable : {self._joignables}"
-                f"  •  Total : {len(self._rows)}"
-            )
+            stats.setText(f"Actif : {self._actifs}  •  Joignable : {self._joignables}  •  Total : {len(self._rows)}")

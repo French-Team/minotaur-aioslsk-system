@@ -462,3 +462,65 @@ Suggestions → `[🫤 Désolé…] [❓ Aide]`
 | 16 | **Bouton "📜 Conversation précédente"** — `_restore_history()` avec bug fix (lecture avant clear) | ✅ |
 | 17 | **Bug fix** `_restore_history()` lisait le fichier après l'avoir vidé — maintenant lit d'abord, nettoie sans sauvegarder | ✅ |
 | 18 | Spécification mise à jour (v2) | ✅ |
+
+
+---
+
+## 13. ❓ Questions résolues
+
+### Architecture et interface
+
+- [x] **Chatbot simulé (messages empilés) plutôt que tableau ou cartes** : L’Accueil est un hub de conversation, pas un outil de données. Une interface de chat (messages alternés bot/utilisateur) est naturelle pour de la navigation guidée par texte. QTableWidget ou WishlistCard seraient inadaptés.
+
+- [x] **MessageCard et UserMessageCard (QFrame) plutôt que QListWidget** : Des widgets personnalisés offrent un contrôle total sur le style (couleurs différentes bot vs utilisateur, bordures arrondies, marges). QListWidgetItem serait trop limité pour le rendu visuel souhaité.
+
+- [x] **QScrollArea avec layout vertical plutôt que QTableWidget** : Les messages s’empilent chronologiquement sans colonnes ni tri. Un QScrollArea avec QVBoxLayout est le choix le plus simple et performant. QTableWidget ajouterait une complexité inutile (en-têtes, cellules, tri).
+
+- [x] **SuggestionButtons widgets empilés sous le dernier message** : Les suggestions sont contextuelles (changent après chaque réponse). Les placer sous le dernier message bot crée un flux naturel : message → actions possibles. Évite de les mettre dans une barre fixe qui serait toujours la même.
+
+- [x] **Boutons Clear/Restore dans la barre d’entrée** : Actions secondaires mais accessibles. La barre d’entrée est toujours visible, contrairement au scroll. Évite de surcharger le header ou de cacher ces actions dans un menu.
+
+- [x] **Pas de compteur de messages non lus (badge footer)** : L’Accueil est la page par défaut affichée au démarrage. Un badge « non lus » n’a pas de sens puisque l’utilisateur arrive toujours sur cette page en premier.
+
+### Moteur de matching d’intention
+
+- [x] **Matching lexical par mots-clés (+3 exact, +1 partiel, seuil ≥ 3) plutôt que NLP/AI** : Le vocabulaire est contrôlé (~20 intentions connues). Un scoring simple suffit et évite une dépendance lourde (modèle NLP, API LLM). Le seuil à 3 évite les faux positifs (un mot seul ne déclenche pas d’intention).
+
+- [x] **Dictionnaire KNOWLEDGE dans un fichier séparé (bot_accueil_knowledge.py)** : Séparation claire entre la logique (bot_accueil.py) et les données (connaissances). Permet d’éditer les réponses sans toucher au code métier. Format lisible et maintenable.
+
+- [x] **KNOWLEDGE en dict Python plutôt que JSON ou YAML** : Un fichier .py évite un fichier séparé à parser au démarrage et permet d’utiliser la syntaxe Python native (listes, dicts, commentaires inline). JSON aurait fonctionné mais ajouté une étape de parsing pour zéro gain. YAML aurait nécessité une dépendance supplémentaire.
+
+- [x] **Fallback générique + fallback_insulte spécifique** : Deux niveaux de fallback : un pour les entrées non reconnues (propose des suggestions pour guider l’utilisateur), un pour les insultes (réponse diplomatique sans suggestion agressive). Évite de confondre une insulte avec une incompréhension.
+
+- [x] **Pas de fuzzy matching ou stemming** : Le vocabulaire cible est limité et les utilisateurs connaissent les noms des bots (Recherche, Téléchargement…). Le stemming (ex: « cherche » → « chercher ») est géré par les keywords dans KNOWLEDGE. Pas besoin d’une librairie externe.
+
+### Exécution et timing
+
+- [x] **QTimer.singleShot pour les délais (400-1500ms) plutôt que time.sleep()** : time.sleep() bloquerait l’UI Qt. QTimer.singleShot crée un délai non-bloquant qui simule un temps de réponse « humain ». Les intervalles (400ms pour les messages simples, 1500ms avant navigation) donnent un rythme naturel.
+
+- [x] **Actions exécutées en séquence via callbacks QTimer** : Une action peut déclencher une autre action après un délai (ex: message → navigation). La chaîne est gérée par des QTimer imbriqués, pas par un scheduler complexe. Simple et prévisible.
+
+- [x] **Navigation terminale (page_changed) : dernière action d’une séquence** : Une fois que l’utilisateur est redirigé vers un autre bot, le fil de conversation Accueil se termine. La navigation est toujours la dernière action pour éviter les états incohérents.
+
+### Stockage et persistance
+
+- [x] **JSON pour l’historique (bot_accueil_history.json) plutôt que SQLite** : L’historique est une séquence de messages (texte, pas de requêtes structurées). JSON est plus simple et lisible. SQLite serait overkill pour une centaine de messages max.
+
+- [x] **Historique chargé à la demande (bouton « Restaurer ») plutôt qu’automatiquement** : La spec précise que l’historique ne se restore pas automatiquement pour éviter une explosion de messages au démarrage. L’utilisateur décide via un bouton. L’état initial est toujours l’écran d’accueil (« zéro »).
+
+- [x] **Sauvegarde après chaque message (bot + utilisateur)** : Garantit qu’aucun message n’est perdu en cas de crash. La sauvegarde est synchrone et rapide (écriture JSON d’une petite liste).
+
+- [x] **Gestion des corruptions (JSONDecodeError, KeyError, fichier < 10 o)** : Trois scénarios de corruption gérés : fichier vide, JSON invalide, structure incorrecte. Dans tous les cas, l’historique est réinitialisé silencieusement. Le bug fix « lire avant d’effacer » évite d’écraser les données par un historique vide.
+
+- [x] **Historique limité à la session en cours** : Pas de pagination ou de LIMIT explicite. Le JSON est rechargé/écrasé à chaque session. Les messages accumulés pendant une session peuvent être restaurés ou effacés.
+
+### Intégration et comportement
+
+- [x] **Visible seulement quand connecté à Soulseek** : L’Accueil est le point d’entrée du réseau. Pas de connexion = pas de fonctionnalités à proposer. La page est masquée dans la navigation footer si déconnecté.
+
+- [x] **Pas de QTimer pour rafraîchissement (pas de polling)** : L’Accueil ne fait pas de requêtes réseau. Tout est déclenché par des événements (input utilisateur, clic suggestion). Aucun QTimer périodique nécessaire.
+
+- [x] **Navigation vers les autres bots via page_changed** : Même mécanisme que les autres bots. L’Accueil émet `page_changed("Recherche")` et le CenterZone change de page. Cohérent avec le système de navigation existant.
+
+- [x] **Pas de connexion directe à SoulseekService** : L’Accueil ne fait que de la navigation textuelle. Il n’a pas besoin d’accéder au réseau Soulseek directement. Toute interaction réseau est déléguée via page_changed.
+

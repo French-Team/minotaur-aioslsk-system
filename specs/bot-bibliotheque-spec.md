@@ -563,3 +563,57 @@ def migrate(conn: sqlite3.Connection) -> None:
 | 13 | **Mise à jour KNOWLEDGE** — entrée `bibliotheque` dans `bot_accueil_knowledge.py` | ⬜ |
 | 14 | **Tests unitaires** — `LibraryDB` + `BotBibliotheque` (instanciation, scan, filtres) | ⬜ |
 | 15 | **Spécification finalisée** | ✅ |
+
+---
+
+## 15. ❓ Questions résolues
+
+### Architecture et base de données
+
+- [x] **SQLite (library_db.py) comme index central plutôt que JSON ou parsing à la volée** : L’indexation des fichiers partagés nécessite des requêtes filtrées (par dossier, par artiste, recherche texte). SQLite permet des jointures, des index et des filtres performants. JSON serait trop lent à filtrer pour 10 000+ fichiers. Le parsing à la volée (liste répertoire à chaque accès) serait catastrophique.
+
+- [x] **Deux tables (shared_folders + files) plutôt qu’une seule table plate** : La séparation permet de gérer les dossiers indépendamment des fichiers (ajout/suppression de dossier sans toucher aux fichiers, statut de scan par dossier). Une table unique aurait des données redondantes (chemin de dossier répété pour chaque fichier).
+
+- [x] **Service LibraryDB séparé (dédié base) + LibraryScanner (dédié scan asynchrone)** : Séparation des responsabilités : LibraryDB gère le CRUD et les requêtes, LibraryScanner gère le scan en background avec QThread. Évite d’avoir un service monolithique. Facilite les tests unitaires (LibraryDB peut être testé indépendamment).
+
+- [x] **mutagen pour l’extraction des métadonnées audio (ID3, FLAC, etc.)** : mutagen est la bibliothèque standard Python pour les tags audio, déjà utilisée dans le projet via aioslsk. Pas de dépendance supplémentaire. Supporte MP3 (ID3), FLAC, OGG, AAC.
+
+### Interface divisée (arbre + tableau)
+
+- [x] **QTreeWidget (gauche, ~280px) + QTableWidget (droite) plutôt qu’une vue unique** : La division arbre + tableau est le pattern standard des explorateurs de fichiers. L’arbre montre la hiérarchie des dossiers, le tableau montre le contenu du dossier sélectionné. Une vue unique (ex: liste plate) serait ingérable pour une bibliothèque avec des dossiers multiples.
+
+- [x] **Seulement les dossiers racine dans l’arbre (pas de sous-dossiers)** : Évite de saturer l’arbre avec des milliers de sous-dossiers. L’utilisateur navigue par dossier racine, et le tableau montre tous les fichiers de ce dossier (y compris sous-dossiers). C’est un compromis entre profondeur de navigation et performance.
+
+- [x] **QTableWidget pour la liste des fichiers (pas de cartes personnalisées)** : Les fichiers ont des colonnes standardisées (nom, taille, artiste, album, durée…). Un tableau est plus efficace qu’une liste de cartes pour comparer et trier des données tabulaires. Évite _EventCard ou WishlistCard ici.
+
+- [x] **5-6 colonnes triables (Fichier, Taille, Artiste, Album, Durée) plutôt que 10+** : Assez de colonnes pour identifier un fichier, pas trop pour éviter le scroll horizontal. Les colonnes supplémentaires (bitrate, date, piste) sont accessibles via le popup Détails.
+
+- [x] **Barre de recherche filtrant nom + tags audio** : La recherche cible à la fois le nom du fichier ET les métadonnées extraites (artiste, album, titre). Un fichier nommé « 01-track.mp3 » avec tag artiste « Radiohead » sera trouvé en cherchant « Radiohead ». Évite de devoir ouvrir chaque fichier pour vérifier ses tags.
+
+### Scan et performance
+
+- [x] **QThread pour le scan background (LibraryScanner + _ScanWorker)** : Le scan d’une bibliothèque de 10 000+ fichiers peut prendre plusieurs minutes. QThread évite de bloquer l’UI. Le worker (_ScanWorker) reçoit la base de données et les callbacks de progression.
+
+- [x] **Scan automatique au démarrage + bouton Re-scanner manuel** : Le scan automatique garantit que la bibliothèque est à jour dès l’ouverture. Le bouton manuel permet de déclencher un scan après avoir ajouté/modifié des fichiers sans redémarrer.
+
+- [x] **Barre de progression pendant le scan** : Feedback visuel indispensable pour une opération longue. La barre est dans la toolbar avec format « X / Y fichiers ». Le bouton Re-scanner est désactivé pendant le scan.
+
+- [x] **Gestion des dossiers manquants/inaccessibles (gra­ceful degradation)** : Si un dossier partagé est supprimé ou inaccessible, le scan le signale dans la barre de statut sans bloquer le reste. Les fichiers existants restent accessibles.
+
+### Gestion d’état
+
+- [x] **UI vérouillée quand déconnecté de Soulseek** : La bibliothèque n’a de sens que connecté (fichiers partagés sur le réseau). Les actions (scan, recherche) sont désactivées, un message « Connectez-vous » est affiché. Évite les erreurs et la confusion.
+
+- [x] **Statistiques en temps réel (StatCard) : fichiers, dossiers, dernier scan** : Les 3 cartes en haut donnent une vue d’ensemble immédiate. Les valeurs sont mises à jour après chaque scan et affichées dans _StatCard.
+
+- [x] **Barre de statut en bas avec date du dernier scan** : Information secondaire mais utile pour savoir si la bibliothèque est à jour. Placée en bas pour ne pas encombrer le header.
+
+- [x] **Pas de badge footer** : La bibliothèque ne produit pas d’événements non lus (contrairement aux bots Surveillance, Téléchargement ou Planificateur). L’utilisateur consulte la page activement quand il en a besoin. Un badge n’aurait pas de sens (comme l’Accueil et Clients actifs qui n’en ont pas non plus).
+
+### Actions sur les fichiers
+
+- [x] **Popup _FileInfoPopup pour les détails (QDialog modal)** : Affiche toutes les métadonnées disponibles (nom complet, chemin, taille, artiste, album, titre, piste, durée, bitrate, date de scan). Dialogue modal pour focus sur l’info.
+
+- [x] **Menu contextuel (clic droit) avec Lire / Infos / Supprimer** : Actions fréquentes accessibles rapidement. « Lire » ouvre le fichier avec le lecteur par défaut du système. « Infos » ouvre _FileInfoPopup. « Supprimer » avec confirmation QMessageBox.
+
+- [x] **Pas d’édition de tags audio dans le bot (hors scope)** : L’édition de métadonnées est un cas d’usage spécifique qui mérite son propre outil. Le bot Bibliothèque est un explorateur/lecteur, pas un éditeur. La spec mentionne explicitement que c’est hors scope.

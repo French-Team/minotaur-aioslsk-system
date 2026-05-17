@@ -14,14 +14,10 @@ Architecture :
 from __future__ import annotations
 
 import logging
-import os
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -146,13 +142,26 @@ def _rows_to_dicts(rows: list["sqlite3.Row"]) -> list[dict[str, Any]]:
 # ── Classe principale ────────────────────────────────────
 
 SCAN_AUDIO_EXTENSIONS = {
-    ".mp3", ".flac", ".ogg", ".m4a", ".wav", ".wma",
-    ".aac", ".opus", ".aiff", ".ape",
+    ".mp3",
+    ".flac",
+    ".ogg",
+    ".m4a",
+    ".wav",
+    ".wma",
+    ".aac",
+    ".opus",
+    ".aiff",
+    ".ape",
 }
 
 IGNORED_EXTENSIONS = {
-    ".part", ".tmp", ".bak", ".lnk", ".url",
-    ".ds_store", ".thumbs.db",
+    ".part",
+    ".tmp",
+    ".bak",
+    ".lnk",
+    ".url",
+    ".ds_store",
+    ".thumbs.db",
 }
 
 
@@ -196,9 +205,7 @@ class LibraryDB:
         """Retourne la liste des dossiers partagés activés."""
         conn = self._connect()
         try:
-            rows = conn.execute(
-                "SELECT * FROM shared_folders WHERE enabled = 1 ORDER BY label, path"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM shared_folders WHERE enabled = 1 ORDER BY label, path").fetchall()
             return _rows_to_dicts(rows)
         finally:
             conn.close()
@@ -231,9 +238,7 @@ class LibraryDB:
         conn = self._connect()
         try:
             # Vérifier si déjà présent
-            existing = conn.execute(
-                "SELECT id FROM shared_folders WHERE path = ?", (path,)
-            ).fetchone()
+            existing = conn.execute("SELECT id FROM shared_folders WHERE path = ?", (path,)).fetchone()
             if existing:
                 return existing["id"]
 
@@ -307,8 +312,15 @@ class LibraryDB:
 
             # Validation du tri pour éviter l'injection SQL
             allowed_sort = {
-                "name", "size_bytes", "duration", "bitrate",
-                "extension", "modified_at", "artist", "album", "title",
+                "name",
+                "size_bytes",
+                "duration",
+                "bitrate",
+                "extension",
+                "modified_at",
+                "artist",
+                "album",
+                "title",
             }
             if sort_by is None or sort_by not in allowed_sort:
                 sort_by = "name"
@@ -332,12 +344,15 @@ class LibraryDB:
         """Retourne un fichier unique avec toutes ses métadonnées."""
         conn = self._connect()
         try:
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT f.*, sf.label AS folder_label, sf.path AS folder_path
                 FROM files f
                 JOIN shared_folders sf ON sf.id = f.folder_id
                 WHERE f.id = ?
-            """, (id,)).fetchone()
+            """,
+                (id,),
+            ).fetchone()
             return _row_to_dict(row)
         finally:
             conn.close()
@@ -383,13 +398,16 @@ class LibraryDB:
 
             where = " AND ".join(conditions)
 
-            rows = conn.execute(f"""
+            rows = conn.execute(
+                f"""
                 SELECT f.*, sf.label AS folder_label, sf.path AS folder_path
                 FROM files f
                 JOIN shared_folders sf ON sf.id = f.folder_id
                 WHERE {where}
                 ORDER BY f.name ASC
-            """, params).fetchall()
+            """,
+                params,
+            ).fetchall()
             return _rows_to_dicts(rows)
         finally:
             conn.close()
@@ -405,13 +423,9 @@ class LibraryDB:
         """
         conn = self._connect()
         try:
-            folders = conn.execute(
-                "SELECT COUNT(*) AS c FROM shared_folders WHERE enabled = 1"
-            ).fetchone()[0]
+            folders = conn.execute("SELECT COUNT(*) AS c FROM shared_folders WHERE enabled = 1").fetchone()[0]
 
-            files = conn.execute(
-                "SELECT COUNT(*) AS c FROM files"
-            ).fetchone()[0]
+            files = conn.execute("SELECT COUNT(*) AS c FROM files").fetchone()[0]
 
             audio = conn.execute("""
                 SELECT COUNT(*) AS c FROM files
@@ -419,9 +433,7 @@ class LibraryDB:
                                     '.aac','.opus','.aiff','.ape')
             """).fetchone()[0]
 
-            total_size = conn.execute(
-                "SELECT COALESCE(SUM(size_bytes), 0) AS s FROM files"
-            ).fetchone()[0]
+            total_size = conn.execute("SELECT COALESCE(SUM(size_bytes), 0) AS s FROM files").fetchone()[0]
 
             return {
                 "folders": folders,
@@ -461,9 +473,7 @@ class LibraryDB:
         try:
             # Collecter les chemins existants dans ce dossier
             existing = set(
-                row[0] for row in conn.execute(
-                    "SELECT path FROM files WHERE folder_id = ?", (folder_id,)
-                ).fetchall()
+                row[0] for row in conn.execute("SELECT path FROM files WHERE folder_id = ?", (folder_id,)).fetchall()
             )
 
             new_count = 0
@@ -531,18 +541,30 @@ class LibraryDB:
                         logger.debug("Impossible de lire les tags : %s", fpath.name)
 
                 try:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO files (folder_id, path, name, extension,
                                            size_bytes, modified_at,
                                            bitrate, duration, artist, album,
                                            title, track, year)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        folder_id, abs_path, fpath.name, extension,
-                        stat.st_size, modified,
-                        bitrate, duration, artist, album,
-                        title, track, year,
-                    ))
+                    """,
+                        (
+                            folder_id,
+                            abs_path,
+                            fpath.name,
+                            extension,
+                            stat.st_size,
+                            modified,
+                            bitrate,
+                            duration,
+                            artist,
+                            album,
+                            title,
+                            track,
+                            year,
+                        ),
+                    )
                     new_count += 1
                 except sqlite3.IntegrityError:
                     # Déjà présent (race condition), on ignore
@@ -551,13 +573,10 @@ class LibraryDB:
             # Nettoyer les fichiers supprimés du disque
             removed = existing - current_paths
             for rem_path in removed:
-                conn.execute(
-                    "DELETE FROM files WHERE path = ?", (rem_path,)
-                )
+                conn.execute("DELETE FROM files WHERE path = ?", (rem_path,))
             removed_count = len(removed)
             if removed_count:
-                logger.info("%d fichier(s) supprimé(s) (disparus du disque) dans %s",
-                            removed_count, path)
+                logger.info("%d fichier(s) supprimé(s) (disparus du disque) dans %s", removed_count, path)
 
             # Mettre à jour scanned_at
             now = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
@@ -641,9 +660,7 @@ class LibraryDB:
         # Déduire les fichiers supprimés :
         # files_before + files_new - files_removed = files_after
         # -> files_removed = files_before + files_new - files_after
-        result.files_removed = max(
-            0, files_before + result.files_new - result.files_found
-        )
+        result.files_removed = max(0, files_before + result.files_new - result.files_found)
 
         result.duration_ms = int((time.monotonic() - start) * 1000)
         return result

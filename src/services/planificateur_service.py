@@ -28,12 +28,12 @@ from src.services.event_bus import EventBus
 _DATA_DIR = Path("data")
 _DB_PATH = _DATA_DIR / "planificateur.db"
 
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 
 _SQL_CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS actions (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    type                TEXT    NOT NULL CHECK(type IN ('recherche','scan','wishlist','optimisation','nettoyage','telechargement')),
+    type                TEXT    NOT NULL CHECK(type IN ('recherche','scan','wishlist','optimisation','nettoyage','telechargement','classement','renommage','deduplication','nettoyage_temp')),
     parametres          TEXT    NOT NULL DEFAULT '{}',
     mode                TEXT    NOT NULL CHECK(mode IN ('immediat','planifie')),
     statut              TEXT    NOT NULL DEFAULT 'en_attente'
@@ -58,20 +58,32 @@ _SQL_INDEXES = [
 
 # ── Types d'action ──────────────────────────────────────────────────────────
 
-ACTION_TYPES = ("recherche", "scan", "wishlist", "optimisation", "nettoyage", "telechargement")
+ACTION_TYPES = (
+    "recherche",
+    "scan",
+    "wishlist",
+    "optimisation",
+    "nettoyage",
+    "telechargement",
+    "classement",
+    "renommage",
+    "deduplication",
+    "nettoyage_temp",
+)
 ACTION_MODES = ("immediat", "planifie")
 ACTION_STATUTS = ("en_attente", "planifiee", "en_cours", "terminee", "echouee", "pause")
 
-_TIMER_INTERVAL_MS = 30_000        # 30s
-_TIMEOUT_SECONDS = 300             # 5 min
-_BACKOFF_DELAYS = [30, 120, 300]   # 30s, 2min, 5min
+_TIMER_INTERVAL_MS = 30_000  # 30s
+_TIMEOUT_SECONDS = 300  # 5 min
+_BACKOFF_DELAYS = [30, 120, 300]  # 30s, 2min, 5min
 _MAX_RETRIES = 3
-_PURGE_INTERVAL_MS = 3_600_000     # 1h
+_PURGE_INTERVAL_MS = 3_600_000  # 1h
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PlanificationDB — Gestion SQLite
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class PlanificationDB:
     """Couche d'accès SQLite pour les actions planifiées."""
@@ -110,15 +122,22 @@ class PlanificationDB:
                 # Copier les données compatibles
                 try:
                     cols = [
-                        "type", "parametres", "mode", "statut",
-                        "recurrence_interval", "recurrence_unite",
-                        "prochaine_execution", "nb_tentatives", "erreur",
-                        "date_creation", "date_execution",
-                        "nom", "description",
+                        "type",
+                        "parametres",
+                        "mode",
+                        "statut",
+                        "recurrence_interval",
+                        "recurrence_unite",
+                        "prochaine_execution",
+                        "nb_tentatives",
+                        "erreur",
+                        "date_creation",
+                        "date_execution",
+                        "nom",
+                        "description",
                     ]
                     self._conn.execute(
-                        f"INSERT INTO actions ({','.join(cols)}) "
-                        f"SELECT {','.join(cols)} FROM actions_old;"
+                        f"INSERT INTO actions ({','.join(cols)}) SELECT {','.join(cols)} FROM actions_old;"
                     )
                 except Exception:
                     pass  # Ignorer les incompatibilités
@@ -171,9 +190,7 @@ class PlanificationDB:
 
     def get_action(self, action_id: int) -> dict[str, Any] | None:
         """Retourne une action par son ID."""
-        row = self._conn.execute(
-            "SELECT * FROM actions WHERE id = ?", (action_id,)
-        ).fetchone()
+        row = self._conn.execute("SELECT * FROM actions WHERE id = ?", (action_id,)).fetchone()
         if row is None:
             return None
         return self._row_to_dict(row)
@@ -181,10 +198,18 @@ class PlanificationDB:
     def update_action(self, action_id: int, **kwargs: Any) -> bool:
         """Met à jour une action. Retourne True si modifié."""
         allowed = {
-            "type", "parametres", "mode", "statut",
-            "recurrence_interval", "recurrence_unite",
-            "prochaine_execution", "nb_tentatives", "erreur",
-            "date_execution", "nom", "description",
+            "type",
+            "parametres",
+            "mode",
+            "statut",
+            "recurrence_interval",
+            "recurrence_unite",
+            "prochaine_execution",
+            "nb_tentatives",
+            "erreur",
+            "date_execution",
+            "nom",
+            "description",
         }
         updates: dict[str, Any] = {}
         for key, value in kwargs.items():
@@ -199,17 +224,13 @@ class PlanificationDB:
 
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [action_id]
-        cursor = self._conn.execute(
-            f"UPDATE actions SET {set_clause} WHERE id = ?", values
-        )
+        cursor = self._conn.execute(f"UPDATE actions SET {set_clause} WHERE id = ?", values)
         self._conn.commit()
         return cursor.rowcount > 0
 
     def delete_action(self, action_id: int) -> bool:
         """Supprime une action. Retourne True si supprimé."""
-        cursor = self._conn.execute(
-            "DELETE FROM actions WHERE id = ?", (action_id,)
-        )
+        cursor = self._conn.execute("DELETE FROM actions WHERE id = ?", (action_id,))
         self._conn.commit()
         return cursor.rowcount > 0
 
@@ -234,9 +255,7 @@ class PlanificationDB:
         rows = self._conn.execute(query, params).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    def get_historique(
-        self, limite: int = 50, offset: int = 0
-    ) -> list[dict[str, Any]]:
+    def get_historique(self, limite: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """Liste les actions terminées ou échouées."""
         rows = self._conn.execute(
             """SELECT * FROM actions
@@ -305,6 +324,7 @@ class PlanificationDB:
 # ═══════════════════════════════════════════════════════════════════════════════
 # PlanificateurService — Singleton
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class PlanificateurService(QObject):
     """Service central de gestion des actions planifiées (singleton)."""
@@ -398,9 +418,7 @@ class PlanificateurService(QObject):
         if result and "statut" in kwargs:
             action = self._db.get_action(action_id)
             if action:
-                self.action_changed.emit(
-                    action_id, action["type"], kwargs["statut"]
-                )
+                self.action_changed.emit(action_id, action["type"], kwargs["statut"])
         return result
 
     def delete_action(self, action_id: int) -> bool:
@@ -413,13 +431,9 @@ class PlanificateurService(QObject):
         limite: int = 50,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        return self._db.list_actions(
-            statut=statut, type_=type_, limite=limite, offset=offset
-        )
+        return self._db.list_actions(statut=statut, type_=type_, limite=limite, offset=offset)
 
-    def get_historique(
-        self, limite: int = 50, offset: int = 0
-    ) -> list[dict[str, Any]]:
+    def get_historique(self, limite: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         return self._db.get_historique(limite=limite, offset=offset)
 
     def get_stats(self) -> dict[str, int]:
@@ -536,9 +550,7 @@ class PlanificateurService(QObject):
         action_id = action["id"]
 
         # Marquer comme en cours
-        self._db.update_action(
-            action_id, statut="en_cours", nb_tentatives=0, erreur=None
-        )
+        self._db.update_action(action_id, statut="en_cours", nb_tentatives=0, erreur=None)
         self.action_changed.emit(action_id, action["type"], "en_cours")
 
         # EventBus — action démarrée (automatique)
@@ -656,7 +668,9 @@ class PlanificateurService(QObject):
                 )
             else:
                 # Re-tenter après un délai de backoff
-                delay = _BACKOFF_DELAYS[nb_tentatives - 1] if nb_tentatives <= len(_BACKOFF_DELAYS) else _BACKOFF_DELAYS[-1]
+                delay = (
+                    _BACKOFF_DELAYS[nb_tentatives - 1] if nb_tentatives <= len(_BACKOFF_DELAYS) else _BACKOFF_DELAYS[-1]
+                )
                 from datetime import datetime as dt
 
                 erreur_msg = erreur or f"Tentative {nb_tentatives}/{_MAX_RETRIES}"
@@ -698,9 +712,8 @@ class PlanificateurService(QObject):
         deleted = self._db.purge_old()
         if deleted:
             import logging
-            logging.getLogger(__name__).info(
-                f"Purge planificateur : {deleted} action(s) supprimée(s)"
-            )
+
+            logging.getLogger(__name__).info(f"Purge planificateur : {deleted} action(s) supprimée(s)")
 
     def force_purge(self) -> int:
         """Déclenche une purge manuelle. Retourne le nombre supprimé."""

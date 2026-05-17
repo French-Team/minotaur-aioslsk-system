@@ -170,6 +170,7 @@ def _patch_set_style_sheet() -> None:
     Sauvegarde l'original pour _qss_test_against_qt().
     """
     import traceback
+
     from PySide6.QtWidgets import QWidget
 
     global _qss_original_setStyleSheet
@@ -184,9 +185,7 @@ def _patch_set_style_sheet() -> None:
         # Pile d'appels : ne filtre QUE la frame du wrapper lui-même
         stack = traceback.extract_stack()
         useful = [f for f in stack if f.name != "_logged_set_style_sheet"]
-        stack_summary = " | ".join(
-            f"{f.filename}:{f.lineno} {f.name}" for f in useful[-4:]
-        )
+        stack_summary = " | ".join(f"{f.filename}:{f.lineno} {f.name}" for f in useful[-4:])
         _qss_call_log.append((cls_name, widget_id, stylesheet, stack_summary))
         # Appelle l'original
         original(widget, stylesheet)
@@ -275,20 +274,12 @@ class MainWindow(QMainWindow):
 
         # UI → Manager
         connexion_page.login_requested.connect(self._connexion_manager.login)
-        connexion_page.generate_requested.connect(
-            self._connexion_manager.generate_account
-        )
+        connexion_page.generate_requested.connect(self._connexion_manager.generate_account)
 
         # Manager → UI (page de connexion) — déjà géré dans les lambdas navigation ci-dessous
-        self._connexion_manager.disconnected.connect(
-            connexion_page.set_disconnected
-        )
-        self._connexion_manager.error_occurred.connect(
-            connexion_page.show_error
-        )
-        self._connexion_manager.generating.connect(
-            connexion_page.set_generating
-        )
+        self._connexion_manager.disconnected.connect(connexion_page.set_disconnected)
+        self._connexion_manager.error_occurred.connect(connexion_page.show_error)
+        self._connexion_manager.generating.connect(connexion_page.set_generating)
 
         # Manager → UI (header + footer + navigation)
         header = self._layout.header
@@ -314,9 +305,7 @@ class MainWindow(QMainWindow):
         )
 
         # Manager → barre de statut
-        self._connexion_manager.status_changed.connect(
-            self._status_label.setText
-        )
+        self._connexion_manager.status_changed.connect(self._status_label.setText)
 
         # Navigation automatique : connexion → accueil, déconnexion → connexion
         center = self._layout.center
@@ -326,14 +315,10 @@ class MainWindow(QMainWindow):
                 center.show_home(username),
             )
         )
-        self._connexion_manager.disconnected.connect(
-            lambda: center.show_connexion()
-        )
+        self._connexion_manager.disconnected.connect(lambda: center.show_connexion())
 
         # Bouton "Se déconnecter" de la page de connexion
-        connexion_page.disconnect_requested.connect(
-            self._connexion_manager.disconnect
-        )
+        connexion_page.disconnect_requested.connect(self._connexion_manager.disconnect)
 
         # Transmettre le gestionnaire aux bots (Recherche, etc.)
         center.set_connexion_manager(self._connexion_manager)
@@ -358,11 +343,11 @@ class MainWindow(QMainWindow):
 
     def _on_toast_event(self, event: object) -> None:
         """Affiche une notification toast pour les événements ERROR et WARN."""
-        severity = getattr(event, 'severity', '')
+        severity = getattr(event, "severity", "")
         if severity not in ("ERROR", "WARN"):
             return
-        title = getattr(event, 'title', '')
-        message = getattr(event, 'message', '')
+        title = getattr(event, "title", "")
+        message = getattr(event, "message", "")
         self._toast.show_toast(severity, title, message)
 
     def _build_menu(self) -> None:
@@ -383,7 +368,6 @@ class MainWindow(QMainWindow):
         inspect_action.toggled.connect(self._toggle_inspector)
         tools_menu.addAction(inspect_action)
 
-
         help_menu = menubar.addMenu("&Aide")
         about_action = QAction("À &propos", self)
         about_action.triggered.connect(self._show_about)
@@ -401,7 +385,6 @@ class MainWindow(QMainWindow):
             "Basé sur PySide6 et aioslsk.",
         )
 
-    
     # ── DevTool ──────────────────────────────────────────
 
     def _toggle_inspector(self, visible: bool) -> None:
@@ -433,8 +416,7 @@ class MainWindow(QMainWindow):
         """Retourne la fonction d'isolation d'erreur QSS par recherche binaire."""
         return _qss_pinpoint_error
 
-
-# ──────────────────────────────────────────
+    # ──────────────────────────────────────────
     #  API publique — accès aux zones
     # ──────────────────────────────────────────
 

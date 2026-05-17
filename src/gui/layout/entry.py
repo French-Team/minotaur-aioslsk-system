@@ -64,10 +64,10 @@ class LayoutEntry(QWidget):
         self._grid.addWidget(self.footer, 2, 0, 1, 3)
 
         # Proportions : left et right fixes, center prend le reste
-        self._grid.setColumnStretch(0, 0)   # left — pas d'étirement
-        self._grid.setColumnStretch(1, 1)   # center — prend l'espace
-        self._grid.setColumnStretch(2, 0)   # right — pas d'étirement
+        self._grid.setColumnStretch(0, 0)  # left — pas d'étirement
+        self._grid.setColumnStretch(1, 1)  # center — prend l'espace
+        self._grid.setColumnStretch(2, 0)  # right — pas d'étirement
 
-        self._grid.setRowStretch(0, 0)   # header — hauteur fixe
-        self._grid.setRowStretch(1, 1)   # body — prend l'espace
-        self._grid.setRowStretch(2, 0)   # footer — hauteur fixe
+        self._grid.setRowStretch(0, 0)  # header — hauteur fixe
+        self._grid.setRowStretch(1, 1)  # body — prend l'espace
+        self._grid.setRowStretch(2, 0)  # footer — hauteur fixe

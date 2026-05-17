@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 # ── Constantes ───────────────────────────────────────────────────
 _STATUT_COULEURS = {
     "en_cours": "#00e676",
@@ -42,6 +41,7 @@ _STATUT_LIBELLES = {
 # ═══════════════════════════════════════════════════════════════════
 #  Header — widget cliquable dans la bannière
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TelechargementsHeaderWidget(QFrame):
     """Bouton cliquable dans le header — colonne 2.
@@ -65,26 +65,20 @@ class TelechargementsHeaderWidget(QFrame):
         # Ligne 1 — titre
         self._title = QLabel("⬇  Téléchargements")
         self._title.setObjectName("telechargementsHeaderTitle")
-        self._title.setStyleSheet(
-            "color: #6c5ce7; font-size: 11px; font-weight: 600;"
-        )
+        self._title.setStyleSheet("color: #6c5ce7; font-size: 11px; font-weight: 600;")
         layout.addWidget(self._title)
 
         # Ligne 2 — statut
         self._statut = QLabel("En cours : 0  •  Attente : 0")
         self._statut.setObjectName("telechargementsHeaderStatut")
-        self._statut.setStyleSheet(
-            "color: #e4e4ec; font-size: 13px; font-weight: 500;"
-        )
+        self._statut.setStyleSheet("color: #e4e4ec; font-size: 13px; font-weight: 500;")
         layout.addWidget(self._statut)
 
     # ── API publique ─────────────────────────────────────────────
 
     def set_counts(self, en_cours: int, attente: int) -> None:
         """Met à jour les compteurs affichés."""
-        self._statut.setText(
-            f"En cours : {en_cours}  •  Attente : {attente}"
-        )
+        self._statut.setText(f"En cours : {en_cours}  •  Attente : {attente}")
 
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
         self.clicked.emit()
@@ -94,6 +88,7 @@ class TelechargementsHeaderWidget(QFrame):
 # ═══════════════════════════════════════════════════════════════════
 #  Ligne de téléchargement
 # ═══════════════════════════════════════════════════════════════════
+
 
 class DownloadRow(QFrame):
     """Ligne d'affichage d'un téléchargement."""
@@ -129,19 +124,13 @@ class DownloadRow(QFrame):
         # ── Nom du fichier ──
         self._file_label = QLabel(fichier)
         self._file_label.setObjectName("downloadFileName")
-        self._file_label.setStyleSheet(
-            "color: #e4e4ec; font-size: 13px; font-weight: 500;"
-            " min-width: 180px;"
-        )
+        self._file_label.setStyleSheet("color: #e4e4ec; font-size: 13px; font-weight: 500; min-width: 180px;")
         layout.addWidget(self._file_label)
 
         # ── Statut ──
         libelle = _STATUT_LIBELLES.get(statut, statut)
         self._status_label = QLabel(libelle)
-        self._status_label.setStyleSheet(
-            f"color: {couleur}; font-size: 12px; font-weight: 500;"
-            " min-width: 80px;"
-        )
+        self._status_label.setStyleSheet(f"color: {couleur}; font-size: 12px; font-weight: 500; min-width: 80px;")
         layout.addWidget(self._status_label)
 
         # ── Barre de progression ──
@@ -178,9 +167,7 @@ class DownloadRow(QFrame):
             if taille:
                 infos.append(taille)
             self._info_label = QLabel("  •  ".join(infos))
-            self._info_label.setStyleSheet(
-                "color: #5a5a6a; font-size: 11px;"
-            )
+            self._info_label.setStyleSheet("color: #5a5a6a; font-size: 11px;")
             layout.addWidget(self._info_label)
 
         layout.addStretch(1)
@@ -188,16 +175,12 @@ class DownloadRow(QFrame):
         # ── Boutons d'action ──
         if statut in ("en_cours", "attente"):
             self._btn_cancel = self._make_btn("✕ Annuler", "downloadBtnCancel")
-            self._btn_cancel.clicked.connect(
-                lambda: self.cancel_requested.emit(identifiant)
-            )
+            self._btn_cancel.clicked.connect(lambda: self.cancel_requested.emit(identifiant))
             layout.addWidget(self._btn_cancel)
 
         if statut == "echoue":
             self._btn_retry = self._make_btn("⟳ Réessayer", "downloadBtnRetry")
-            self._btn_retry.clicked.connect(
-                lambda: self.retry_requested.emit(identifiant)
-            )
+            self._btn_retry.clicked.connect(lambda: self.retry_requested.emit(identifiant))
             layout.addWidget(self._btn_retry)
 
     # ── Privé ────────────────────────────────────────────────────
@@ -224,6 +207,7 @@ class DownloadRow(QFrame):
 #  Page centrale — téléchargements
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TelechargementsPage(QFrame):
     """Page centrale de gestion des téléchargements.
 
@@ -248,17 +232,12 @@ class TelechargementsPage(QFrame):
 
         # ── En-tête ──
         header = QLabel("Téléchargements")
-        header.setStyleSheet(
-            "color: #6c5ce7; font-size: 16px; font-weight: 700;"
-            " padding-bottom: 8px;"
-        )
+        header.setStyleSheet("color: #6c5ce7; font-size: 16px; font-weight: 700; padding-bottom: 8px;")
         layout.addWidget(header)
 
         self._stats = QLabel("En cours : 0  •  En attente : 0  •  Échoué : 0")
         self._stats.setObjectName("downloadStats")
-        self._stats.setStyleSheet(
-            "color: #5a5a6a; font-size: 12px; padding-bottom: 12px;"
-        )
+        self._stats.setStyleSheet("color: #5a5a6a; font-size: 12px; padding-bottom: 12px;")
         layout.addWidget(self._stats)
 
         # ── Zone scrollable avec les sections ──
@@ -295,10 +274,7 @@ class TelechargementsPage(QFrame):
         """Ajoute un bloc de section dans la liste."""
         # Titre de section
         label = QLabel(titre)
-        label.setStyleSheet(
-            f"color: {couleur}; font-size: 13px; font-weight: 700;"
-            " padding: 8px 4px 4px 4px;"
-        )
+        label.setStyleSheet(f"color: {couleur}; font-size: 13px; font-weight: 700; padding: 8px 4px 4px 4px;")
         label.setObjectName(f"section_{section}")
         self._list_layout.addWidget(label)
 
@@ -316,12 +292,7 @@ class TelechargementsPage(QFrame):
         """Barre d'outils en bas de la page."""
         toolbar = QFrame()
         toolbar.setObjectName("downloadToolbar")
-        toolbar.setStyleSheet(
-            "background-color: #14141e;"
-            " border: 1px solid #2e2e3a;"
-            " border-radius: 6px;"
-            " padding: 6px;"
-        )
+        toolbar.setStyleSheet("background-color: #14141e; border: 1px solid #2e2e3a; border-radius: 6px; padding: 6px;")
 
         bar_layout = QHBoxLayout(toolbar)
         bar_layout.setContentsMargins(8, 4, 8, 4)
@@ -365,7 +336,8 @@ class TelechargementsPage(QFrame):
     ) -> None:
         """Ajoute un téléchargement à la liste."""
         row = DownloadRow(
-            identifiant, fichier,
+            identifiant,
+            fichier,
             statut=statut,
             progression=progression,
             vitesse=vitesse,
@@ -379,9 +351,7 @@ class TelechargementsPage(QFrame):
             "echoue": "echoue",
         }
         section_key = section_map.get(statut, "en_cours")
-        section_container: QVBoxLayout | None = getattr(
-            self, f"_section_{section_key}", None
-        )
+        section_container: QVBoxLayout | None = getattr(self, f"_section_{section_key}", None)
 
         if section_container is not None:
             section_container.addWidget(row)
@@ -400,9 +370,7 @@ class TelechargementsPage(QFrame):
             return False
         row = info["row"]
         section_key = info["section"]
-        section_container: QVBoxLayout | None = getattr(
-            self, f"_section_{section_key}", None
-        )
+        section_container: QVBoxLayout | None = getattr(self, f"_section_{section_key}", None)
         if section_container is not None:
             section_container.removeWidget(row)
         row.deleteLater()
@@ -439,12 +407,8 @@ class TelechargementsPage(QFrame):
 
         # Déplacer la ligne
         row = info["row"]
-        ancien_container: QVBoxLayout | None = getattr(
-            self, f"_section_{ancienne_section}", None
-        )
-        nouveau_container: QVBoxLayout | None = getattr(
-            self, f"_section_{nouvelle_section}", None
-        )
+        ancien_container: QVBoxLayout | None = getattr(self, f"_section_{ancienne_section}", None)
+        nouveau_container: QVBoxLayout | None = getattr(self, f"_section_{nouvelle_section}", None)
         if ancien_container is not None:
             ancien_container.removeWidget(row)
         if nouveau_container is not None:
@@ -466,16 +430,7 @@ class TelechargementsPage(QFrame):
 
     def _update_stats(self) -> None:
         """Met à jour le texte des statistiques."""
-        en_cours = sum(
-            1 for d in self._downloads.values() if d["statut"] == "en_cours"
-        )
-        attente = sum(
-            1 for d in self._downloads.values() if d["statut"] == "attente"
-        )
-        echoue = sum(
-            1 for d in self._downloads.values() if d["statut"] == "echoue"
-        )
-        self._stats.setText(
-            f"En cours : {en_cours}  •  En attente : {attente}"
-            f"  •  Échoué : {echoue}"
-        )
+        en_cours = sum(1 for d in self._downloads.values() if d["statut"] == "en_cours")
+        attente = sum(1 for d in self._downloads.values() if d["statut"] == "attente")
+        echoue = sum(1 for d in self._downloads.values() if d["statut"] == "echoue")
+        self._stats.setText(f"En cours : {en_cours}  •  En attente : {attente}  •  Échoué : {echoue}")

@@ -23,9 +23,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.widgets.bots.bot_accueil_knowledge import KNOWLEDGE
 from src.gui.theme_fragments.colors import COLORS
-
+from src.gui.widgets.bots.bot_accueil_knowledge import KNOWLEDGE
 
 # ── Sous-composants ─────────────────────────────────────────────
 
@@ -60,8 +59,7 @@ class MessageCard(QFrame):
         text_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         text_lbl.setTextFormat(Qt.TextFormat.RichText)
         text_lbl.setStyleSheet(
-            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px;"
-            " background: transparent; border: none;"
+            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 13px; background: transparent; border: none;"
         )
         layout.addWidget(text_lbl, 1)
 
@@ -91,9 +89,7 @@ class UserMessageCard(QFrame):
 
         text_lbl = QLabel(text)
         text_lbl.setWordWrap(True)
-        text_lbl.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        )
+        text_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         text_lbl.setStyleSheet(
             f"color: {COLORS['TEXT_SURFACE']}; font-size: 13px; font-style: italic;"
             " background: transparent; border: none;"
@@ -144,10 +140,7 @@ class BotAccueil(QFrame):
 
         # Historique des messages (mémoire + persistance JSON)
         self._messages: list[dict] = []
-        self._history_file = (
-            Path(__file__).resolve().parent.parent.parent.parent
-            / "data" / "bot_accueil_history.json"
-        )
+        self._history_file = Path(__file__).resolve().parent.parent.parent.parent / "data" / "bot_accueil_history.json"
         self._history_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Layout principal
@@ -158,9 +151,7 @@ class BotAccueil(QFrame):
         # ── Zone de messages (scrollable) ──
         self._messages_widget = QWidget()
         self._messages_widget.setObjectName("messagesWidget")
-        self._messages_widget.setStyleSheet(
-            "#messagesWidget { background: transparent; }"
-        )
+        self._messages_widget.setStyleSheet("#messagesWidget { background: transparent; }")
         self._messages_layout = QVBoxLayout(self._messages_widget)
         self._messages_layout.setContentsMargins(0, 0, 0, 0)
         self._messages_layout.setSpacing(8)
@@ -170,24 +161,16 @@ class BotAccueil(QFrame):
         self._messages_area.setWidget(self._messages_widget)
         self._messages_area.setWidgetResizable(True)
         self._messages_area.setFrameShape(QFrame.Shape.NoFrame)
-        self._messages_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self._messages_area.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self._messages_area.setStyleSheet(
-            "QScrollArea { background: transparent; }"
-        )
+        self._messages_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._messages_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._messages_area.setStyleSheet("QScrollArea { background: transparent; }")
 
         layout.addWidget(self._messages_area, 1)
 
         # ── Barre de suggestions ──
         self._suggestions_bar = QWidget()
         self._suggestions_bar.setObjectName("suggestionsBar")
-        self._suggestions_bar.setStyleSheet(
-            "#suggestionsBar { background: transparent; }"
-        )
+        self._suggestions_bar.setStyleSheet("#suggestionsBar { background: transparent; }")
         self._suggestions_layout = QHBoxLayout(self._suggestions_bar)
         self._suggestions_layout.setContentsMargins(4, 8, 4, 4)
         self._suggestions_layout.setSpacing(8)
@@ -197,9 +180,7 @@ class BotAccueil(QFrame):
         # ── Barre de saisie ──
         self._input_bar = QWidget()
         self._input_bar.setObjectName("inputBar")
-        self._input_bar.setStyleSheet(
-            "#inputBar { background: transparent; }"
-        )
+        self._input_bar.setStyleSheet("#inputBar { background: transparent; }")
         self._input_layout = QHBoxLayout(self._input_bar)
         self._input_layout.setContentsMargins(4, 4, 4, 0)
         self._input_layout.setSpacing(6)
@@ -271,7 +252,9 @@ class BotAccueil(QFrame):
     # ── Affichage des messages ──────────────────────────────────
 
     def add_message(
-        self, icon: str, text: str,
+        self,
+        icon: str,
+        text: str,
         suggestions: list[dict[str, str]] | None = None,
     ) -> None:
         """Ajoute un message du bot dans le chat.
@@ -289,17 +272,20 @@ class BotAccueil(QFrame):
         card = MessageCard(icon, text)
         # Insérer avant le stretch (dernier élément du layout)
         self._messages_layout.insertWidget(
-            self._messages_layout.count() - 1, card,
+            self._messages_layout.count() - 1,
+            card,
         )
 
         # Sauvegarder dans l'historique mémoire
-        self._messages.append({
-            "type": "bot",
-            "icon": icon,
-            "text": text,
-            "suggestions": suggestions,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self._messages.append(
+            {
+                "type": "bot",
+                "icon": icon,
+                "text": text,
+                "suggestions": suggestions,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         self._save_history()
 
         if suggestions is not None:
@@ -313,9 +299,7 @@ class BotAccueil(QFrame):
         self._clear_suggestions()
         for btn_data in suggestions:
             btn = _SuggestionButton(btn_data["label"], btn_data["action"])
-            btn.clicked.connect(
-                lambda checked=False, a=btn_data["action"]: self._on_suggestion(a)
-            )
+            btn.clicked.connect(lambda checked=False, a=btn_data["action"]: self._on_suggestion(a))
             self._suggestions_layout.addWidget(btn)
         self._suggestions_layout.addStretch(1)
 
@@ -338,13 +322,16 @@ class BotAccueil(QFrame):
         """Ajoute un message de l'utilisateur dans le chat."""
         card = UserMessageCard(text)
         self._messages_layout.insertWidget(
-            self._messages_layout.count() - 1, card,
+            self._messages_layout.count() - 1,
+            card,
         )
-        self._messages.append({
-            "type": "user",
-            "text": text,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self._messages.append(
+            {
+                "type": "user",
+                "text": text,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         self._save_history()
         QTimer.singleShot(50, self._scroll_to_bottom)
 
@@ -474,10 +461,7 @@ class BotAccueil(QFrame):
 
     def _check_history_exists(self) -> None:
         """Vérifie si un fichier d'historique non vide existe."""
-        self._has_history = (
-            self._history_file.exists()
-            and self._history_file.stat().st_size > 10
-        )
+        self._has_history = self._history_file.exists() and self._history_file.stat().st_size > 10
 
     def _restore_history(self) -> None:
         """Restaure la conversation précédente depuis le fichier JSON.
@@ -487,9 +471,7 @@ class BotAccueil(QFrame):
         # 1. Lire l'historique depuis le fichier d'abord
         messages: list[dict] = []
         try:
-            data = json.loads(
-                self._history_file.read_text(encoding='utf-8')
-            )
+            data = json.loads(self._history_file.read_text(encoding="utf-8"))
             messages = data.get("messages", [])
         except (json.JSONDecodeError, KeyError, OSError):
             messages = []
@@ -511,12 +493,14 @@ class BotAccueil(QFrame):
             if msg.get("type") == "bot":
                 card = MessageCard(msg["icon"], msg["text"])
                 self._messages_layout.insertWidget(
-                    self._messages_layout.count() - 1, card,
+                    self._messages_layout.count() - 1,
+                    card,
                 )
             elif msg.get("type") == "user":
                 card = UserMessageCard(msg["text"])
                 self._messages_layout.insertWidget(
-                    self._messages_layout.count() - 1, card,
+                    self._messages_layout.count() - 1,
+                    card,
                 )
 
         # 4. Restaurer les suggestions du dernier message
@@ -531,7 +515,7 @@ class BotAccueil(QFrame):
         try:
             self._history_file.write_text(
                 json.dumps({"messages": self._messages}, ensure_ascii=False, indent=2),
-                encoding='utf-8',
+                encoding="utf-8",
             )
         except OSError:
             pass
@@ -580,9 +564,7 @@ class BotAccueil(QFrame):
         # Ajouter le bouton "Restaurer" si un historique existe
         self._check_history_exists()
         if self._has_history:
-            suggestions.append(
-                {"label": "📜 Conversation précédente", "action": "restore_history"}
-            )
+            suggestions.append({"label": "📜 Conversation précédente", "action": "restore_history"})
 
         self.add_message(
             "🖐️",

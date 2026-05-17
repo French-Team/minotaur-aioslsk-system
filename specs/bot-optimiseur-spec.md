@@ -410,3 +410,85 @@ class BotOptimiseur(QFrame):
 ---
 
 *Spec v2 — corrections appliquées suite à la revue. Validé avant implémentation.*
+
+## 11. ❓ Questions résolues
+
+### Architecture et interface
+
+- [x] **Viewer + Dashboard (60/40) plutôt qu'un tableau ou une liste unique** : La séparation viewer/dashboard permet de voir à la fois le flux chronologique des modifications (viewer, gauche) et le résumé visuel des changements (dashboard, droite). Un tableau unique aurait mélangé chronologie et diff, rendant la lecture moins intuitive. Le pattern « journal + synthèse » est un classique des outils de profiling et d'optimisation.
+- [x] **Barre d'action dynamique générée depuis les fichiers JSON** : Les boutons de profil sont créés en lisant les fichiers `data/profils/*.json` au démarrage. Évite de coder en dur les profils et permet à l'utilisateur d'ajouter/modifier/supprimer des profils sans toucher au code. Le `QFileSystemWatcher` assure le rechargement automatique si les fichiers changent.
+- [x] **QTextEdit en lecture seule pour le viewer** : Suffisant pour des logs texte simples. Pas besoin d'une QTableWidget ou d'une QListView — les logs sont du texte formaté avec des timestamps, pas des données structurées à filtrer/trier.
+- [x] **Dashboard statique (labels + layout) plutôt qu'un graphique ou un diagramme** : Les diffs sont une liste de paires clé/valeur (ancienne → nouvelle). Un layout avec des QLabel formatés est plus simple, plus lisible et plus facile à maintenir qu'une librairie de graphiques.
+- [x] **Overlay flottant (QFrame) pour l'auto-retour 3s** : L'overlay semi-transparent avec timer affiché est un compromis entre informer l'utilisateur et ne pas bloquer l'interface. Un QMessageBox modal aurait bloqué toute interaction. Un simple label en ToolTip aurait été trop discret.
+- [x] **Renommage « Utilisateurs » → « Optimiseur » limité au footer UNIQUEMENT** : La page de config Utilisateurs (amis/bloqués) dans la sidebar reste inchangée. Seuls le bouton footer et la page bot associée sont renommés. Évite la confusion entre les deux entités distinctes qui portaient le même nom.
+
+### Profils et stockage
+
+- [x] **JSON pour les profils plutôt que YAML, TOML ou base de données** : JSON est lisible, largement supporté, et assez flexible pour des dictionnaires imbriqués (params → catégorie → clé → valeur). YAML ajoute une dépendance inutile. TOML est trop rigide pour la structure imbriquée. SQLite serait disproportionné pour des fichiers de configuration statiques.
+- [x] **Un fichier .json = un profil** : Simple, prévisible, facile à ajouter/supprimer. Pas de fichier maître listant les profils (qui serait une source de désynchronisation). Le nom du fichier (sans extension) sert d'ID unique.
+- [x] **Métadonnées (name, icon, description, order) séparées des params** : Les métadonnées décrivent le profil dans l'UI, les params sont les données d'application. Séparer les deux évite de polluer les params avec des champs d'affichage et permet d'itérer sur les params sans se soucier des métadonnées.
+- [x] **3 profils initiaux (Par défaut, Puissance max, Extrême) sans profil « Optimiser »** : Le nom « Optimiser » est réservé au bot lui-même pour éviter toute confusion. Les trois profils couvrent le spectre : réglages standards (par défaut), performance brute (puissance max), et tout débrider (extrême).
+- [x] **Catégories exclues du profil : « utilisateurs » (amis/bloqués)** : La page config Utilisateurs gère la liste des amis et des utilisateurs bloqués. Ce n'est pas pertinent pour des profils d'optimisation système. Les autres pages (Général, Réseau, Recherche, Téléchargement, Partages, Salons, Debug) sont toutes configurables.
+
+### Mécanisme d'application
+
+- [x] **applique_profile() sur chaque page de config plutôt qu'un module centralisé** : Chaque page de config connaît ses propres widgets et sait comment les lire/modifier. Un module externe devrait avoir une connaissance interne des widgets de chaque page, créant un couplage fort. Le pattern « stratégie » (chaque page implémente sa propre logique) est plus maintenable et évolutif.
+- [x] **_find_widget_by_key() pour mapper config_key → widget** : Les pages de config ont des widgets identifiés par `config_key` (ex: `connexion.port`). Une fonction helper centralisée dans ConfigPage évite de dupliquer la logique de recherche dans chaque page. Le parcours récursif des layouts permet de trouver n'importe quel widget sans connaître sa position exacte.
+- [x] **highlight_widget() avec animation temporaire (1.5s)** : Le scroll automatique (`ensureWidgetVisible`) + surbrillance de 1.5s permet à l'utilisateur de voir visuellement quel widget a été modifié. Sans highlight, l'utilisateur ne saurait pas ce qui a changé sur la page. La durée de 1.5s est suffisante pour attirer l'attention sans être intrusive.
+- [x] **Pause de 0.5s entre les pages** : Permet à l'utilisateur de voir chaque page visitée et les highlights s'exécuter. Sans pause, les changements seraient trop rapides pour être perçus.
+- [x] **Auto-retour après 3s avec overlay + bouton « Rester »** : L'auto-retour automatique évite à l'utilisateur de naviguer manuellement vers l'Optimiseur après avoir appliqué un profil. Le compte à rebours de 3s et le bouton « Rester » donnent le contrôle à l'utilisateur. Sans cette fonctionnalité, l'utilisateur resterait sur une page de config sans savoir comment revenir.
+
+### Architecture et couplage
+
+- [x] **BotOptimiseur reçoit CenterZone par injection** : L'injection de CenterZone (le conteneur principal) permet à l'Optimiseur de naviguer vers les pages de config et d'accéder à leurs widgets. Pas de singleton global, pas de dépendance circulaire. L'Optimiseur ne connaît que l'interface de CenterZone (show_page, _pages), pas son implémentation interne.
+- [x] **Pas de connexion directe au service Soulseek** : L'Optimiseur n'interagit pas avec Soulseek. Il modifie uniquement les paramètres de l'application via les pages de config. La connexion Soulseek est gérée indirectement par les pages de config qui mettent à jour `app_config`.
+- [x] **Signal page_changed pour la navigation (compatible avec les autres bots)** : Tous les bots utilisent le même signal `page_changed = Signal(str)` pour la navigation. L'Optimiseur suit la même convention, ce qui permet de le brancher simplement sur le mécanisme de navigation existant.
+- [x] **CATEGORIE_TO_PAGE : mapping clé profil → nom page** : Un dictionnaire centralisé qui fait le lien entre les clés du JSON de profil (`reseau`, `telechargement`, etc.) et les noms des pages dans CenterZone. Si une catégorie n'a pas de correspondance, elle est ignorée avec un avertissement. Facilite l'ajout de nouvelles catégories.
+
+### Gestion des états et erreurs
+
+- [x] **Aucun profil trouvé → message informatif dans la barre d'action** : Si `data/profils/` est vide ou inexistant, la barre d'action affiche un message clair plutôt que de rester vide. L'utilisateur comprend immédiatement qu'il doit ajouter des profils.
+- [x] **Fichier JSON invalide → log dans le viewer + fichier ignoré** : Un profil mal formé ne bloque pas le chargement des autres profils. L'erreur est signalée dans le viewer pour que l'utilisateur puisse corriger le fichier.
+- [x] **Page de config sans applique_profile() → log warning + skip** : Si une page de config n'a pas encore implémenté `applique_profile()`, la catégorie correspondante est ignorée avec un avertissement. L'application des autres catégories continue normalement.
+- [x] **Widget introuvable dans la page → log warning + diff avec « ? »** : Si une `config_key` du profil ne correspond à aucun widget, la modification est ignorée mais l'information est loggée (valeur « ? » dans le diff). L'utilisateur peut voir que certains paramètres n'ont pas été appliqués.
+
+## 11. ❓ Questions résolues
+
+### Architecture et interface
+
+- [x] **Viewer + Dashboard (60/40) plutôt qu’un tableau ou une liste unique** : La séparation viewer/dashboard permet de voir à la fois le flux chronologique des modifications (viewer, gauche) et le résumé visuel des changements (dashboard, droite). Un tableau unique aurait mélangé chronologie et diff, rendant la lecture moins intuitive. Le pattern « journal + synthèse » est un classique des outils de profiling et d’optimisation.
+- [x] **Barre d’action dynamique générée depuis les fichiers JSON** : Les boutons de profil sont créés en lisant les fichiers `data/profils/*.json` au démarrage. Évite de coder en dur les profils et permet à l’utilisateur d’ajouter/modifier/supprimer des profils sans toucher au code. Le `QFileSystemWatcher` assure le rechargement automatique si les fichiers changent.
+- [x] **QTextEdit en lecture seule pour le viewer** : Suffisant pour des logs texte simples. Pas besoin d’une QTableWidget ou d’une QListView — les logs sont du texte formaté avec des timestamps, pas des données structurées à filtrer/trier.
+- [x] **Dashboard statique (labels + layout) plutôt qu’un graphique ou un diagramme** : Les diffs sont une liste de paires clé/valeur (ancienne → nouvelle). Un layout avec des QLabel formatés est plus simple, plus lisible et plus facile à maintenir qu’une librairie de graphiques.
+- [x] **Overlay flottant (QFrame) pour l’auto-retour 3s** : L’overlay semi-transparent avec timer affiché est un compromis entre informer l’utilisateur et ne pas bloquer l’interface. Un QMessageBox modal aurait bloqué toute interaction. Un simple label en ToolTip aurait été trop discret.
+- [x] **Renommage « Utilisateurs » → « Optimiseur » limité au footer UNIQUEMENT** : La page de config Utilisateurs (amis/bloqués) dans la sidebar reste inchangée. Seuls le bouton footer et la page bot associée sont renommés. Évite la confusion entre les deux entités distinctes qui portaient le même nom.
+
+### Profils et stockage
+
+- [x] **JSON pour les profils plutôt que YAML, TOML ou base de données** : JSON est lisible, largement supporté, et assez flexible pour des dictionnaires imbriqués (params → catégorie → clé → valeur). YAML ajoute une dépendance inutile. TOML est trop rigide pour la structure imbriquée. SQLite serait disproportionné pour des fichiers de configuration statiques.
+- [x] **Un fichier .json = un profil** : Simple, prévisible, facile à ajouter/supprimer. Pas de fichier maître listant les profils (qui serait une source de désynchronisation). Le nom du fichier (sans extension) sert d’ID unique.
+- [x] **Métadonnées (name, icon, description, order) séparées des params** : Les métadonnées décrivent le profil dans l’UI, les params sont les données d’application. Séparer les deux évite de polluer les params avec des champs d’affichage et permet d’itérer sur les params sans se soucier des métadonnées.
+- [x] **3 profils initiaux (Par défaut, Puissance max, Extrême) sans profil « Optimiser »** : Le nom « Optimiser » est réservé au bot lui-même pour éviter toute confusion. Les trois profils couvrent le spectre : réglages standards (par défaut), performance brute (puissance max), et tout débrider (extrême).
+- [x] **Catégories exclues du profil : « utilisateurs » (amis/bloqués)** : La page config Utilisateurs gère la liste des amis et des utilisateurs bloqués. Ce n’est pas pertinent pour des profils d’optimisation système. Les autres pages (Général, Réseau, Recherche, Téléchargement, Partages, Salons, Debug) sont toutes configurables.
+
+### Mécanisme d’application
+
+- [x] **applique_profile() sur chaque page de config plutôt qu’un module centralisé** : Chaque page de config connaît ses propres widgets et sait comment les lire/modifier. Un module externe devrait avoir une connaissance interne des widgets de chaque page, créant un couplage fort. Le pattern « stratégie » (chaque page implémente sa propre logique) est plus maintenable et évolutif.
+- [x] **_find_widget_by_key() pour mapper config_key → widget** : Les pages de config ont des widgets identifiés par `config_key` (ex: `connexion.port`). Une fonction helper centralisée dans ConfigPage évite de dupliquer la logique de recherche dans chaque page. Le parcours récursif des layouts permet de trouver n’importe quel widget sans connaître sa position exacte.
+- [x] **highlight_widget() avec animation temporaire (1.5s)** : Le scroll automatique (`ensureWidgetVisible`) + surbrillance de 1.5s permet à l’utilisateur de voir visuellement quel widget a été modifié. Sans highlight, l’utilisateur ne saurait pas ce qui a changé sur la page. La durée de 1.5s est suffisante pour attirer l’attention sans être intrusive.
+- [x] **Pause de 0.5s entre les pages** : Permet à l’utilisateur de voir chaque page visitée et les highlights s’exécuter. Sans pause, les changements seraient trop rapides pour être perçus.
+- [x] **Auto-retour après 3s avec overlay + bouton « Rester »** : L’auto-retour automatique évite à l’utilisateur de naviguer manuellement vers l’Optimiseur après avoir appliqué un profil. Le compte à rebours de 3s et le bouton « Rester » donnent le contrôle à l’utilisateur. Sans cette fonctionnalité, l’utilisateur resterait sur une page de config sans savoir comment revenir.
+
+### Architecture et couplage
+
+- [x] **BotOptimiseur reçoit CenterZone par injection** : L’injection de CenterZone (le conteneur principal) permet à l’Optimiseur de naviguer vers les pages de config et d’accéder à leurs widgets. Pas de singleton global, pas de dépendance circulaire. L’Optimiseur ne connaît que l’interface de CenterZone (show_page, _pages), pas son implémentation interne.
+- [x] **Pas de connexion directe au service Soulseek** : L’Optimiseur n’interagit pas avec Soulseek. Il modifie uniquement les paramètres de l’application via les pages de config. La connexion Soulseek est gérée indirectement par les pages de config qui mettent à jour `app_config`.
+- [x] **Signal page_changed pour la navigation (compatible avec les autres bots)** : Tous les bots utilisent le même signal `page_changed = Signal(str)` pour la navigation. L’Optimiseur suit la même convention, ce qui permet de le brancher simplement sur le mécanisme de navigation existant.
+- [x] **CATEGORIE_TO_PAGE : mapping clé profil → nom page** : Un dictionnaire centralisé qui fait le lien entre les clés du JSON de profil (`reseau`, `telechargement`, etc.) et les noms des pages dans CenterZone. Si une catégorie n’a pas de correspondance, elle est ignorée avec un avertissement. Facilite l’ajout de nouvelles catégories.
+
+### Gestion des états et erreurs
+
+- [x] **Aucun profil trouvé → message informatif dans la barre d’action** : Si `data/profils/` est vide ou inexistant, la barre d’action affiche un message clair plutôt que de rester vide. L’utilisateur comprend immédiatement qu’il doit ajouter des profils.
+- [x] **Fichier JSON invalide → log dans le viewer + fichier ignoré** : Un profil mal formé ne bloque pas le chargement des autres profils. L’erreur est signalée dans le viewer pour que l’utilisateur puisse corriger le fichier.
+- [x] **Page de config sans applique_profile() → log warning + skip** : Si une page de config n’a pas encore implémenté `applique_profile()`, la catégorie correspondante est ignorée avec un avertissement. L’application des autres catégories continue normalement.
+- [x] **Widget introuvable dans la page → log warning + diff avec « ? »** : Si une `config_key` du profil ne correspond à aucun widget, la modification est ignorée mais l’information est loggée (valeur « ? » dans le diff). L’utilisateur peut voir que certains paramètres n’ont pas été appliqués.

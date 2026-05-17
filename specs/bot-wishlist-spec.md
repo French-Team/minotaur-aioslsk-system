@@ -491,3 +491,59 @@ timeout = settings.wishlist_request_timeout  # int (secondes)
 - [ ] Connecter au backend `SoulseekService` (remplacer les données simulées)
 - [ ] Ajouter gestion des erreurs (client non connecté, timeout, etc.)
 - [ ] Ajouter animation ou feedback après ajout/modification/suppression
+
+
+---
+
+## 11. ❓ Questions résolues
+
+### Architecture et interface
+
+- [x] **WishlistCard (QFrame) plutôt que QTableWidget ou QListView** : Les souhaits sont des entités avec un statut binaire (activé/désactivé), pas des colonnes de données à trier. Une carte visuelle offre un toggle visible, un bouton de recherche immédiate, et une meilleure hiérarchie d’information. QTableWidget aurait été trop rigide pour ces interactions.
+
+- [x] **QScrollArea pour la liste (pas de limite haute)** : Contrairement aux résultats de recherche (200 max) ou aux téléchargements (limite implicite), une wishlist peut contenir 50, 100 ou 200 souhaits sans impact notable sur les performances. Un scroll infini évite à l’utilisateur de devoir paginer.
+
+- [x] **Barre d'ajout inline (bas de page) plutôt que dialogue modal** : L’ajout d’un souhait est l’action la plus fréquente. Un champ de saisie toujours visible en bas évite d’ouvrir un dialogue à chaque ajout. Pattern cohérent avec les applications de todo list.
+
+- [x] **4 stat cards (Total, Actifs, Inactifs, Erreurs) plutôt que 2-3** : Total + Actifs donne le ratio d’utilisation. Inactifs montre ce qui est désactivé volontairement. Erreurs alerte sur les souhaits qui ont échoué (recherche infructueuse, problème réseau). Chaque carte a un rôle distinct.
+
+- [x] **Filtres à 4 états (boutons toggle exclusifs) plutôt que ComboBox** : Les 4 filtres (Tous, Actifs, Inactifs, Erreurs) correspondent exactement aux 4 statuts des stat cards. Des boutons toggle offrent un feedback visuel plus rapide qu’un ComboBox déroulant.
+
+### Stockage et persistance
+
+- [x] **Stockage JSON via `_load_wishlist()`/​`_save_wishlist()` plutôt que SQLite** : Une wishlist contient typiquement 20-100 entrées avec une structure simple (`query`, `enabled`, `date_added`). JSON est plus simple à lire/éditer manuellement et ne nécessite pas de connexion DB. SQLite serait overkill pour ce volume.
+
+- [x] **Signal `wishlist_changed` déclenche la sauvegarde automatique** : Pattern événementiel : chaque action (add/toggle/delete/edit) émet le signal, et le handler centralise la persistance. Évite les appels `_save_wishlist()` éparpillés dans chaque méthode.
+
+- [x] **Pas de limite explicite du nombre de souhaits** : Soulseek n’impose pas de limite sur les wishlist items. Une limite artificielle (ex: 200) frustrerait l’utilisateur. La QScrollArea gère le débordement naturellement.
+
+- [x] **Pas d’historique des souhaits supprimés** : Contrairement aux téléchargements (où l’historique est utile pour le suivi), un souhait supprimé est simplement retiré. Pas de valeur ajoutée à garder une trace.
+
+### Backend et connexion Soulseek
+
+- [x] **Données simulées en attendant la connexion SoulseekService** : Les données simulées (`_WISHLIST_DATA`) ont permis de développer et tester l’UI indépendamment du backend. Architecture préparée pour le remplacement : mêmes signatures de méthode, mêmes signaux.
+
+- [x] **Wishlist connectée via le service central SoulseekService** : L’accès aux souhaits se fera via le service central, pas un service wishlist dédié. Le chemin d’accès exact sera déterminé lors de l’intégration (settings.wishlist ou API dédiée).
+
+- [x] **Pas de service wishlist dédié (contrairement à Téléchargement, Recherche)** : La wishlist est suffisamment simple (CRUD + statut binaire) pour être gérée directement dans le widget. Un service séparé serait une abstraction supplémentaire sans bénéfice.
+
+- [x] **Recherche immédiate (`search_now`) délègue au Bot Recherche** : Quand l’utilisateur clique « Rechercher maintenant » sur un souhait, le bot émet `page_changed("Recherche", query)` pour naviguer vers le bot de recherche. Évite de dupliquer la logique de recherche.
+
+### UX et interactions
+
+- [x] **Toggle binaire (actif/inactif) plutôt que menu déroulant** : Un souhait est soit actif (recherché automatiquement) soit inactif (conservé mais pas recherché). Pas d’état intermédiaire. Le toggle visuel (cœur plein/vide, switch coloré) est instantané et intuitif.
+
+- [x] **Édition inline (remplacement de la requête) plutôt que dialogue d’édition** : Modifier un souhait consiste à changer la chaîne de recherche. Un input inline évite l’ouverture d’un dialogue pour une action simple. Le pattern « cliquer → éditer → valider » est plus rapide.
+
+- [x] **Confirmation de suppression manquante (todo connu)** : La spec liste explicitement l’ajout d’un `QMessageBox` de confirmation comme tâche restante. Décision volontairement reportée pour prioriser le CRUD fonctionnel.
+
+- [x] **Recherche textuelle case-insensitive dans la wishlist** : L’utilisateur tape un terme et la liste se filtre en temps réel. Utilise `str.lower()` dans la compréhension de liste. Pas de fuzzy matching (trop complexe pour le besoin).
+
+- [x] **Pas de Drag & Drop pour réordonner les souhaits** : Les souhaits n’ont pas d’ordre significatif (ils sont recherchés en parallèle). L’ordre d’affichage est celui d’ajout. Le Drag & Drop ajouterait de la complexité pour aucun gain fonctionnel.
+
+### Évolution et périmètre
+
+- [x] **Pas de notifications push (Soulseek ne les supporte pas)** : Soulseek ne fournit pas de mécanisme pour notifier quand un résultat correspond à un souhait. La vérification se fait uniquement par recherche active.
+
+- [x] **Évolution future : wishlist partagée, suggestions automatiques** : Listé dans « Évolution future » car nécessite des fonctionnalités serveur que FreeBuff n’a pas. Préservé dans la spec pour garder la vision produit.
+

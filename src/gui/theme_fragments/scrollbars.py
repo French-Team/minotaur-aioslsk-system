@@ -3,7 +3,6 @@ CSS fragment — scrollbars.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-from .colors import COLORS
 
 CSS = """\
 QScrollBar::handle:vertical {

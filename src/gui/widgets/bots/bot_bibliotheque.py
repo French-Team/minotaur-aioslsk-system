@@ -14,8 +14,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from PySide6.QtCore import Qt, Signal, QTimer, QEvent
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import (
     QDialog,
@@ -38,19 +37,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.theme_fragments.colors import COLORS
 from src.services import app_config
+from src.services.event_bus import EventBus
 from src.services.library_db import get_library_db
 from src.services.library_scanner import LibraryScanner
 from src.services.soulseek_client import soulseek_service
-from src.services.event_bus import EventBus
-from src.gui.theme_fragments.colors import COLORS
-
 
 # ── Constantes ──────────────────────────────────────────────────────
 _STAT_COLORS = {
-    "dossiers": COLORS["ACCENT"],       # Violet
-    "fichiers": COLORS["STAT_FILES"],   # Vert
-    "audio":    COLORS["STAT_AUDIO"],   # Jaune
+    "dossiers": COLORS["ACCENT"],  # Violet
+    "fichiers": COLORS["STAT_FILES"],  # Vert
+    "audio": COLORS["STAT_AUDIO"],  # Jaune
 }
 
 _PLACEHOLDER_SEARCH = "🔍 Rechercher dans la bibliothèque…"
@@ -59,7 +57,7 @@ _PLACEHOLDER_SEARCH = "🔍 Rechercher dans la bibliothèque…"
 _INIT_STATS = {
     "dossiers": 0,
     "fichiers": 0,
-    "audio":    0,
+    "audio": 0,
 }
 
 # Cache des statistiques entre les cycles de vie (persiste même si le
@@ -73,17 +71,14 @@ _LAST_SCAN: dict[str, int | float | str] | None = None
 
 # ── Sous-composants ─────────────────────────────────────────────────
 
+
 class _StatCard(QFrame):
     """Badge de statistique compact (ex: '📁 42 Dossiers')."""
 
     def __init__(self, value: str | int, label: str, color: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("statCardBadge")
-        self.setStyleSheet(
-            "#statCardBadge {"
-            f"  background: {COLORS['BG_BTN']}; border-radius: 4px;"
-            "}"
-        )
+        self.setStyleSheet(f"#statCardBadge {{  background: {COLORS['BG_BTN']}; border-radius: 4px;}}")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 3, 10, 3)
@@ -99,8 +94,7 @@ class _StatCard(QFrame):
         label_lbl = QLabel(label)
         label_lbl.setObjectName("statCardLabel")
         label_lbl.setStyleSheet(
-            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 11px;"
-            " background: transparent; border: none;"
+            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 11px; background: transparent; border: none;"
         )
         layout.addWidget(label_lbl)
 
@@ -112,8 +106,8 @@ class _StatCard(QFrame):
 class _Toolbar(QFrame):
     """Barre d'outils : champ recherche + barre de progression + bouton Re-scanner."""
 
-    search_requested = Signal(str)          # texte de recherche
-    rescan_requested = Signal()             # clic sur Re-scanner
+    search_requested = Signal(str)  # texte de recherche
+    rescan_requested = Signal()  # clic sur Re-scanner
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -126,9 +120,7 @@ class _Toolbar(QFrame):
         self._search_input = QLineEdit()
         self._search_input.setObjectName("bibliothequeSearch")
         self._search_input.setPlaceholderText(_PLACEHOLDER_SEARCH)
-        self._search_input.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self._search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self._search_input)
 
         # Barre de progression (cachée par défaut)
@@ -193,6 +185,7 @@ class _Toolbar(QFrame):
 
 # ── FileInfoPopup ──────────────────────────────────────────────────
 
+
 class _FileInfoPopup(QDialog):
     """Fenêtre modale affichant les métadonnées complètes d'un fichier.
 
@@ -228,8 +221,8 @@ class _FileInfoPopup(QDialog):
 
         # Infos générales
         info_rows = [
-            ("📄 Nom",     self._file.get("name", "")),
-            ("📏 Taille",  self._format_size(self._file.get("size_bytes", 0))),
+            ("📄 Nom", self._file.get("name", "")),
+            ("📏 Taille", self._format_size(self._file.get("size_bytes", 0))),
             ("📁 Dossier", self._file.get("folder_label") or self._file.get("folder_path", "")),
             ("📅 Modifié", self._format_date(self._file.get("modified_at", ""))),
         ]
@@ -247,12 +240,15 @@ class _FileInfoPopup(QDialog):
 
             audio_rows = [
                 ("🎵 Artiste", artist or "—"),
-                ("💿 Album",   album or "—"),
-                ("🎵 Titre",   title_meta or "—"),
-                ("#️⃣ Piste",   str(self._file.get("track", "")) if self._file.get("track") else "—"),
-                ("📅 Année",   str(self._file.get("year", "")) if self._file.get("year") else "—"),
+                ("💿 Album", album or "—"),
+                ("🎵 Titre", title_meta or "—"),
+                ("#️⃣ Piste", str(self._file.get("track", "")) if self._file.get("track") else "—"),
+                ("📅 Année", str(self._file.get("year", "")) if self._file.get("year") else "—"),
                 ("🎧 Bitrate", f"{self._file['bitrate']} kbps" if self._file.get("bitrate") else "—"),
-                ("⏱ Durée",    self._format_duration(self._file.get("duration", 0)) if self._file.get("duration") else "—"),
+                (
+                    "⏱ Durée",
+                    self._format_duration(self._file.get("duration", 0)) if self._file.get("duration") else "—",
+                ),
             ]
             for label, value in audio_rows:
                 layout.addWidget(self._make_info_row(label, value))
@@ -318,7 +314,7 @@ class _FileInfoPopup(QDialog):
         """Ouvre la confirmation de suppression."""
         self.accept()
         parent = self.parent()
-        if parent and hasattr(parent, '_on_delete_file'):
+        if parent and hasattr(parent, "_on_delete_file"):
             parent._on_delete_file(self._file)
 
     @staticmethod
@@ -352,6 +348,7 @@ class _FileInfoPopup(QDialog):
 
 
 # ── Bot principal ──────────────────────────────────────────────────
+
 
 class BotBibliotheque(QFrame):
     """Tableau de bord de gestion des fichiers partagés.
@@ -409,7 +406,6 @@ class BotBibliotheque(QFrame):
                 card.set_value(self._stats.get(key, 0))
 
         if self._soulseek_connected:
-
             # Restaurer les infos du dernier scan dans la barre de statut
             if _LAST_SCAN is not None:
                 self._update_status()
@@ -457,9 +453,9 @@ class BotBibliotheque(QFrame):
 
         self._stat_cards: dict[str, _StatCard] = {}
         configs = [
-            ("dossiers", "📁 Dossiers",  _STAT_COLORS["dossiers"]),
-            ("fichiers", "📄 Fichiers",  _STAT_COLORS["fichiers"]),
-            ("audio",    "🎵 Audio",     _STAT_COLORS["audio"]),
+            ("dossiers", "📁 Dossiers", _STAT_COLORS["dossiers"]),
+            ("fichiers", "📄 Fichiers", _STAT_COLORS["fichiers"]),
+            ("audio", "🎵 Audio", _STAT_COLORS["audio"]),
         ]
 
         for key, label, color in configs:
@@ -494,12 +490,8 @@ class BotBibliotheque(QFrame):
         self._connect_btn.setObjectName("connectSoulseekBtn")
         # La connexion réelle est gérée ailleurs ; ce bouton émet un signal
         # pour naviguer vers la page de connexion
-        self._connect_btn.clicked.connect(
-            lambda: self.page_changed.emit("Connexion")
-        )
-        disconnected_layout.addWidget(
-            self._connect_btn, alignment=Qt.AlignmentFlag.AlignCenter
-        )
+        self._connect_btn.clicked.connect(lambda: self.page_changed.emit("Connexion"))
+        disconnected_layout.addWidget(self._connect_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self._main_stack.addWidget(self._disconnected_page)  # index 0
 
@@ -526,15 +518,9 @@ class BotBibliotheque(QFrame):
             ["📄 Nom", "📏 Taille", "🎵 Durée", "🎧 Bitrate", "📁 Dossier", "📅 Modifié"]
         )
         self._table_widget.setAlternatingRowColors(True)
-        self._table_widget.setSelectionBehavior(
-            self._table_widget.SelectionBehavior.SelectRows
-        )
-        self._table_widget.setSelectionMode(
-            self._table_widget.SelectionMode.SingleSelection
-        )
-        self._table_widget.setEditTriggers(
-            self._table_widget.EditTrigger.NoEditTriggers
-        )
+        self._table_widget.setSelectionBehavior(self._table_widget.SelectionBehavior.SelectRows)
+        self._table_widget.setSelectionMode(self._table_widget.SelectionMode.SingleSelection)
+        self._table_widget.setEditTriggers(self._table_widget.EditTrigger.NoEditTriggers)
         # Menu contextuel
         self._table_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._table_widget.customContextMenuRequested.connect(self._on_context_menu)
@@ -556,10 +542,7 @@ class BotBibliotheque(QFrame):
 
     def _update_connection_state(self) -> None:
         """Vérifie l'état de connexion Soulseek et bascule la vue."""
-        connected = (
-            soulseek_service is not None
-            and soulseek_service.is_connected
-        )
+        connected = soulseek_service is not None and soulseek_service.is_connected
         # Court-circuit : éviter un refresh inutile si l'état n'a pas changé
         if self._soulseek_connected == connected:
             return
@@ -742,7 +725,7 @@ class BotBibliotheque(QFrame):
             1: "size_bytes",
             2: "duration",
             3: "bitrate",
-            4: "name",       # Dossier → on trie par nom
+            4: "name",  # Dossier → on trie par nom
             5: "modified_at",
         }
         col_name = column_map.get(section, "name")
@@ -821,7 +804,7 @@ class BotBibliotheque(QFrame):
             self._stats = {
                 "dossiers": stats.get("folders", 0),
                 "fichiers": stats.get("files", 0),
-                "audio":    stats.get("audio", 0),
+                "audio": stats.get("audio", 0),
             }
         except Exception:
             self._stats = {"dossiers": 0, "fichiers": 0, "audio": 0}
@@ -883,7 +866,7 @@ class BotBibliotheque(QFrame):
         # Message de résumé
         dur_ms = _LAST_SCAN["duration_ms"]
         if dur_ms:
-            dur_msg = f" ⏱️ {dur_ms/1000:.1f}s"
+            dur_msg = f" ⏱️ {dur_ms / 1000:.1f}s"
         else:
             dur_msg = ""
         self.set_status(
@@ -977,8 +960,7 @@ class BotBibliotheque(QFrame):
         msg.setWindowTitle("🗑️ Supprimer")
         msg.setText(f"Que veux-tu faire de **{name}** ?")
         msg.setInformativeText(
-            "Tu peux retirer le fichier des partages sans le toucher, "
-            "ou le supprimer complètement du disque."
+            "Tu peux retirer le fichier des partages sans le toucher, ou le supprimer complètement du disque."
         )
 
         retirer_btn = msg.addButton("Retirer des partages", QMessageBox.ButtonRole.AcceptRole)
@@ -1093,7 +1075,7 @@ class BotBibliotheque(QFrame):
         if errors:
             parts.append(f"⚠️{errors}")
         if dur_ms:
-            parts.append(f"{dur_ms/1000:.1f}s")
+            parts.append(f"{dur_ms / 1000:.1f}s")
 
         return " ⋅ ".join(parts)
 

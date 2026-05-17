@@ -3,7 +3,6 @@ CSS fragment — misc.
 Utilise les placeholders @KEY@ definis dans colors.py.
 """
 
-from .colors import COLORS
 
 CSS = """\
 #clockLabel {

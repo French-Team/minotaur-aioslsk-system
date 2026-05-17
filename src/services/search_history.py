@@ -89,31 +89,33 @@ class SearchHistory:
 
         # Chercher un doublon
         for i, entry in enumerate(self._entries):
-            if (
-                entry["query"] == query
-                and entry.get("type") == type_
-                and entry.get("username") == username
-            ):
+            if entry["query"] == query and entry.get("type") == type_ and entry.get("username") == username:
                 # Mise à jour sur place
                 self._entries.pop(i)
-                self._entries.insert(0, {
-                    "query": query,
-                    "type": type_,
-                    "username": username,
-                    "count": count,
-                    "timestamp": now,
-                })
+                self._entries.insert(
+                    0,
+                    {
+                        "query": query,
+                        "type": type_,
+                        "username": username,
+                        "count": count,
+                        "timestamp": now,
+                    },
+                )
                 self.save()
                 return
 
         # Nouvelle entrée en tête
-        self._entries.insert(0, {
-            "query": query,
-            "type": type_,
-            "username": username,
-            "count": count,
-            "timestamp": now,
-        })
+        self._entries.insert(
+            0,
+            {
+                "query": query,
+                "type": type_,
+                "username": username,
+                "count": count,
+                "timestamp": now,
+            },
+        )
 
         # Élagage
         if len(self._entries) > MAX_HISTORY:
@@ -121,18 +123,13 @@ class SearchHistory:
 
         self.save()
 
-    def remove(self, query: str, type_: str = "global",
-               username: str | None = None) -> bool:
+    def remove(self, query: str, type_: str = "global", username: str | None = None) -> bool:
         """Supprime une entrée spécifique de l'historique.
 
         Retourne ``True`` si l'entrée a été trouvée et supprimée.
         """
         for i, entry in enumerate(self._entries):
-            if (
-                entry["query"] == query
-                and entry.get("type") == type_
-                and entry.get("username") == username
-            ):
+            if entry["query"] == query and entry.get("type") == type_ and entry.get("username") == username:
                 self._entries.pop(i)
                 self.save()
                 return True
@@ -143,16 +140,10 @@ class SearchHistory:
         self._entries = []
         self.save()
 
-    def update_count(self, query: str, type_: str = "global",
-                     username: str | None = None,
-                     count: int = 0) -> None:
+    def update_count(self, query: str, type_: str = "global", username: str | None = None, count: int = 0) -> None:
         """Met à jour le compteur de résultats d'une entrée existante."""
         for entry in self._entries:
-            if (
-                entry["query"] == query
-                and entry.get("type") == type_
-                and entry.get("username") == username
-            ):
+            if entry["query"] == query and entry.get("type") == type_ and entry.get("username") == username:
                 entry["count"] = count
                 self.save()
                 return

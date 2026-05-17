@@ -35,7 +35,7 @@ class _FooterNavButton(QPushButton):
         self._badge.setVisible(False)
         self._badge.setStyleSheet(f"""
             #footerNavBadge {{
-                background: {COLORS['DANGER']};
+                background: {COLORS["DANGER"]};
                 color: #ffffff;
                 font-size: 10px;
                 font-weight: 700;
@@ -73,7 +73,7 @@ _BOT_NAMES: list[str] = [
     "Surveillance",
     "Planificateur",
     "Ordonnanceur",
-    "Statistiques",
+    "Clients Actifs",
     "Assistant",
     "Aide",
 ]

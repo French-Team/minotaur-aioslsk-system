@@ -3,7 +3,6 @@ CSS fragment — Bibliothèque (exploration fichiers partagés).
 Utilise les placeholders @KEY@ définis dans colors.py.
 """
 
-from .colors import COLORS
 
 CSS = """
 /* ============================================================

@@ -9,12 +9,9 @@ Voir `docs/specs/bot-surveillance-spec.md` pour le plan complet.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, QTimer, QDate
-from src.gui.theme_fragments.colors import rgba
-
+from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -28,16 +25,14 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from src.gui.theme_fragments.colors import COLORS
+from src.gui.theme_fragments.colors import COLORS, rgba
 from src.services.event_bus import EventBus, SurveillanceEvent
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -66,8 +61,8 @@ class _StatBadge(QFrame):
         # Fond du badge
         self.setStyleSheet(f"""
             #statBadge {{
-                background: {COLORS['BG_SURFACE']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
                 padding: 4px 12px;
             }}
@@ -91,7 +86,7 @@ class _StatBadge(QFrame):
         txt.setStyleSheet(f"""
             font-size: 12px;
             font-weight: 500;
-            color: {COLORS['TEXT_SECONDARY']};
+            color: {COLORS["TEXT_SECONDARY"]};
         """)
         layout.addWidget(txt)
 
@@ -122,8 +117,8 @@ class _FilterToggle(QPushButton):
         if checked:
             self.setStyleSheet(f"""
                 QPushButton {{
-                    background: {COLORS['ACCENT']};
-                    color: {COLORS['TEXT_WHITE']};
+                    background: {COLORS["ACCENT"]};
+                    color: {COLORS["TEXT_WHITE"]};
                     border: none;
                     border-radius: 6px;
                     padding: 4px 10px;
@@ -131,23 +126,23 @@ class _FilterToggle(QPushButton):
                     font-weight: 600;
                 }}
                 QPushButton:hover {{
-                    background: {COLORS['ACCENT_HOVER']};
+                    background: {COLORS["ACCENT_HOVER"]};
                 }}
             """)
         else:
             self.setStyleSheet(f"""
                 QPushButton {{
-                    background: {COLORS['BG_BTN']};
-                    color: {COLORS['TEXT_MUTED']};
-                    border: 1px solid {COLORS['BORDER']};
+                    background: {COLORS["BG_BTN"]};
+                    color: {COLORS["TEXT_MUTED"]};
+                    border: 1px solid {COLORS["BORDER"]};
                     border-radius: 6px;
                     padding: 4px 10px;
                     font-size: 11px;
                     font-weight: 500;
                 }}
                 QPushButton:hover {{
-                    background: {COLORS['BG_HOVER']};
-                    color: {COLORS['TEXT_SECONDARY']};
+                    background: {COLORS["BG_HOVER"]};
+                    color: {COLORS["TEXT_SECONDARY"]};
                 }}
             """)
 
@@ -211,17 +206,13 @@ class _EventCard(QFrame):
 
         # Titre (prend tout l'espace)
         self._title_lbl = QLabel(self._title)
-        self._title_lbl.setStyleSheet(
-            f"color: {COLORS['TEXT_PRIMARY']}; font-size: 12px; font-weight: 500;"
-        )
+        self._title_lbl.setStyleSheet(f"color: {COLORS['TEXT_PRIMARY']}; font-size: 12px; font-weight: 500;")
         self._title_lbl.setWordWrap(False)
         layout.addWidget(self._title_lbl, stretch=1)
 
         # Catégorie (petit badge)
         cat_lbl = QLabel(self._category)
-        cat_lbl.setStyleSheet(
-            f"color: {COLORS['TEXT_MUTED']}; font-size: 10px;"
-        )
+        cat_lbl.setStyleSheet(f"color: {COLORS['TEXT_MUTED']}; font-size: 10px;")
         cat_lbl.setFixedWidth(80)
         cat_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(cat_lbl)
@@ -236,15 +227,15 @@ class _EventCard(QFrame):
         btn_style = f"""
             QPushButton {{
                 background: transparent;
-                color: {COLORS['TEXT_MUTED']};
+                color: {COLORS["TEXT_MUTED"]};
                 border: none;
                 padding: 2px 4px;
                 font-size: 12px;
                 border-radius: 3px;
             }}
             QPushButton:hover {{
-                background: {COLORS['BG_BTN']};
-                color: {COLORS['TEXT_PRIMARY']};
+                background: {COLORS["BG_BTN"]};
+                color: {COLORS["TEXT_PRIMARY"]};
             }}
         """
 
@@ -268,13 +259,13 @@ class _EventCard(QFrame):
         border_color = self.SEVERITY_COLORS.get(self._severity, "transparent")
         self.setStyleSheet(f"""
             #eventCard {{
-                background: {COLORS['BG_SURFACE']};
+                background: {COLORS["BG_SURFACE"]};
                 border-left: 3px solid {border_color};
                 border-radius: 4px;
                 margin: 1px 0px;
             }}
             #eventCard:hover {{
-                background: {COLORS['BG_HOVER']};
+                background: {COLORS["BG_HOVER"]};
             }}
         """)
 
@@ -291,6 +282,7 @@ class _EventCard(QFrame):
     def _copy_to_clipboard(self) -> None:
         """Copie les détails de l'événement dans le presse-papier."""
         from PySide6.QtGui import QGuiApplication
+
         icon = self.SEVERITY_ICONS.get(self._severity, "\u26aa")
         lines = [
             f"[{icon}] {self._title}",
@@ -400,7 +392,7 @@ class BotSurveillance(QFrame):
             QLabel {{
                 font-size: 22px;
                 font-weight: 700;
-                color: {COLORS['TEXT_PRIMARY']};
+                color: {COLORS["TEXT_PRIMARY"]};
                 padding-bottom: 2px;
             }}
         """)
@@ -452,22 +444,22 @@ class BotSurveillance(QFrame):
         self._pause_btn.setFixedHeight(32)
         self._pause_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS['BG_BTN']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_BTN"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 14px;
                 font-size: 12px;
                 font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS['BG_HOVER']};
-                border-color: {COLORS['BORDER_HOVER']};
+                background: {COLORS["BG_HOVER"]};
+                border-color: {COLORS["BORDER_HOVER"]};
             }}
             QPushButton:checked {{
-                background: {COLORS['DANGER_BG_HOVER']};
-                color: {COLORS['DANGER']};
-                border-color: {COLORS['DANGER']};
+                background: {COLORS["DANGER_BG_HOVER"]};
+                color: {COLORS["DANGER"]};
+                border-color: {COLORS["DANGER"]};
             }}
         """)
         self._pause_btn.toggled.connect(self._on_pause_toggled)
@@ -496,18 +488,18 @@ class BotSurveillance(QFrame):
         self._search_input.setFixedHeight(28)
         self._search_input.setStyleSheet(f"""
             QLineEdit {{
-                background: {COLORS['BG_INPUT']};
-                color: {COLORS['TEXT_INPUT']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_INPUT"]};
+                color: {COLORS["TEXT_INPUT"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 2px 10px;
                 font-size: 12px;
             }}
             QLineEdit:focus {{
-                border-color: {COLORS['ACCENT']};
+                border-color: {COLORS["ACCENT"]};
             }}
             QLineEdit::placeholder {{
-                color: {COLORS['TEXT_PLACEHOLDER']};
+                color: {COLORS["TEXT_PLACEHOLDER"]};
             }}
         """)
         # Debounce 300ms sur la recherche
@@ -535,17 +527,17 @@ class BotSurveillance(QFrame):
         self._history_btn.setFixedHeight(28)
         self._history_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS['BG_BTN']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_BTN"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 12px;
                 font-size: 11px;
                 font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS['BG_HOVER']};
-                border-color: {COLORS['BORDER_HOVER']};
+                background: {COLORS["BG_HOVER"]};
+                border-color: {COLORS["BORDER_HOVER"]};
             }}
         """)
         self._history_btn.clicked.connect(self._show_history)
@@ -558,18 +550,18 @@ class BotSurveillance(QFrame):
         self._clear_btn.setFixedHeight(28)
         self._clear_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS['BG_BTN']};
-                color: {COLORS['TEXT_SECONDARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_BTN"]};
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 4px 12px;
                 font-size: 11px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
-                background: {COLORS['DANGER_BG_HOVER']};
-                color: {COLORS['DANGER']};
-                border-color: {COLORS['DANGER']};
+                background: {COLORS["DANGER_BG_HOVER"]};
+                color: {COLORS["DANGER"]};
+                border-color: {COLORS["DANGER"]};
             }}
         """)
         self._clear_btn.clicked.connect(self._clear_feed)
@@ -594,17 +586,17 @@ class BotSurveillance(QFrame):
                 border: none;
             }}
             QScrollBar:vertical {{
-                background: {COLORS['BG_SURFACE']};
+                background: {COLORS["BG_SURFACE"]};
                 width: 8px;
                 border-radius: 4px;
             }}
             QScrollBar::handle:vertical {{
-                background: {COLORS['BORDER']};
+                background: {COLORS["BORDER"]};
                 border-radius: 4px;
                 min-height: 30px;
             }}
             QScrollBar::handle:vertical:hover {{
-                background: {COLORS['BORDER_HOVER']};
+                background: {COLORS["BORDER_HOVER"]};
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
@@ -632,7 +624,7 @@ class BotSurveillance(QFrame):
     def _on_scroll_changed(self, value: int) -> None:
         """Détecte si l'utilisateur a remonté manuellement le scroll."""
         scrollbar = self._feed_scroll.verticalScrollBar()
-        at_bottom = (value >= scrollbar.maximum() - 20)
+        at_bottom = value >= scrollbar.maximum() - 20
         self._auto_scroll = at_bottom
 
     # ── Gestion des événements ───────────────────────────────────────
@@ -691,10 +683,12 @@ class BotSurveillance(QFrame):
             card.detail_requested.connect(self._show_detail_popup)
 
         # Appliquer les filtres en cours
-        card.setVisible(card.matches_filter(
-            self._filtre_texte,
-            self._filtres_categories,
-        ))
+        card.setVisible(
+            card.matches_filter(
+                self._filtre_texte,
+                self._filtres_categories,
+            )
+        )
 
         # Auto-scroll vers le bas
         if self._auto_scroll and self._feed_scroll:
@@ -702,7 +696,7 @@ class BotSurveillance(QFrame):
             QTimer.singleShot(50, lambda: scrollbar.setValue(scrollbar.maximum()))
 
         # Limiter le nombre de cartes en mémoire
-        if len(self._feed_cards) >            self.MAX_FEED_ITEMS:
+        if len(self._feed_cards) > self.MAX_FEED_ITEMS:
             old_card = self._feed_cards.pop(0)
             if self._feed_layout:
                 self._feed_layout.removeWidget(old_card)
@@ -712,10 +706,12 @@ class BotSurveillance(QFrame):
         """Applique les filtres texte + catégories au flux affiché."""
         self._filtre_texte = self._search_input.text().strip().lower()
         for card in self._feed_cards:
-            card.setVisible(card.matches_filter(
-                self._filtre_texte,
-                self._filtres_categories,
-            ))
+            card.setVisible(
+                card.matches_filter(
+                    self._filtre_texte,
+                    self._filtres_categories,
+                )
+            )
 
     def _clear_feed(self) -> None:
         """Vide le flux affiché (pas la base SQLite)."""
@@ -789,7 +785,7 @@ class HistoryModal(QDialog):
 
         self.setStyleSheet(f"""
             #historyModal {{
-                background: {COLORS['BG_SURFACE']};
+                background: {COLORS["BG_SURFACE"]};
             }}
         """)
 
@@ -883,9 +879,9 @@ class HistoryModal(QDialog):
 
         self._table.setStyleSheet(f"""
             #historyTable {{
-                background: {COLORS['BG_SURFACE']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_SURFACE"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 8px;
                 font-size: 12px;
             }}
@@ -893,14 +889,14 @@ class HistoryModal(QDialog):
                 padding: 6px 8px;
             }}
             #historyTable::item:selected {{
-                background: {COLORS['BG_HOVER']};
-                color: {COLORS['TEXT_PRIMARY']};
+                background: {COLORS["BG_HOVER"]};
+                color: {COLORS["TEXT_PRIMARY"]};
             }}
             QHeaderView::section {{
-                background: {COLORS['BG_SURFACE']};
-                color: {COLORS['TEXT_MUTED']};
+                background: {COLORS["BG_SURFACE"]};
+                color: {COLORS["TEXT_MUTED"]};
                 border: none;
-                border-bottom: 1px solid {COLORS['BORDER']};
+                border-bottom: 1px solid {COLORS["BORDER"]};
                 padding: 8px;
                 font-size: 11px;
                 font-weight: 600;
@@ -955,17 +951,17 @@ class HistoryModal(QDialog):
         # Style des boutons
         btn_style = f"""
             QPushButton {{
-                background: {COLORS['BG_BTN']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_BTN"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 6px 14px;
                 font-size: 11px;
                 font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS['BG_HOVER']};
-                border-color: {COLORS['BORDER_HOVER']};
+                background: {COLORS["BG_HOVER"]};
+                border-color: {COLORS["BORDER_HOVER"]};
             }}
         """
         for btn in [self._load_more_btn, search_btn, export_csv_btn, export_json_btn, delete_btn, close_btn]:
@@ -1065,38 +1061,43 @@ class HistoryModal(QDialog):
 
     def _export_csv(self) -> None:
         """Exporte les événements affichés en CSV."""
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Exporter en CSV", "historique.csv", "CSV (*.csv)"
-        )
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter en CSV", "historique.csv", "CSV (*.csv)")
         if not path:
             return
 
         try:
             import csv
+
             with open(path, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f)
                 writer.writerow(["ID", "Sévérité", "Date", "Catégorie", "Titre", "Message", "Source", "Détails"])
                 for evt in self._events:
-                    writer.writerow([
-                        evt.id, evt.severity, evt.timestamp, evt.category,
-                        evt.title, evt.message, evt.source,
-                        str(evt.details) if evt.details else "",
-                    ])
+                    writer.writerow(
+                        [
+                            evt.id,
+                            evt.severity,
+                            evt.timestamp,
+                            evt.category,
+                            evt.title,
+                            evt.message,
+                            evt.source,
+                            str(evt.details) if evt.details else "",
+                        ]
+                    )
             QMessageBox.information(self, "Export CSV", f"✓ {len(self._events)} événements exportés.")
         except Exception as e:
             QMessageBox.critical(self, "Erreur CSV", f"Échec de l'export : {e}")
 
     def _export_json(self) -> None:
         """Exporte les événements affichés en JSON."""
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Exporter en JSON", "historique.json", "JSON (*.json)"
-        )
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter en JSON", "historique.json", "JSON (*.json)")
         if not path:
             return
 
         try:
             import json
             from dataclasses import asdict
+
             data = [asdict(e) for e in self._events]
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
@@ -1119,7 +1120,8 @@ class HistoryModal(QDialog):
             return
 
         reply = QMessageBox.question(
-            self, "Confirmer",
+            self,
+            "Confirmer",
             f"Supprimer {len(ids)} événement{'s' if len(ids) > 1 else ''} ?",
             QMessageBox.Yes | QMessageBox.No,
         )
@@ -1132,7 +1134,11 @@ class HistoryModal(QDialog):
             self._events = [e for e in self._events if e.id not in ids]
             self._populate_table()
             self._result_count_lbl.setText(f"{len(self._events)} résultat{'s' if len(self._events) != 1 else ''}")
-            QMessageBox.information(self, "Suppression", f"✓ {len(ids)} événement{'s' if len(ids) > 1 else ''} supprimé{'s' if len(ids) > 1 else ''}.")
+            QMessageBox.information(
+                self,
+                "Suppression",
+                f"✓ {len(ids)} événement{'s' if len(ids) > 1 else ''} supprimé{'s' if len(ids) > 1 else ''}.",
+            )
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Échec de la suppression : {e}")
 
@@ -1160,7 +1166,7 @@ class DetailPopup(QDialog):
 
         self.setStyleSheet(f"""
             #detailPopup {{
-                background: {COLORS['BG_SURFACE']};
+                background: {COLORS["BG_SURFACE"]};
             }}
         """)
 
@@ -1193,7 +1199,7 @@ class DetailPopup(QDialog):
         title_lbl.setStyleSheet(f"""
             font-size: 16px;
             font-weight: 600;
-            color: {COLORS['TEXT_PRIMARY']};
+            color: {COLORS["TEXT_PRIMARY"]};
         """)
         header_layout.addWidget(title_lbl, stretch=1)
 
@@ -1258,7 +1264,9 @@ class DetailPopup(QDialog):
 
         msg_content = QLabel(self._event.message)
         msg_content.setWordWrap(True)
-        msg_content.setStyleSheet(f"font-size: 12px; color: {COLORS['TEXT_PRIMARY']}; background: {COLORS['BG_SURFACE']}; border-radius: 6px; padding: 8px;")
+        msg_content.setStyleSheet(
+            f"font-size: 12px; color: {COLORS['TEXT_PRIMARY']}; background: {COLORS['BG_SURFACE']}; border-radius: 6px; padding: 8px;"
+        )
         grid_layout.addWidget(msg_content, row, 2)
 
         # ── Détails supplémentaires ──
@@ -1276,7 +1284,9 @@ class DetailPopup(QDialog):
 
             det_content = QLabel(str(self._event.details))
             det_content.setWordWrap(True)
-            det_content.setStyleSheet(f"font-size: 12px; color: {COLORS['TEXT_PRIMARY']}; background: {COLORS['BG_SURFACE']}; border-radius: 6px; padding: 8px;")
+            det_content.setStyleSheet(
+                f"font-size: 12px; color: {COLORS['TEXT_PRIMARY']}; background: {COLORS['BG_SURFACE']}; border-radius: 6px; padding: 8px;"
+            )
             grid_layout.addWidget(det_content, row, 2)
 
         grid.setStyleSheet(f"""
@@ -1296,17 +1306,17 @@ class DetailPopup(QDialog):
 
         btn_style = f"""
             QPushButton {{
-                background: {COLORS['BG_BTN']};
-                color: {COLORS['TEXT_PRIMARY']};
-                border: 1px solid {COLORS['BORDER']};
+                background: {COLORS["BG_BTN"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 6px;
                 padding: 8px 16px;
                 font-size: 12px;
                 font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS['BG_HOVER']};
-                border-color: {COLORS['BORDER_HOVER']};
+                background: {COLORS["BG_HOVER"]};
+                border-color: {COLORS["BORDER_HOVER"]};
             }}
         """
 
@@ -1369,6 +1379,7 @@ class DetailPopup(QDialog):
     def _copy_details(self) -> None:
         """Copie les détails formatés dans le presse-papier."""
         from PySide6.QtGui import QGuiApplication
+
         ICONS = {"ERROR": "\U0001f534", "WARN": "\U0001f7e1", "INFO": "\U0001f535"}
         icon = ICONS.get(self._event.severity, "\u26aa")
         lines = [
@@ -1393,8 +1404,8 @@ class DetailPopup(QDialog):
         if target and self.parent():
             # Remonter jusqu'au widget parent qui a le signal page_changed
             parent = self.parent()
-            while parent and not hasattr(parent, 'page_changed'):
+            while parent and not hasattr(parent, "page_changed"):
                 parent = parent.parent()
-            if parent and hasattr(parent, 'page_changed'):
+            if parent and hasattr(parent, "page_changed"):
                 parent.page_changed.emit(target)
             self.accept()

@@ -7,28 +7,24 @@ paramètres de configuration des pages (Réseau, Recherche, etc.).
 
 from __future__ import annotations
 
-from src.gui.theme_fragments.colors import rgba
-
 import json
-import os
 from glob import glob
 from pathlib import Path
 
-from PySide6.QtCore import QFileSystemWatcher, QTimer, Qt, Signal
+from PySide6.QtCore import QFileSystemWatcher, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QSplitter,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from src.gui.theme_fragments.colors import COLORS
+from src.gui.theme_fragments.colors import COLORS, rgba
 from src.gui.widgets.config import ConfigPage, highlight_widget
 from src.services.event_bus import EventBus
 
@@ -81,11 +77,7 @@ class BotOptimiseur(QFrame):
 
     def _build_ui(self) -> None:
         """Construit l'interface complète : barre + split viewer|dashboard."""
-        self.setStyleSheet(
-            f"#botOptimiseur {{"
-            f"  background: {_COLORS['BG_CENTER']};"
-            f"}}"
-        )
+        self.setStyleSheet(f"#botOptimiseur {{  background: {_COLORS['BG_CENTER']};}}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -107,9 +99,7 @@ class BotOptimiseur(QFrame):
 
         label_profils = QLabel("⚡ Profils")
         label_profils.setStyleSheet(
-            f"color: {_COLORS['TEXT_PRIMARY']};"
-            f"font-size: 11px; font-weight: 600;"
-            f"padding: 0 4px 0 0;"
+            f"color: {_COLORS['TEXT_PRIMARY']};font-size: 11px; font-weight: 600;padding: 0 4px 0 0;"
         )
         self._action_layout.addWidget(label_profils)
 
@@ -119,11 +109,7 @@ class BotOptimiseur(QFrame):
         # ── Split horizontal : Viewer | Dashboard ──
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(1)
-        splitter.setStyleSheet(
-            f"QSplitter::handle {{"
-            f"  background: {_COLORS['BORDER']};"
-            f"}}"
-        )
+        splitter.setStyleSheet(f"QSplitter::handle {{  background: {_COLORS['BORDER']};}}")
 
         # Viewer (gauche)
         self._viewer = self._build_viewer()
@@ -145,10 +131,7 @@ class BotOptimiseur(QFrame):
         container = QFrame()
         container.setObjectName("optimiseurViewer")
         container.setStyleSheet(
-            f"#optimiseurViewer {{"
-            f"  background: {_COLORS['BG_DARK']};"
-            f"  border-right: 1px solid {_COLORS['BORDER']};"
-            f"}}"
+            f"#optimiseurViewer {{  background: {_COLORS['BG_DARK']};  border-right: 1px solid {_COLORS['BORDER']};}}"
         )
 
         vbox = QVBoxLayout(container)
@@ -157,10 +140,7 @@ class BotOptimiseur(QFrame):
 
         # En-tête
         header = QLabel("📋 Journal d'application")
-        header.setStyleSheet(
-            f"color: {_COLORS['TEXT_PRIMARY']};"
-            f"font-size: 12px; font-weight: 700;"
-        )
+        header.setStyleSheet(f"color: {_COLORS['TEXT_PRIMARY']};font-size: 12px; font-weight: 700;")
         vbox.addWidget(header)
 
         # Zone de logs
@@ -193,11 +173,7 @@ class BotOptimiseur(QFrame):
         """Construit le panneau de dashboard (profil + diff)."""
         container = QFrame()
         container.setObjectName("optimiseurDashboard")
-        container.setStyleSheet(
-            f"#optimiseurDashboard {{"
-            f"  background: {_COLORS['BG_CENTER']};"
-            f"}}"
-        )
+        container.setStyleSheet(f"#optimiseurDashboard {{  background: {_COLORS['BG_CENTER']};}}")
 
         vbox = QVBoxLayout(container)
         vbox.setContentsMargins(12, 10, 12, 10)
@@ -205,10 +181,7 @@ class BotOptimiseur(QFrame):
 
         # En-tête
         header = QLabel("📊 Résumé")
-        header.setStyleSheet(
-            f"color: {_COLORS['TEXT_PRIMARY']};"
-            f"font-size: 12px; font-weight: 700;"
-        )
+        header.setStyleSheet(f"color: {_COLORS['TEXT_PRIMARY']};font-size: 12px; font-weight: 700;")
         vbox.addWidget(header)
 
         # ── Carte du profil actif ──
@@ -227,17 +200,11 @@ class BotOptimiseur(QFrame):
         carte_layout.setSpacing(4)
 
         self._profil_label = QLabel(_DASHBOARD_EMPTY)
-        self._profil_label.setStyleSheet(
-            f"color: {_COLORS['TEXT_MUTED']};"
-            f"font-size: 13px; font-weight: 600;"
-        )
+        self._profil_label.setStyleSheet(f"color: {_COLORS['TEXT_MUTED']};font-size: 13px; font-weight: 600;")
         carte_layout.addWidget(self._profil_label)
 
         self._statut_label = QLabel("")
-        self._statut_label.setStyleSheet(
-            f"color: {_COLORS['TEXT_SECONDARY']};"
-            f"font-size: 11px;"
-        )
+        self._statut_label.setStyleSheet(f"color: {_COLORS['TEXT_SECONDARY']};font-size: 11px;")
         carte_layout.addWidget(self._statut_label)
 
         vbox.addWidget(self._carte_profil)
@@ -259,33 +226,24 @@ class BotOptimiseur(QFrame):
 
         diff_header = QLabel("Modifications")
         diff_header.setStyleSheet(
-            f"color: {_COLORS['TEXT_SECONDARY']};"
-            f"font-size: 10px; font-weight: 700;"
-            f"text-transform: uppercase;"
+            f"color: {_COLORS['TEXT_SECONDARY']};font-size: 10px; font-weight: 700;text-transform: uppercase;"
         )
         diff_vbox.addWidget(diff_header)
 
         self._diff_scroll = QScrollArea()
         self._diff_scroll.setWidgetResizable(True)
         self._diff_scroll.setFrameShape(QFrame.NoFrame)
-        self._diff_scroll.setStyleSheet(
-            f"QScrollArea {{ background: transparent; }}"
-        )
+        self._diff_scroll.setStyleSheet(f"QScrollArea {{ background: transparent; }}")
 
         self._diff_content = QWidget()
         self._diff_content.setObjectName("diffContent")
-        self._diff_content.setStyleSheet(
-            f"#diffContent {{ background: transparent; }}"
-        )
+        self._diff_content.setStyleSheet(f"#diffContent {{ background: transparent; }}")
         self._diff_layout = QVBoxLayout(self._diff_content)
         self._diff_layout.setContentsMargins(0, 0, 0, 0)
         self._diff_layout.setSpacing(2)
 
         self._placeholder_diff = QLabel("⚠ Cliquez sur un profil\ndans la barre d'action")
-        self._placeholder_diff.setStyleSheet(
-            f"color: {_COLORS['TEXT_MUTED']};"
-            f"font-size: 11px; padding: 12px;"
-        )
+        self._placeholder_diff.setStyleSheet(f"color: {_COLORS['TEXT_MUTED']};font-size: 11px; padding: 12px;")
         self._placeholder_diff.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._diff_layout.addWidget(self._placeholder_diff)
         self._diff_layout.addStretch(1)
@@ -445,10 +403,7 @@ class BotOptimiseur(QFrame):
 
         if not profils:
             aucun = QLabel("Aucun profil trouvé")
-            aucun.setStyleSheet(
-                f"color: {_COLORS['TEXT_MUTED']};"
-                f"font-size: 11px; font-style: italic;"
-            )
+            aucun.setStyleSheet(f"color: {_COLORS['TEXT_MUTED']};font-size: 11px; font-style: italic;")
             self._action_layout.addWidget(aucun)
             self._boutons.append(aucun)
 
@@ -587,10 +542,7 @@ class BotOptimiseur(QFrame):
         self._center_zone.show_page("Optimiseur")
 
         n_modifs = len(self._diffs_globaux)
-        self._log(
-            f"✅ {self._icone_applique} {self._nom_applique} — "
-            f"{n_modifs} modification(s)"
-        )
+        self._log(f"✅ {self._icone_applique} {self._nom_applique} — {n_modifs} modification(s)")
         EventBus().emit_event(
             severity="INFO",
             category="optimiseur",
@@ -607,10 +559,7 @@ class BotOptimiseur(QFrame):
         )
 
         # Overlay de confirmation avec auto-fermeture
-        self._overlay_label.setText(
-            f"✅ {self._icone_applique} {self._nom_applique} appliqué — "
-            f"{n_modifs} modif(s)"
-        )
+        self._overlay_label.setText(f"✅ {self._icone_applique} {self._nom_applique} appliqué — {n_modifs} modif(s)")
         self._start_overlay_timer()
 
     def _build_overlay(self) -> None:
@@ -631,10 +580,7 @@ class BotOptimiseur(QFrame):
         overlay_layout.setSpacing(6)
 
         self._overlay_label = QLabel("")
-        self._overlay_label.setStyleSheet(
-            f"color: {_COLORS['TEXT_PRIMARY']};"
-            f"font-size: 12px; font-weight: 600;"
-        )
+        self._overlay_label.setStyleSheet(f"color: {_COLORS['TEXT_PRIMARY']};font-size: 12px; font-weight: 600;")
         overlay_layout.addWidget(self._overlay_label)
 
         # Compteur + bouton
@@ -642,10 +588,7 @@ class BotOptimiseur(QFrame):
         bottom_row.setSpacing(8)
 
         self._overlay_compteur = QLabel("")
-        self._overlay_compteur.setStyleSheet(
-            f"color: {_COLORS['TEXT_MUTED']};"
-            f"font-size: 10px;"
-        )
+        self._overlay_compteur.setStyleSheet(f"color: {_COLORS['TEXT_MUTED']};font-size: 10px;")
         bottom_row.addWidget(self._overlay_compteur)
 
         bottom_row.addStretch(1)
@@ -712,9 +655,7 @@ class BotOptimiseur(QFrame):
         if self._overlay_compte <= 0:
             self._hide_overlay()
         else:
-            self._overlay_compteur.setText(
-                f"Fermeture dans {self._overlay_compte}s"
-            )
+            self._overlay_compteur.setText(f"Fermeture dans {self._overlay_compte}s")
 
     def _hide_overlay(self) -> None:
         """Cache l'overlay et arrête le timer."""
@@ -733,10 +674,7 @@ class BotOptimiseur(QFrame):
         from datetime import datetime
 
         horodatage = datetime.now().strftime("%H:%M:%S")
-        ligne = (
-            f"<span style='color:{_COLORS['TEXT_MUTED']}'>"
-            f"[{horodatage}]</span> {message}<br>"
-        )
+        ligne = f"<span style='color:{_COLORS['TEXT_MUTED']}'>[{horodatage}]</span> {message}<br>"
         self._log_area.append(ligne)
 
         # Auto-scroll vers le bas
@@ -777,25 +715,17 @@ class BotOptimiseur(QFrame):
 
         n_modifs = len(diffs_globaux)
         if n_modifs > 0:
-            self._statut_label.setText(
-                f"✅ Appliqué — {n_modifs} modification(s)"
-            )
-            self._statut_label.setStyleSheet(
-                f"color: {_COLORS['SUCCESS']}; font-size: 11px;"
-            )
+            self._statut_label.setText(f"✅ Appliqué — {n_modifs} modification(s)")
+            self._statut_label.setStyleSheet(f"color: {_COLORS['SUCCESS']}; font-size: 11px;")
         else:
             self._statut_label.setText(f"✓ Aucune modification")
-            self._statut_label.setStyleSheet(
-                f"color: {_COLORS['TEXT_MUTED']}; font-size: 11px;"
-            )
+            self._statut_label.setStyleSheet(f"color: {_COLORS['TEXT_MUTED']}; font-size: 11px;")
 
         # Vider et reconstruire la liste des diffs
         self._vider_diffs()
 
         if not diffs_globaux:
-            self._placeholder_diff.setText(
-                "✓ Tous les paramètres\nétaient déjà à jour"
-            )
+            self._placeholder_diff.setText("✓ Tous les paramètres\nétaient déjà à jour")
             self._diff_layout.addWidget(self._placeholder_diff)
             self._diff_layout.addStretch(1)
             return
@@ -807,9 +737,7 @@ class BotOptimiseur(QFrame):
 
         self._diff_layout.addStretch(1)
 
-    def _creer_ligne_diff(
-        self, config_key: str, ancienne: str, nouvelle: str
-    ) -> QWidget:
+    def _creer_ligne_diff(self, config_key: str, ancienne: str, nouvelle: str) -> QWidget:
         """Crée un widget représentant une ligne de diff."""
         ligne = QFrame()
         ligne.setObjectName("diffLine")
@@ -847,9 +775,7 @@ class BotOptimiseur(QFrame):
 
         # Flèche
         fleche = QLabel("→")
-        fleche.setStyleSheet(
-            f"color: {_COLORS['TEXT_MUTED']}; font-size: 10px;"
-        )
+        fleche.setStyleSheet(f"color: {_COLORS['TEXT_MUTED']}; font-size: 10px;")
         hbox.addWidget(fleche)
 
         # Nouvelle valeur

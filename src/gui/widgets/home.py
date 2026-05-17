@@ -42,26 +42,19 @@ class HomePage(QWidget):
         welcome = QFrame()
         welcome.setObjectName("homeWelcome")
         welcome.setStyleSheet(
-            "#homeWelcome {"
-            "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 24px;"
-            "}"
+            "#homeWelcome {  background: #1e1e2e; border: 1px solid #2e2e3a;  border-radius: 12px; padding: 24px;}"
         )
         wl = QVBoxLayout(welcome)
         wl.setSpacing(2)
         wl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._home_greeting = QLabel("Bienvenue sur aioslsk")
-        self._home_greeting.setStyleSheet(
-            "color: #e4e4ec; font-size: 22px; font-weight: 700;"
-        )
+        self._home_greeting.setStyleSheet("color: #e4e4ec; font-size: 22px; font-weight: 700;")
         self._home_greeting.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wl.addWidget(self._home_greeting)
 
         self._home_subtitle = QLabel("Connecté au réseau Soulseek.")
-        self._home_subtitle.setStyleSheet(
-            "color: #8a8a9a; font-size: 13px;"
-        )
+        self._home_subtitle.setStyleSheet("color: #8a8a9a; font-size: 13px;")
         self._home_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wl.addWidget(self._home_subtitle)
 
@@ -71,19 +64,13 @@ class HomePage(QWidget):
         description = QFrame()
         description.setObjectName("homeDescription")
         description.setStyleSheet(
-            "#homeDescription {"
-            "  background: #1e1e2e; border: 1px solid #2e2e3a;"
-            "  border-radius: 12px; padding: 20px;"
-            "}"
+            "#homeDescription {  background: #1e1e2e; border: 1px solid #2e2e3a;  border-radius: 12px; padding: 20px;}"
         )
         dl = QVBoxLayout(description)
         dl.setSpacing(10)
 
         # Charger les données de description depuis data/description.json
-        desc_path = (
-            Path(__file__).resolve().parent.parent.parent.parent
-            / "data" / "description.json"
-        )
+        desc_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "description.json"
         try:
             with open(desc_path, encoding="utf-8") as f:
                 desc_data = json.load(f)
@@ -92,9 +79,7 @@ class HomePage(QWidget):
 
         # Titre général
         title_lbl = QLabel(desc_data.get("title", ""))
-        title_lbl.setStyleSheet(
-            "color: #e4e4ec; font-size: 15px; font-weight: 700;"
-        )
+        title_lbl.setStyleSheet("color: #e4e4ec; font-size: 15px; font-weight: 700;")
         title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dl.addWidget(title_lbl)
 
@@ -103,10 +88,7 @@ class HomePage(QWidget):
             cat_title = cat.get("title", "")
             if cat_title:
                 ct = QLabel(cat_title)
-                ct.setStyleSheet(
-                    "color: #a0a0b0; font-size: 11px; font-weight: 600;"
-                    "  letter-spacing: 0.5px;"
-                )
+                ct.setStyleSheet("color: #a0a0b0; font-size: 11px; font-weight: 600;  letter-spacing: 0.5px;")
                 ct.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 dl.addWidget(ct)
 
@@ -148,12 +130,8 @@ class HomePage(QWidget):
         desc_scroll.setWidget(description)
         desc_scroll.setWidgetResizable(True)
         desc_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        desc_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        desc_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
+        desc_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        desc_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         desc_row = QHBoxLayout()
         desc_row.setContentsMargins(0, 0, 0, 0)
@@ -189,11 +167,11 @@ class HomePage(QWidget):
         font.setWeight(QFont.Weight.Bold)
         fm = QFontMetrics(font)
         text_rect = fm.boundingRect("↓")
-        arrow_w = text_rect.width() + 6   # 3px de padding de chaque côté
+        arrow_w = text_rect.width() + 6  # 3px de padding de chaque côté
         arrow_h = text_rect.height() + 6  # 3px de padding haut/bas
 
-        gap = 4         # écart entre les flèches
-        margin = 24      # marge gauche/droite du container
+        gap = 4  # écart entre les flèches
+        margin = 24  # marge gauche/droite du container
 
         bounce_offset = 24  # rebond en pixels
 
@@ -208,9 +186,7 @@ class HomePage(QWidget):
 
         for i in range(n_arrows):
             arrow = QLabel("↓", arrows_container)
-            arrow.setStyleSheet(
-                "color: #6c5ce7; font-size: 66px; font-weight: 700;"
-            )
+            arrow.setStyleSheet("color: #6c5ce7; font-size: 66px; font-weight: 700;")
             arrow.setAlignment(Qt.AlignmentFlag.AlignCenter)
             arrow.setFixedSize(int(arrow_w), int(arrow_h))
             x = margin + i * (arrow_w + gap)

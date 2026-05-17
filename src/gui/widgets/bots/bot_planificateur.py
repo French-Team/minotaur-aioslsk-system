@@ -6,7 +6,8 @@ Dashboard, barre d'actions rapides, statistiques live, liste des actions.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QTimer, Signal, QDate
+from PySide6.QtCore import QDate, Qt, QTimer, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QComboBox,
     QDateTimeEdit,
@@ -28,8 +29,8 @@ from PySide6.QtWidgets import (
 
 from src.gui.theme_fragments.colors import COLORS, rgba
 from src.services.planificateur_service import (
-    ACTION_TYPES,
     ACTION_STATUTS,
+    ACTION_TYPES,
     PlanificateurService,
 )
 
@@ -42,6 +43,10 @@ _ACTION_LABELS: dict[str, str] = {
     "optimisation": "Optimisation",
     "nettoyage": "Nettoyage",
     "telechargement": "Téléchargement",
+    "classement": "Classement",
+    "renommage": "Renommage",
+    "deduplication": "Dédoublonnage",
+    "nettoyage_temp": "Nettoyage temporaire",
 }
 
 _ACTION_ICONS: dict[str, str] = {
@@ -51,6 +56,10 @@ _ACTION_ICONS: dict[str, str] = {
     "optimisation": "⚙",
     "nettoyage": "🧹",
     "telechargement": "📥",
+    "classement": "📂",
+    "renommage": "✏️",
+    "deduplication": "🗑️",
+    "nettoyage_temp": "🧹",
 }
 
 _STATUT_LABELS: dict[str, str] = {
@@ -92,6 +101,10 @@ _BOT_NAVIGATION: dict[str, str | None] = {
     "optimisation": "Optimiseur",
     "nettoyage": None,  # Pas de redirection (interne)
     "telechargement": "Téléchargement",
+    "classement": "Ordonnanceur",
+    "renommage": "Ordonnanceur",
+    "deduplication": "Ordonnanceur",
+    "nettoyage_temp": "Ordonnanceur",
 }
 
 # Colonnes de la table
@@ -134,13 +147,32 @@ class ActionModal(QDialog):
             ("album", "Album", QLineEdit, ("Titre de l'album (optionnel)…",)),
         ],
         "optimisation": [
-            ("profil", "Profil", QComboBox, (
-                "optimisation_rapide",
-                "optimisation_complete",
-                "reorganisation",
-            )),
+            (
+                "profil",
+                "Profil",
+                QComboBox,
+                (
+                    "optimisation_rapide",
+                    "optimisation_complete",
+                    "reorganisation",
+                ),
+            ),
         ],
         "nettoyage": [
+            ("age_jours", "Âge minimum (jours)", QSpinBox, (1, 365, 7)),
+        ],
+        "classement": [
+            ("dossier", "Dossier source", QLineEdit, ("Chemin du dossier…",)),
+            ("structure", "Structure", QLineEdit, ("{artist}/{album}/{track:02d} {title}.{ext}",)),
+        ],
+        "renommage": [
+            ("dossier", "Dossier source", QLineEdit, ("Chemin du dossier…",)),
+            ("template", "Template", QLineEdit, ("{artist} - {album} - {track:02d} {title}.{ext}",)),
+        ],
+        "deduplication": [
+            ("dossier", "Dossier source", QLineEdit, ("Chemin du dossier…",)),
+        ],
+        "nettoyage_temp": [
             ("age_jours", "Âge minimum (jours)", QSpinBox, (1, 365, 7)),
         ],
     }
@@ -183,9 +215,7 @@ class ActionModal(QDialog):
 
         # ── Titre ──
         title = QLabel("Créer une nouvelle action")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;")
         layout.addWidget(title)
 
         # ── Formulaire ──
@@ -200,9 +230,7 @@ class ActionModal(QDialog):
             icon = _ACTION_ICONS.get(t, "❓")
             label = _ACTION_LABELS.get(t, t)
             self._type_cb.addItem(f"{icon}  {label}", t)
-        self._type_cb.currentIndexChanged.connect(
-            lambda: self._on_type_changed(self._type_cb.currentData() or "")
-        )
+        self._type_cb.currentIndexChanged.connect(lambda: self._on_type_changed(self._type_cb.currentData() or ""))
         self._style_combo(self._type_cb)
         self._type_cb.setMinimumWidth(220)
         form.addRow("Type :", self._type_cb)
@@ -211,9 +239,7 @@ class ActionModal(QDialog):
         self._mode_cb = QComboBox()
         self._mode_cb.addItem("⚡  Immédiat", "immediat")
         self._mode_cb.addItem("📅  Planifié", "planifie")
-        self._mode_cb.currentIndexChanged.connect(
-            lambda: self._on_mode_changed(self._mode_cb.currentData() or "")
-        )
+        self._mode_cb.currentIndexChanged.connect(lambda: self._on_mode_changed(self._mode_cb.currentData() or ""))
         self._style_combo(self._mode_cb)
         self._mode_cb.setMinimumWidth(200)
         form.addRow("Mode :", self._mode_cb)
@@ -272,10 +298,7 @@ class ActionModal(QDialog):
         layout.addStretch()
 
         # ── Boutons ──
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Cancel
-            | QDialogButtonBox.StandardButton.Save
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Save)
         buttons.accepted.connect(self._on_save)
         buttons.rejected.connect(self.reject)
 
@@ -315,10 +338,7 @@ class ActionModal(QDialog):
 
         # ── Style global ──
         self.setStyleSheet(
-            f"#actionModal {{"
-            f"  background: {COLORS['BG_SURFACE']};"
-            f"  border: 1px solid {COLORS['BORDER']};"
-            f"}}"
+            f"#actionModal {{  background: {COLORS['BG_SURFACE']};  border: 1px solid {COLORS['BORDER']};}}"
         )
 
     def _style_combo(self, combo: QComboBox) -> None:
@@ -452,10 +472,7 @@ class ActionModal(QDialog):
                 value = widget.text().strip()
                 if not value:
                     widget.setFocus()
-                    widget.setStyleSheet(
-                        widget.styleSheet()
-                        + f"QLineEdit {{ border-color: {COLORS['DANGER']}; }}"
-                    )
+                    widget.setStyleSheet(widget.styleSheet() + f"QLineEdit {{ border-color: {COLORS['DANGER']}; }}")
                     return
             elif isinstance(widget, QSpinBox):
                 value = widget.value()
@@ -475,9 +492,7 @@ class ActionModal(QDialog):
             "nom": self._nom_edit.text().strip() or None,
             "description": self._desc_edit.text().strip() or None,
             "prochaine_execution": (
-                self._date_picker.dateTime().toString("yyyy-MM-dd HH:mm:ss")
-                if mode == "planifie"
-                else None
+                self._date_picker.dateTime().toString("yyyy-MM-dd HH:mm:ss") if mode == "planifie" else None
             ),
         }
 
@@ -523,9 +538,7 @@ class BotPlanificateur(QFrame):
 
         # ── Titre ──
         title = QLabel("🤖 Planificateur")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 20px; font-weight: 700;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 20px; font-weight: 700;")
         layout.addWidget(title)
 
         # ── Toolbar ──
@@ -712,22 +725,14 @@ class BotPlanificateur(QFrame):
 
     # ── Helpers UI ─────────────────────────────────────────────────────────
 
-    def _make_stat_card(
-        self, label: str, color_key: str
-    ) -> tuple[QFrame, QLabel]:
+    def _make_stat_card(self, label: str, color_key: str) -> tuple[QFrame, QLabel]:
         """Crée une carte de statistique compacte avec valeur dynamique."""
         color = COLORS.get(color_key, COLORS["ACCENT"])
         bg = rgba(color, "20")
 
         card = QFrame()
         card.setObjectName("statCard")
-        card.setStyleSheet(
-            f"#statCard {{"
-            f"  background: {bg};"
-            f"  border-radius: 8px;"
-            f"  padding: 8px 12px;"
-            f"}}"
-        )
+        card.setStyleSheet(f"#statCard {{  background: {bg};  border-radius: 8px;  padding: 8px 12px;}}")
         card.setFixedHeight(60)
 
         lay = QVBoxLayout(card)
@@ -735,24 +740,18 @@ class BotPlanificateur(QFrame):
         lay.setSpacing(2)
 
         value = QLabel("—")
-        value.setStyleSheet(
-            f"color: {color}; font-size: 18px; font-weight: 700;"
-        )
+        value.setStyleSheet(f"color: {color}; font-size: 18px; font-weight: 700;")
         value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(value)
 
         lbl = QLabel(label)
-        lbl.setStyleSheet(
-            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 10px;"
-        )
+        lbl.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 10px;")
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(lbl)
 
         return card, value
 
-    def _style_tool_btn(
-        self, btn: QPushButton, accent: bool = False
-    ) -> None:
+    def _style_tool_btn(self, btn: QPushButton, accent: bool = False) -> None:
         """Applique le style d'un bouton de toolbar."""
         if accent:
             bg = COLORS["ACCENT"]
@@ -864,9 +863,7 @@ class BotPlanificateur(QFrame):
             f"}}"
         )
 
-    def _make_row_btn(
-        self, text: str, color: str, hover_color: str | None = None
-    ) -> QPushButton:
+    def _make_row_btn(self, text: str, color: str, hover_color: str | None = None) -> QPushButton:
         """Crée un petit bouton d'action pour une ligne du tableau."""
         btn = QPushButton(text)
         btn.setFixedSize(32, 24)
@@ -876,7 +873,7 @@ class BotPlanificateur(QFrame):
             f"QPushButton {{"
             f"  background: transparent;"
             f"  color: {color};"
-            f"  border: 1px solid {color}44;"
+            f"  border: 1px solid {rgba(color, '44')};"
             f"  border-radius: 4px;"
             f"  font-size: 11px;"
             f"  padding: 2px;"
@@ -1015,8 +1012,7 @@ class BotPlanificateur(QFrame):
             actions = [
                 a
                 for a in actions
-                if lowered in str(a.get("parametres", {})).lower()
-                or lowered in str(a.get("id", "")).lower()
+                if lowered in str(a.get("parametres", {})).lower() or lowered in str(a.get("id", "")).lower()
             ]
 
         self._table.setRowCount(len(actions))
@@ -1046,7 +1042,7 @@ class BotPlanificateur(QFrame):
             statut_text = _STATUT_LABELS.get(statut, statut)
             statut_color = _STATUT_COLORS.get(statut, COLORS["TEXT_MUTED"])
             statut_item = QTableWidgetItem(f"  {statut_text}")
-            statut_item.setForeground(statut_color)
+            statut_item.setForeground(QColor(statut_color))
             statut_item.setFlags(statut_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self._table.setItem(row, _COL_STATUT, statut_item)
 
@@ -1057,7 +1053,7 @@ class BotPlanificateur(QFrame):
                 date_str = date_str[:16]  # "YYYY-MM-DD HH:MM"
             date_item = QTableWidgetItem(date_str)
             date_item.setFlags(date_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            date_item.setForeground(COLORS["TEXT_SECONDARY"])
+            date_item.setForeground(QColor(COLORS["TEXT_SECONDARY"]))
             self._table.setItem(row, _COL_DATE, date_item)
 
             # ── Colonne Actions ──

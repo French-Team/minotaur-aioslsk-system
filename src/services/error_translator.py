@@ -68,23 +68,20 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
 
     if isinstance(exception, aioslsk_exc.NoSuchUserError):
         return (
-            "👤 Utilisateur introuvable — "
-            "le pseudo n'existe pas sur Soulseek (vérifie l'orthographe)",
+            "👤 Utilisateur introuvable — le pseudo n'existe pas sur Soulseek (vérifie l'orthographe)",
             Severite.WARNING,
         )
 
     # --- Erreurs de transfert / fichiers ---
     if isinstance(exception, aioslsk_exc.FileNotFoundError):
         return (
-            "📁 Fichier introuvable sur le serveur distant — "
-            "le fichier a été supprimé ou déplacé par l'utilisateur",
+            "📁 Fichier introuvable sur le serveur distant — le fichier a été supprimé ou déplacé par l'utilisateur",
             Severite.INFO,
         )
 
     if isinstance(exception, aioslsk_exc.FileNotSharedError):
         return (
-            "🚫 Fichier non partagé — "
-            "l'utilisateur a retiré ce fichier de ses partages",
+            "🚫 Fichier non partagé — l'utilisateur a retiré ce fichier de ses partages",
             Severite.INFO,
         )
 
@@ -99,8 +96,7 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
     # --- Erreurs d'authentification ---
     if isinstance(exception, aioslsk_exc.AuthenticationError):
         return (
-            "🔑 Échec d'authentification — "
-            "nom d'utilisateur ou mot de passe incorrect",
+            "🔑 Échec d'authentification — nom d'utilisateur ou mot de passe incorrect",
             Severite.WARNING,
         )
 
@@ -116,33 +112,28 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
     # --- Erreurs réseau génériques ---
     if isinstance(exception, aioslsk_exc.NetworkError):
         return (
-            "🌐 Erreur réseau — "
-            "problème de connexion avec le serveur Soulseek "
-            "(vérifie ta connexion Internet)",
+            "🌐 Erreur réseau — problème de connexion avec le serveur Soulseek (vérifie ta connexion Internet)",
             Severite.WARNING,
         )
 
     # --- Erreurs de session invalide ---
     if isinstance(exception, aioslsk_exc.InvalidSessionError):
         return (
-            "🔄 Session invalide — "
-            "la session a expiré ou a été réinitialisée, reconnecte-toi",
+            "🔄 Session invalide — la session a expiré ou a été réinitialisée, reconnecte-toi",
             Severite.WARNING,
         )
 
     # --- Erreurs d'état interne (souvent = bug) ---
     if isinstance(exception, aioslsk_exc.InvalidStateTransition):
         return (
-            "❌ BUG INTERNE — transition d'état invalide dans aioslsk "
-            "(signale ce bug au développeur)",
+            "❌ BUG INTERNE — transition d'état invalide dans aioslsk (signale ce bug au développeur)",
             Severite.ERROR,
         )
 
     # --- Erreurs de sérialisation (bug probable) ---
     if isinstance(exception, aioslsk_exc.MessageSerializationError):
         return (
-            "❌ BUG — erreur de sérialisation d'un message Soulseek "
-            "(signale ce bug au développeur)",
+            "❌ BUG — erreur de sérialisation d'un message Soulseek (signale ce bug au développeur)",
             Severite.ERROR,
         )
 
@@ -155,39 +146,34 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
 
     if isinstance(exception, aioslsk_exc.UnknownMessageError):
         return (
-            "📡 Message inconnu reçu du serveur — "
-            "normal si les versions du protocole diffèrent, sans conséquence",
+            "📡 Message inconnu reçu du serveur — normal si les versions du protocole diffèrent, sans conséquence",
             Severite.INFO,
         )
 
     # --- Erreurs de partage de dossiers ---
     if isinstance(exception, aioslsk_exc.SharedDirectoryError):
         return (
-            "📂 Erreur de dossier partagé — "
-            "vérifie que les dossiers partagés existent et sont accessibles",
+            "📂 Erreur de dossier partagé — vérifie que les dossiers partagés existent et sont accessibles",
             Severite.WARNING,
         )
 
     # --- Erreurs de placement de requête ---
     if isinstance(exception, aioslsk_exc.RequestPlaceFailedError):
         return (
-            "📋 Échec de placement de requête — "
-            "le serveur n'a pas pu placer ta demande de recherche, réessaie",
+            "📋 Échec de placement de requête — le serveur n'a pas pu placer ta demande de recherche, réessaie",
             Severite.INFO,
         )
 
     # --- Erreurs de lecture / écriture ---
     if isinstance(exception, aioslsk_exc.ConnectionReadError):
         return (
-            "📖 Erreur de lecture sur une connexion P2P — "
-            "le pair a fermé la connexion (normal)",
+            "📖 Erreur de lecture sur une connexion P2P — le pair a fermé la connexion (normal)",
             Severite.INFO,
         )
 
     if isinstance(exception, aioslsk_exc.ConnectionWriteError):
         return (
-            "✏ Erreur d'écriture sur une connexion P2P — "
-            "le pair n'est plus joignable (normal)",
+            "✏ Erreur d'écriture sur une connexion P2P — le pair n'est plus joignable (normal)",
             Severite.INFO,
         )
 

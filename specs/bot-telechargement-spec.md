@@ -295,3 +295,63 @@ Le câblage backend de base est terminé ✅. Points encore ouverts :
 | **Wishlist** | Les souhaits automatiques peuvent lancer des téléchargements → notification via EventBus |
 | **Planificateur** | Peut planifier des téléchargements récurrents |
 | **Surveillance** | Événements `transfert` émis à chaque transition (ajout, début, fin, échec) |
+
+
+---
+
+## 13. ❓ Questions résolues
+
+### Architecture et interface
+
+- [x] **QTableWidget plutôt que QListView ou QTreeView** : Le tableau plat convient parfaitement à une liste de téléchargements où chaque entrée a les mêmes colonnes (Fichier, Taille, Progression…). QTreeView serait excessif (pas de hiérarchie). QListView n’offre pas le tri natif par colonne sans customisation supplémentaire.
+
+- [x] **6 colonnes décidées (et pas 7 ou 8)** : Chaque colonne a un rôle identifié : Fichier (quoi), Taille (combien), Utilisateur (qui), Progression (où), Vitesse (comment vite), Statut (état). Pas de colonne « Date » dans le tableau principal car l’historique SQLite gère ça. Pas de colonne « Chemin complet » car trop large pour l’UI.
+
+- [x] **`_NumericItem` avec `_SortRole` plutôt que cast en int** : Qt trie par défaut alphabétiquement (1, 10, 2, 20…). Surcharger `__lt__` avec une donnée numérique dans `_SortRole` (Qt.UserRole+1) est le pattern PySide6 idiomatique pour un tri numérique correct.
+
+- [x] **Stockage `_downloads` dict (clé = chemin distant) plutôt que liste ou SQLite temps réel** : Un dict avec le chemin comme clé offre un accès O(1) pour les mises à jour fréquentes (progression, statut). SQLite écrirait trop souvent (chaque tick de progression). Une liste nécessiterait une recherche linéaire à chaque update.
+
+- [x] **Pas de limite haute de lignes (contrairement aux 200 résultats de recherche)** : Un téléchargement actif n’est pas un résultat de recherche — l’utilisateur ne lance pas 500 téléchargements simultanés. Aucun risque de saturation. Les téléchargements terminés/échoués sont nettoyés via le bouton « Vider terminés ».
+
+- [x] **`HistoryDialog` modal plutôt que section intégrée dans le bot** : L’historique est une donnée secondaire consultée ponctuellement. Un dialogue modal évite de charger des centaines d’entrées SQLite dans le tableau principal à chaque affichage. 900x500 px offre une visibilité suffisante.
+
+- [x] **`LIMIT 500` dans HistoryDialog plutôt que pagination complète** : Avec un historique quotidien (quelques dizaines d’entrées par jour), 500 lignes couvrent facilement des mois. La pagination complète ajouterait de la complexité UI pour un bénéfice marginal.
+
+### Moteur de téléchargement et états
+
+- [x] **4 statuts internes (en_cours, attente, termine, echoue) plutôt que 8+ états Soulseek** : Les états `TransferState` (VIRGIN, QUEUED, INITIALIZING, PAUSED, INCOMPLETE, DOWNLOADING, COMPLETE, FAILED, ABORTED, UNSET) sont trop fins pour l’UI. Le mapping réduit à 4 catégories (en_cours/attente/termine/echoue) simplifie le filtre, le menu contextuel et l’affichage.
+
+- [x] **`change_statut()` sauvegarde SQLite seulement à l’état terminal** : Évite les écritures redondantes pendant le téléchargement (chaque progression émet un statut). La condition « état terminal depuis état non-terminal » évite aussi les doubles enregistrements.
+
+- [x] **Emissions EventBus pour les transitions importantes seulement** : Ajout, début, fin, échec. C’est le bon niveau de granularité : assez pour que les autres bots (Surveillance, Wishlist) réagissent, sans créer de bruit à chaque tick de progression.
+
+- [x] **Conversions synchrone Qt → asyncio fire-and-forget** : `self._service.pause_transfer()` est appelée depuis un handler Qt synchrone. `SoulseekService` utilise `asyncio.ensure_future()` car l’appel Soulseek est asynchrone. Pas de `run_until_complete` qui bloquerait l’UI.
+
+### Stockage persistant (SQLite)
+
+- [x] **SQLite plutôt que JSON (contrairement à search_history)** : L’historique des téléchargements peut atteindre des milliers d’entrées. SQLite permet des requêtes filtrées (`WHERE statut = 'termine'`), paginées (`LIMIT 500 OFFSET 0`), et agrégées (`COUNT`). JSON nécessiterait de tout charger en mémoire pour filtrer.
+
+- [x] **`PRAGMA user_version` pour les migrations** : Mécanisme natif SQLite simple (un entier). Évite d’importer une librairie de migration pour un schéma à une seule table. La version courante est `1`.
+
+- [x] **Index `idx_history_date` et `idx_history_statut`** : Le dialogue d’historique filtre et trie par date fréquemment. Sans index, une table de 10 000+ entrées deviendrait lente. Ce sont les deux seules colonnes de recherche/filtrage.
+
+### Performance et UX
+
+- [x] **Barre de progression globale `QProgressBar`** : Calculée simplement à partir de `bytes_received / total_bytes` cumulés. Un widget personnalisé ajouterait de la complexité pour le même résultat visuel. Le pourcentage + texte « X / Y Mo » est standard et lisible.
+
+- [x] **ETA basé sur la vitesse instantanée** : Calcul simple (`taille_restante / vitesse_bps`). Une moyenne mobile lissée serait plus précise mais ajoute de la complexité (buffer à gérer). Pour une interface de téléchargement, une approximation suffit — l’utilisateur voit la tendance.
+
+- [x] **Filtre par statut via `setRowHidden()` plutôt que reconstruction du tableau** : `setRowHidden()` est instantané et conserve l’état du tri et de la sélection. Reconstruire le tableau à chaque changement de filtre serait plus lent et perdrait le contexte UI.
+
+- [x] **Pas de réessai automatique des échoués** : Un échec peut être transitoire (utilisateur déconnecté) ou permanent (fichier supprimé). Une boucle de réessai automatique pourrait saturer le réseau. L’utilisateur décide manuellement via « Réessayer » ou « Relancer ».
+
+### Intégration
+
+- [x] **`resume_transfer()` appelle `transfers.download(paused=False)` plutôt que `transfers.resume()`** : L’API Soulseek traitent les reprises comme de nouveaux téléchargements qui reprennent automatiquement si le fichier partiel existe. Il n’y a pas de méthode `resume()` explicite. C’est un détail d’implémentation transparent pour l’UI.
+
+- [x] **`setup(svc)` plutôt que constructeur avec service** : Pattern utilisé dans tous les bots FreeBuff. Le constructeur reste simple (parent QWidget), et le service est injecté via `setup()` quand il est disponible. Évite les problèmes d’ordre d’initialisation.
+
+- [x] **Pas de gestion des téléchargements upload (Soulseek)** : L’interface ne montre que les DOWNLOAD. Les uploads sont gérés automatiquement par Soulseek et n’ont pas d’UI directe. Un onglet upload serait un ajout futur possible mais sort du scope actuel.
+
+- [x] **Badge footer compteur non lus** : Même pattern que les autres bots (incrément à chaque ajout, reset à l’affichage). Cohérent avec la section « Intégration footer ».
+

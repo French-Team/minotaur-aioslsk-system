@@ -24,17 +24,17 @@ from PySide6.QtWidgets import (
 
 from src.gui.theme_fragments.colors import COLORS
 
-
 # ── Couleurs du voyant ──────────────────────────────────────────
 
-_LED_OFF = COLORS['TEXT_PLACEHOLDER']
-_LED_GREEN = COLORS['SUCCESS']
-_LED_RED = COLORS['DANGER']
+_LED_OFF = COLORS["TEXT_PLACEHOLDER"]
+_LED_GREEN = COLORS["SUCCESS"]
+_LED_RED = COLORS["DANGER"]
 
 
 # ═════════════════════════════════════════════════════════════════
 #  Header
 # ═════════════════════════════════════════════════════════════════
+
 
 class ConnexionHeaderWidget(QFrame):
     """Widget header : avatar + username, visible uniquement quand connecté."""
@@ -63,6 +63,7 @@ class ConnexionHeaderWidget(QFrame):
         self._avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Ombre portée légère
         from PySide6.QtWidgets import QGraphicsDropShadowEffect
+
         shadow = QGraphicsDropShadowEffect(self._avatar)
         shadow.setBlurRadius(8)
         shadow.setOffset(0, 1)
@@ -98,11 +99,13 @@ class ConnexionHeaderWidget(QFrame):
         """Charge une photo de profil circulaire depuis un chemin fichier."""
         if not path:
             return
-        from PySide6.QtGui import QPixmap, QPainter, QPainterPath
+        from PySide6.QtGui import QPainter, QPainterPath, QPixmap
+
         pix = QPixmap(path)
         if not pix.isNull():
             scaled = pix.scaled(
-                36, 36,
+                36,
+                36,
                 Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                 Qt.TransformationMode.SmoothTransformation,
             )
@@ -131,13 +134,14 @@ class ConnexionHeaderWidget(QFrame):
 #  Page de connexion (zone centrale)
 # ═════════════════════════════════════════════════════════════════
 
+
 class ConnexionPage(QFrame):
     """Page de connexion Soulseek avec formulaire et génération."""
 
-    login_requested = Signal(str, str)   # (username, password)
+    login_requested = Signal(str, str)  # (username, password)
     generate_requested = Signal()
     disconnect_requested = Signal()
-    auto_login_changed = Signal(bool)    # (checked) — bascule de la checkbox
+    auto_login_changed = Signal(bool)  # (checked) — bascule de la checkbox
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -160,9 +164,7 @@ class ConnexionPage(QFrame):
 
         # ── Titre ──
         title = QLabel("Connexion Soulseek")
-        title.setStyleSheet(
-            f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;"
-        )
+        title.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 18px; font-weight: 700;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(title)
 
@@ -172,15 +174,11 @@ class ConnexionPage(QFrame):
         status_row.setSpacing(6)
 
         self._page_led = QLabel("●")
-        self._page_led.setStyleSheet(
-            f"color: {_LED_OFF}; font-size: 16px; background: transparent;"
-        )
+        self._page_led.setStyleSheet(f"color: {_LED_OFF}; font-size: 16px; background: transparent;")
         status_row.addWidget(self._page_led)
 
         self._page_status = QLabel("Déconnecté")
-        self._page_status.setStyleSheet(
-            f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; font-weight: 600;"
-        )
+        self._page_status.setStyleSheet(f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; font-weight: 600;")
         status_row.addWidget(self._page_status)
         lay.addLayout(status_row)
 
@@ -206,23 +204,23 @@ class ConnexionPage(QFrame):
         self._auto_cb = QCheckBox("Connexion automatique au démarrage")
         self._auto_cb.setStyleSheet(f"""
             QCheckBox {{
-                color: {COLORS['TEXT_SECONDARY']};
+                color: {COLORS["TEXT_SECONDARY"]};
                 font-size: 11px;
                 spacing: 6px;
             }}
             QCheckBox::indicator {{
                 width: 14px;
                 height: 14px;
-                border: 1px solid {COLORS['BORDER']};
+                border: 1px solid {COLORS["BORDER"]};
                 border-radius: 3px;
-                background-color: {COLORS['BG_SURFACE2']};
+                background-color: {COLORS["BG_SURFACE2"]};
             }}
             QCheckBox::indicator:checked {{
-                background-color: {COLORS['ACCENT']};
-                border-color: {COLORS['ACCENT']};
+                background-color: {COLORS["ACCENT"]};
+                border-color: {COLORS["ACCENT"]};
             }}
             QCheckBox::indicator:hover {{
-                border-color: {COLORS['ACCENT']};
+                border-color: {COLORS["ACCENT"]};
             }}
         """)
         self._auto_cb.toggled.connect(self._on_auto_login_toggled)
@@ -242,15 +240,12 @@ class ConnexionPage(QFrame):
         lay.addWidget(self._sep2)
 
         self._new_label = QLabel("Nouveau sur Soulseek ?")
-        self._new_label.setStyleSheet(
-            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px; font-weight: 600;"
-        )
+        self._new_label.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px; font-weight: 600;")
         self._new_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(self._new_label)
 
         self._info_new = QLabel(
-            "Générez un identifiant et un mot de passe "
-            "pour créer votre compte sans pré-inscription."
+            "Générez un identifiant et un mot de passe pour créer votre compte sans pré-inscription."
         )
         self._info_new.setStyleSheet("color: {COLORS['TEXT_MUTED']}; font-size: 11px;")
         self._info_new.setWordWrap(True)
@@ -284,16 +279,12 @@ class ConnexionPage(QFrame):
 
     def set_connected(self, username: str | None = None) -> None:
         """Passe l'affichage en mode connecté."""
-        self._page_led.setStyleSheet(
-            f"color: {_LED_GREEN}; font-size: 16px; background: transparent;"
-        )
+        self._page_led.setStyleSheet(f"color: {_LED_GREEN}; font-size: 16px; background: transparent;")
         if username:
             self._page_status.setText(f"Connecté : {username}")
         else:
             self._page_status.setText("Connecté")
-        self._page_status.setStyleSheet(
-            f"color: {COLORS['SUCCESS']}; font-size: 13px; font-weight: 600;"
-        )
+        self._page_status.setStyleSheet(f"color: {COLORS['SUCCESS']}; font-size: 13px; font-weight: 600;")
         self._username.setVisible(False)
         self._password.setVisible(False)
         self._login_btn.setVisible(False)
@@ -306,13 +297,9 @@ class ConnexionPage(QFrame):
 
     def set_disconnected(self) -> None:
         """Passe l'affichage en mode déconnecté."""
-        self._page_led.setStyleSheet(
-            f"color: {_LED_RED}; font-size: 16px; background: transparent;"
-        )
+        self._page_led.setStyleSheet(f"color: {_LED_RED}; font-size: 16px; background: transparent;")
         self._page_status.setText("Déconnecté")
-        self._page_status.setStyleSheet(
-            f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; font-weight: 600;"
-        )
+        self._page_status.setStyleSheet(f"color: {COLORS['TEXT_MUTED']}; font-size: 13px; font-weight: 600;")
         self._username.setVisible(True)
         self._password.setVisible(True)
         self._login_btn.setVisible(True)
@@ -329,23 +316,19 @@ class ConnexionPage(QFrame):
         self._login_btn.setEnabled(not in_progress)
         self._generate_btn.setEnabled(not in_progress)
         if in_progress:
-            self._page_led.setStyleSheet(
-                f"color: {COLORS['WARNING']}; font-size: 16px; background: transparent;"
-            )
-            self._set_message("Génération du compte...", COLORS['WARNING'])
+            self._page_led.setStyleSheet(f"color: {COLORS['WARNING']}; font-size: 16px; background: transparent;")
+            self._set_message("Génération du compte...", COLORS["WARNING"])
         else:
-            self._page_led.setStyleSheet(
-                f"color: {COLORS['DANGER']}; font-size: 16px; background: transparent;"
-            )
+            self._page_led.setStyleSheet(f"color: {COLORS['DANGER']}; font-size: 16px; background: transparent;")
             self._set_message("", "")
 
     def show_error(self, msg: str) -> None:
         """Affiche un message d'erreur."""
-        self._set_message(msg, COLORS['DANGER'])
+        self._set_message(msg, COLORS["DANGER"])
 
     def show_success(self, msg: str) -> None:
         """Affiche un message de succès."""
-        self._set_message(msg, COLORS['SUCCESS'])
+        self._set_message(msg, COLORS["SUCCESS"])
 
     def prefill(self, username: str, password: str) -> None:
         """Pré-remplit les champs avec les credentials stockés."""
@@ -373,9 +356,7 @@ class ConnexionPage(QFrame):
     def _set_message(self, text: str, color: str) -> None:
         self._message.setText(text)
         if text:
-            self._message.setStyleSheet(
-                f"color: {color}; font-size: 12px; font-weight: 600;"
-            )
+            self._message.setStyleSheet(f"color: {color}; font-size: 12px; font-weight: 600;")
         self._message.setVisible(bool(text))
 
     def _on_login(self) -> None:
@@ -389,6 +370,7 @@ class ConnexionPage(QFrame):
     def _on_auto_login_toggled(self, checked: bool) -> None:
         """Sauvegarde l'état de la checkbox dans la config."""
         from src.services.app_config import set as cfg_set
+
         cfg_set("general.connexion_automatique", checked)
         self.auto_login_changed.emit(checked)
 

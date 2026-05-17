@@ -10,13 +10,11 @@ from pathlib import Path
 from typing import Any, Generator
 
 import pytest
+from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QPushButton, QTableWidget, QWidget
 from pytest import MonkeyPatch
-
-from PySide6.QtWidgets import QWidget, QPushButton, QLineEdit, QTableWidget, QHBoxLayout
 
 from src.gui.widgets.bots.bot_recherche import BotRecherche
 from src.services.search_history import SearchHistory
-
 
 # ── Fixtures ─────────────────────────────────────────────────────
 
@@ -32,6 +30,7 @@ def mock_settings(monkeypatch: MonkeyPatch, tmp_history_file: Path) -> None:
     """Monkeypatche les dépendances externes de BotRecherche."""
     # Rediriger SearchHistory vers un fichier temporaire
     import src.services.search_history as sh_module
+
     monkeypatch.setattr(sh_module, "HISTORY_FILE", tmp_history_file)
 
     # Éviter _update_connected_state (dépend du connexion_manager)
@@ -110,7 +109,7 @@ class TestBotRechercheSuggestionsRow:
 
     def test_set_visible_does_not_crash(self, bot: BotRecherche) -> None:
         """Régression : appeler setVisible sur _suggestions_row ne doit pas planter."""
-        bot._suggestions_row.setVisible(True)   # ne doit pas lever d'erreur
+        bot._suggestions_row.setVisible(True)  # ne doit pas lever d'erreur
         bot._suggestions_row.setVisible(False)  # idem
 
     def test_set_visible_toggle(self, bot: BotRecherche) -> None:

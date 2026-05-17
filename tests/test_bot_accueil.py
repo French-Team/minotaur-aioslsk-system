@@ -11,14 +11,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pytest
-from pytest import MonkeyPatch
-
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QWidget
+from pytest import MonkeyPatch
 
 from src.gui.widgets.bots.bot_accueil import BotAccueil
 from src.gui.widgets.bots.bot_accueil_knowledge import KNOWLEDGE
-
 
 # ═════════════════════════════════════════════════════════════════
 #  Fixtures
@@ -103,46 +101,39 @@ class TestMatchIntent:
     def test_chercher(self, bot: BotAccueil) -> None:
         """'Je cherche des fichiers' match l'entrée 'chercher'."""
         result = bot._match_intent("Je cherche des fichiers")
-        assert result == "chercher", \
-            f"'Je cherche des fichiers' devrait matcher chercher, got {result}"
+        assert result == "chercher", f"'Je cherche des fichiers' devrait matcher chercher, got {result}"
 
     def test_telechargement(self, bot: BotAccueil) -> None:
         """'Comment télécharger' match l'entrée 'telechargement'."""
         result = bot._match_intent("Comment télécharger un fichier")
-        assert result == "telechargement", \
-            f"'télécharger' devrait matcher telechargement, got {result}"
+        assert result == "telechargement", f"'télécharger' devrait matcher telechargement, got {result}"
 
     def test_soulseek(self, bot: BotAccueil) -> None:
         """'C'est quoi Soulseek' match l'entrée 'soulseek'."""
         result = bot._match_intent("C'est quoi Soulseek")
-        assert result == "soulseek", \
-            f"'Soulseek' devrait matcher soulseek, got {result}"
+        assert result == "soulseek", f"'Soulseek' devrait matcher soulseek, got {result}"
 
     def test_quoi_de_neuf(self, bot: BotAccueil) -> None:
         """'Quoi de neuf' match l'entrée 'quoi_de_neuf'."""
         result = bot._match_intent("Quoi de neuf")
-        assert result == "quoi_de_neuf", \
-            f"'Quoi de neuf' devrait matcher quoi_de_neuf, got {result}"
+        assert result == "quoi_de_neuf", f"'Quoi de neuf' devrait matcher quoi_de_neuf, got {result}"
 
     def test_quoi_de_neuf_variants(self, bot: BotAccueil) -> None:
         """Variantes : 'nouveauté', 'actualité'."""
         for text in ["Nouveauté", "Actualité", "Nouveau projet"]:
             result = bot._match_intent(text)
-            assert result == "quoi_de_neuf", \
-                f"'{text}' devrait matcher quoi_de_neuf, got {result}"
+            assert result == "quoi_de_neuf", f"'{text}' devrait matcher quoi_de_neuf, got {result}"
 
     def test_insult_detected(self, bot: BotAccueil) -> None:
         """Insulte → fallback_insulte (a des vrais keywords)."""
         result = bot._match_intent("t'es un idiot")
         # 'idiot' est un keyword de fallback_insulte
-        assert result == "fallback_insulte", \
-            f"'idiot' devrait matcher fallback_insulte, got {result}"
+        assert result == "fallback_insulte", f"'idiot' devrait matcher fallback_insulte, got {result}"
 
     def test_unknown_returns_none(self, bot: BotAccueil) -> None:
         """Texte inconnu → None (fallback géré dans _on_user_input)."""
         result = bot._match_intent("xylophone jaune")
-        assert result is None, \
-            f"'xylophone jaune' devrait être None, got {result}"
+        assert result is None, f"'xylophone jaune' devrait être None, got {result}"
 
     def test_noise_words_ignored(self, bot: BotAccueil) -> None:
         """Mots courts (< 3 lettres) ignorés → None."""
@@ -156,7 +147,8 @@ class TestMatchIntent:
         assert result in KNOWLEDGE
 
     def test_all_entries_have_keywords_except_fallback(
-        self, bot: BotAccueil,
+        self,
+        bot: BotAccueil,
     ) -> None:
         """Toutes les entrées sauf 'fallback' ont des keywords de longueur >= 3."""
         for entry_id, entry in KNOWLEDGE.items():
@@ -164,8 +156,7 @@ class TestMatchIntent:
                 continue  # fallback n'a pas de keywords volontairement
             keywords = entry.get("keywords", [])
             long_keywords = [k for k in keywords if len(k) >= 3]
-            assert long_keywords, \
-                f"Entrée '{entry_id}' n'a aucun keyword de longueur >= 3"
+            assert long_keywords, f"Entrée '{entry_id}' n'a aucun keyword de longueur >= 3"
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -179,9 +170,11 @@ class TestOnSuggestion:
     def test_welcome_action(self, bot: BotAccueil, monkeypatch: MonkeyPatch) -> None:
         """Action 'welcome' → _show_welcome()."""
         called = False
+
         def spy() -> None:
             nonlocal called
             called = True
+
         monkeypatch.setattr(bot, "_show_welcome", spy)
         bot._on_suggestion("welcome")
         assert called
@@ -189,9 +182,11 @@ class TestOnSuggestion:
     def test_about_action(self, bot: BotAccueil, monkeypatch: MonkeyPatch) -> None:
         """Action 'about' → _show_about()."""
         called = False
+
         def spy() -> None:
             nonlocal called
             called = True
+
         monkeypatch.setattr(bot, "_show_about", spy)
         bot._on_suggestion("about")
         assert called
@@ -199,9 +194,11 @@ class TestOnSuggestion:
     def test_clear_history_action(self, bot: BotAccueil, monkeypatch: MonkeyPatch) -> None:
         """Action 'clear_history' → _on_clear_history()."""
         called = False
+
         def spy() -> None:
             nonlocal called
             called = True
+
         monkeypatch.setattr(bot, "_on_clear_history", spy)
         bot._on_suggestion("clear_history")
         assert called
@@ -209,9 +206,11 @@ class TestOnSuggestion:
     def test_restore_history_action(self, bot: BotAccueil, monkeypatch: MonkeyPatch) -> None:
         """Action 'restore_history' → _on_restore_history()."""
         called = False
+
         def spy() -> None:
             nonlocal called
             called = True
+
         monkeypatch.setattr(bot, "_on_restore_history", spy)
         bot._on_suggestion("restore_history")
         assert called
@@ -241,21 +240,23 @@ class TestOnSuggestion:
 
         for action, expected_bot in nav_actions.items():
             bot._on_suggestion(action)
-            assert len(calls) == 1, \
-                f"'{action}' devrait appeler navigate_to 1 fois"
+            assert len(calls) == 1, f"'{action}' devrait appeler navigate_to 1 fois"
             actual_bot, _ = calls[0]
-            assert actual_bot == expected_bot, \
-                f"'{action}' → '{expected_bot}', pas '{actual_bot}'"
+            assert actual_bot == expected_bot, f"'{action}' → '{expected_bot}', pas '{actual_bot}'"
             calls.clear()
 
     def test_unknown_action_falls_back_to_welcome(
-        self, bot: BotAccueil, monkeypatch: MonkeyPatch,
+        self,
+        bot: BotAccueil,
+        monkeypatch: MonkeyPatch,
     ) -> None:
         """Action inconnue → fallback vers _show_welcome."""
         called = False
+
         def spy() -> None:
             nonlocal called
             called = True
+
         monkeypatch.setattr(bot, "_show_welcome", spy)
         bot._on_suggestion("nonexistent_action_xyz")
         assert called
@@ -447,7 +448,8 @@ class TestHistory:
     def test_restore_history_empty_file_shows_welcome(self, bot: BotAccueil) -> None:
         """Fichier vide → appelle _show_welcome (1 message)."""
         bot._history_file.write_text(
-            json.dumps({"messages": []}), encoding="utf-8",
+            json.dumps({"messages": []}),
+            encoding="utf-8",
         )
         bot._restore_history()
         assert len(bot._messages) >= 1

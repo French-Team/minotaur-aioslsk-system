@@ -3,60 +3,90 @@
 This file gives Freebuff context about your project: goals, commands, conventions, and gotchas.
 
 ## What this is
-**L'Ordonnanceur** — un outil CLI + GUI pour organiser les fichiers audio : renommer, classer par artiste/album, dédoublonner (hash SHA256), et nettoyer les fichiers temporaires.
+Application GUI PySide6 pour le client Soulseek (aioslsk).
 
 ## Quickstart
-- **Lancer le CLI :** `python -m src.cli_ordonnanceur DOSSIER`
-- **Lancer les tests :** `python -m pytest tests/`
-- **Preview sans risque :** `python -m src.cli_ordonnanceur DOSSIER` (simulation par défaut)
-- **Exécuter pour de vrai :** `python -m src.cli_ordonnanceur DOSSIER --executer`
+- **Lancer l'application :** `python -m src.main`
+- **Fichier de config :** `config.toml` à la racine
 
 ## Key directories
 | Path | Purpose |
 |------|---------|
-| `src/services/ordonnanceur_service.py` | Backend complet (1652 lignes) — analyse, renommage, classement, déduplication, nettoyage, exécution |
-| `src/cli_ordonnanceur.py` | CLI (432 lignes) — preview console + --executer |
-| `src/gui/widgets/bots/bot_ordonnanceur.py` | GUI Qt (553 lignes) — assistant 4 étapes (service non branché) |
-| `tests/test_ordonnanceur_service.py` | 128 tests backend |
-| `tests/test_cli_ordonnanceur.py` | 16 tests CLI |
-| `specs/bot-ordonnanceur-spec.md` | Spécification détaillée |
+| `src/gui/` | Interface graphique PySide6 |
+| `src/gui/layout/` | Layout principal (center, left, right, footer) |
+| `src/gui/widgets/bots/` | Widgets bots (clients actifs, téléchargement, surveillance, etc.) |
+| `src/services/` | Backend services |
+| `src/gui/theme_fragments/colors.py` | Palette de couleurs centralisée + fonction `rgba()` |
 | `.aioslsk-logbook.md` | Carnet de bord du projet |
 
-## Architecture
+## ⚠️ RÈGLE ABSOLUE — Couleurs Qt
 
+Qt **ne supporte PAS** les formats hexadécimaux suivants dans les stylesheets et QColor :
+
+| Format | Exemple | Qt ? |
+|--------|---------|------|
+| `#RGB` (3 chiffres) | `#aaa`, `#fff`, `#888`, `#999` | ❌ NON |
+| `#RRGGBBAA` (8 chiffres) | `#00e67644`, `#ff525244` | ❌ NON |
+| `#RRGGBB` (6 chiffres) | `#aaaaaa`, `#ffffff` | ✅ OUI |
+| `rgba(r, g, b, a)` | `rgba(0, 230, 118, 0.267)` | ✅ OUI |
+
+**Règles :**
+1. Toujours utiliser `#RRGGBB` (6 chiffres) — jamais `#RGB` (3 chiffres)
+2. Pour les couleurs avec alpha, utiliser la fonction `rgba()` de `src.gui.theme_fragments.colors` — jamais `#RRGGBBAA`
+3. Ne jamais concaténer `{variable}44` pour faire de l'alpha — utiliser `rgba(variable, '44')`
+4. `rgba()` est importable : `from src.gui.theme_fragments.colors import COLORS, rgba`
+
+## ⚠️ RÈGLE ABSOLUE — Palette centralisée
+
+Ne **JAMAIS** coder des couleurs hexadécimales en dur dans un widget.
+Toutes les couleurs doivent utiliser le dictionnaire `COLORS` de
+`src.gui.theme_fragments.colors`.
+
+### Comment faire (✅) :
 ```python
-# Flux principal
-analyse = svc.analyser_dossier(dossier)         # scan + tags mutagen
-apercu = svc.generer_apercu(analyse, ops)        # preview
-resultat = svc.executer_operations(apercu)       # apply (ou simuler)
+from src.gui.theme_fragments.colors import COLORS
+
+# Stylesheet
+btn.setStyleSheet(f"background: {COLORS['ACCENT']}; color: {COLORS['TEXT_WHITE']};")
+
+# QColor direct
+item.setForeground(QColor(COLORS["TEXT_PRIMARY"]))
+
+# Constantes de classe dérivées de COLORS
+_COULEUR_ACTIF = QColor(COLORS["SUCCESS"])
 ```
 
-- **4 opérations :** renommage, classement, deduplication, nettoyage
-- **Simulation par défaut** — rien n'est modifié sans `--executer`
-- **Résolution de conflits** — suffixes _2, _3… automatiques
-- **Dédoublonnage** — passe rapide (nom+taille) → passe sûre (SHA256 64Ko)
+### Ne PAS faire (❌) :
+```python
+btn.setStyleSheet("background: #362511; color: #ffffff;")   # ❌ en dur
+item.setForeground(QColor("#e0e0e0"))                       # ❌ en dur
+```
 
-## Tests
-- **783 tests verts** dans tout le projet
-- `python -m pytest tests/` pour tout lancer
-- `python -m pytest tests/test_ordonnanceur_service.py::TestExecuterOperations -v` pour un sous-ensemble
+### Palette disponible (clés principales) :
+- `SUCCESS`, `WARNING`, `DANGER` — couleurs sémantiques
+- `TEXT_PRIMARY`, `TEXT_SECONDARY`, `TEXT_MUTED`, `TEXT_PLACEHOLDER` — texte
+- `BG_INPUT`, `BG_SURFACE`, `BG_SIDE`, `BG_HEADER` — fonds
+- `BG_TABLE_ALT`, `BG_TABLE_SELECTED`, `BG_TABLE_HEADER` — tableaux
+- `BORDER`, `BORDER_LIGHT`, `BORDER_TABLE_HDR` — bordures
+- `ACCENT`, `ACCENT_HOVER` — accent principal
+- Voir `src/gui/theme_fragments/colors.py` pour la liste complète
 
-## CLI commands
-| Commande | Description |
-|----------|-------------|
-| `python -m src.cli_ordonnanceur --help` | Aide complète |
-| `python -m src.cli_ordonnanceur DOSSIER` | Preview simulation |
-| `python -m src.cli_ordonnanceur DOSSIER --executer` | Exécution réelle |
-| `python -m src.cli_ordonnanceur DOSSIER --ops renommage classement` | Opérations filtrées |
-| `python -m src.cli_ordonnanceur DOSSIER --template-renommage "{artist} - {title}.{ext}"` | Template personnalisé |
+### Ajouter une couleur :
+Si une nouvelle couleur est nécessaire, l'ajouter dans `colors.py` avec
+une clé descriptive — pas en dur dans le widget.
+
+## Architecture GUI
+- Layout principal dans `src/gui/layout/` (center.py, left.py, footer.py, right.py)
+- Bots/widgets dans `src/gui/widgets/bots/`
+- Chaque bot suit le pattern : classe `BotXxx(QFrame)` avec `setup(service)` et signaux Qt
 
 ## Conventions
-- **Langue des docs :** français (projet francophone)
-- **Code :** Python 3.12+, type hints partout
-- **Tests :** pytest, fixtures tmp_path pour les fichiers temporaires
-- **CLI :** argparse, `python -m src.cli_ordonnanceur`
+- **Langue :** français (noms de variables/méthodes en français)
+- **Code :** Python 3.12+, type hints, PySide6
+- **Signaux :** `Signal(...)` avec types stricts, pas de `object` sauf nécessité
+- **Bots :** méthode `setup()` avec flag `_setup_done`, connexion aux signaux service
 
 ## Things to avoid
-- Ne pas lancer d'opérations destructives sans confirmation utilisateur (toucher au disque)
-- Ne pas modifier les fichiers des anciens bots Soulseek sans demande explicite
-- Toujours utiliser `simuler=True` par défaut — `--executer` est une action explicite de l'utilisateur
+- Ne JAMAIS utiliser `#RGB` (3 chiffres) ou `#RRGGBBAA` (8 chiffres) dans les couleurs Qt
+- Ne pas lancer de commandes destructives (git push, git commit) sans demande explicite
+- Ne pas modifier les specs sans demande explicite

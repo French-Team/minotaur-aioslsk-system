@@ -1,0 +1,43 @@
+[tool.mypy]
+python_version = "3.11"
+files = ["src/", "tests/"]
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = false
+disallow_any_unimported = false
+disallow_untyped_defs = false
+no_implicit_optional = true
+check_untyped_defs = false
+
+[tool.mypy."tests.*"]
+disallow_untyped_defs = false
+ignore_errors = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "F",    # Pyflakes (errors)
+    "E",    # Pycodestyle (errors)
+    "W",    # Pycodestyle (warnings)
+    "I",    # Isort (import sorting)
+]
+ignore = [
+    "E501",  # Line too long
+    "F541",  # f-string without placeholders
+    "E402",  # Module level import not at top of file
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]     # imports inutilisés dans __init__
+"tests/*" = ["F401"]          # imports inutilisés dans les tests
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

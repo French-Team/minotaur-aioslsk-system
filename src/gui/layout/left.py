@@ -116,9 +116,7 @@ class LeftZone(QFrame):
         # ── Bouton Accueil (visible seulement quand connecté) ──
         self._home_btn = _NavButton("🏠  Accueil")
         self._home_btn.setVisible(False)
-        self._home_btn.clicked.connect(
-            lambda: self._on_button("accueil")
-        )
+        self._home_btn.clicked.connect(lambda: self._on_button("accueil"))
         inner.addWidget(self._home_btn)
 
         inner.addSpacing(12)

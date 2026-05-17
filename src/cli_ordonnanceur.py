@@ -20,11 +20,12 @@ from typing import Any
 
 from src.services.ordonnanceur_service import OrdonnanceurService
 
-
 # -- Style helpers ----------------------------------------------------------
+
 
 class Style:
     """Codes ANSI pour le terminal -- desactives si non supporte."""
+
     _support = sys.stdout.isatty()
 
     BOLD = f"\033[1m" if _support else ""
@@ -43,6 +44,7 @@ HEADER = "=" * 54
 
 
 # -- Affichage --------------------------------------------------------------
+
 
 def _titre(txt: str) -> None:
     """Affiche un titre de section."""
@@ -113,7 +115,10 @@ def _afficher_classement(classement: dict[str, Any]) -> None:
     fichiers = classement.get("fichiers", [])
     total = classement.get("total", len(fichiers))
     nb_artistes = classement.get("nb_artistes", 0)
-    _sous_titre("Classement", f"{total} fichier{'s' if total != 1 else ''}, {nb_artistes} artiste{'s' if nb_artistes != 1 else ''}")
+    _sous_titre(
+        "Classement",
+        f"{total} fichier{'s' if total != 1 else ''}, {nb_artistes} artiste{'s' if nb_artistes != 1 else ''}",
+    )
 
     if not fichiers:
         _info("Aucun fichier a classer.")
@@ -131,9 +136,13 @@ def _afficher_classement(classement: dict[str, Any]) -> None:
             _item(f"{mark} {Style.MAGENTA}[{artiste}]{Style.RESET}")
             continue
         if artiste:
-            _item(f"     {mark} {Style.DIM}{Path(chemin_actuel).name}{Style.RESET} -> {Style.BOLD}{nouveau_chemin}{Style.RESET}")
+            _item(
+                f"     {mark} {Style.DIM}{Path(chemin_actuel).name}{Style.RESET} -> {Style.BOLD}{nouveau_chemin}{Style.RESET}"
+            )
         else:
-            _item(f"{mark} {Style.DIM}{Path(chemin_actuel).name}{Style.RESET} -> {Style.BOLD}{nouveau_chemin}{Style.RESET}")
+            _item(
+                f"{mark} {Style.DIM}{Path(chemin_actuel).name}{Style.RESET} -> {Style.BOLD}{nouveau_chemin}{Style.RESET}"
+            )
 
     conflits_resolus = classement.get("conflits_resolus", [])
     conflits = classement.get("conflits", [])
@@ -149,7 +158,10 @@ def _afficher_deduplication(dedup: dict[str, Any]) -> None:
     total_doublons = dedup.get("total_doublons", 0)
     total_economise = dedup.get("total_lisible", "0 o")
     nb_groupes = dedup.get("nb_groupes", 0)
-    _sous_titre("Dedoublonnage", f"{total_doublons} fichier{'s' if total_doublons != 1 else ''} a supprimer ({total_economise} economies)")
+    _sous_titre(
+        "Dedoublonnage",
+        f"{total_doublons} fichier{'s' if total_doublons != 1 else ''} a supprimer ({total_economise} economies)",
+    )
 
     if not groupes:
         _info("Aucun doublon detecte.")
@@ -202,15 +214,16 @@ def _taille_lisible(octets: int) -> str:
     """Formate une taille en octets en chaine lisible."""
     if octets < 1024:
         return f"{octets} o"
-    elif octets < 1024 ** 2:
+    elif octets < 1024**2:
         return f"{octets / 1024:.1f} Ko"
-    elif octets < 1024 ** 3:
-        return f"{octets / 1024 ** 2:.1f} Mo"
+    elif octets < 1024**3:
+        return f"{octets / 1024**2:.1f} Mo"
     else:
-        return f"{octets / 1024 ** 3:.2f} Go"
+        return f"{octets / 1024**3:.2f} Go"
 
 
 # -- Fonction principale d'affichage ----------------------------------------
+
 
 def afficher_apercu_console(
     apercu: dict[str, Any],
@@ -246,12 +259,15 @@ def afficher_apercu_console(
     # Resume final
     print()
     print(f"{Style.BOLD}{Style.CYAN}{SEP}{Style.RESET}")
-    print(f"{Style.BOLD}{Style.GREEN}  RESUME : {total_fichiers} fichier{'s' if total_fichiers != 1 else ''} concerne{'s' if total_fichiers != 1 else ''}  |  {total_taille} economise{'s' if total_taille != '0 o' else ''}{Style.RESET}")
+    print(
+        f"{Style.BOLD}{Style.GREEN}  RESUME : {total_fichiers} fichier{'s' if total_fichiers != 1 else ''} concerne{'s' if total_fichiers != 1 else ''}  |  {total_taille} economise{'s' if total_taille != '0 o' else ''}{Style.RESET}"
+    )
     print(f"{Style.BOLD}{Style.CYAN}{HEADER}{Style.RESET}")
     print()
 
 
 # -- CLI --------------------------------------------------------------------
+
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -409,12 +425,14 @@ def main(argv: list[str] | None = None) -> int:
         if "deduplication" in ops:
             d = ops["deduplication"]
             msg = f"  Dedoublonnage : {d['supprime']} fichiers supprimes"
-            if d['renomme_gardes']:
+            if d["renomme_gardes"]:
                 msg += f", {d['renomme_gardes']} gardes renommes"
             _item(msg)
         if "nettoyage" in ops:
             n = ops["nettoyage"]
-            _item(f"  Nettoyage : {n['supprime']}/{n['tente']} fichiers supprimes ({n.get('taille_lisible', '?')} liberes)")
+            _item(
+                f"  Nettoyage : {n['supprime']}/{n['tente']} fichiers supprimes ({n.get('taille_lisible', '?')} liberes)"
+            )
 
         erreurs = resultat.get("erreurs", [])
         if erreurs:

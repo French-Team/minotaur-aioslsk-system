@@ -18,12 +18,11 @@ from PySide6.QtCore import (
     QEvent,
     Qt,
 )
-from PySide6.QtGui import QAction, QColor, QCursor, QIcon
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QDockWidget,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -54,20 +53,39 @@ _RE_HEX3 = re.compile(r"#[0-9a-fA-F]{3}\b")
 
 # Propriétés CSS typiques, et si elles attendent une couleur ou une valeur numérique
 _CSS_COLOR_PROPS = {
-    "color", "background-color", "background", "border-color",
-    "border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
-    "outline-color", "text-decoration-color", "caret-color",
-    "selection-color", "selection-background-color",
+    "color",
+    "background-color",
+    "background",
+    "border-color",
+    "border-top-color",
+    "border-right-color",
+    "border-bottom-color",
+    "border-left-color",
+    "outline-color",
+    "text-decoration-color",
+    "caret-color",
+    "selection-color",
+    "selection-background-color",
     "alternate-background-color",
 }
 
 _CSS_RECT_PROPS = {
-    "padding", "margin", "border-width", "border-radius",
-    "padding-top", "padding-right", "padding-bottom", "padding-left",
-    "margin-top", "margin-right", "margin-bottom", "margin-left",
+    "padding",
+    "margin",
+    "border-width",
+    "border-radius",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
 }
 
 # ── Fonctions utilitaires ──────────────────────────────────────────────────
+
 
 def _widget_label(w: QWidget) -> str:
     """Produit un libellé lisible pour un widget : ClassName[objectName]."""
@@ -99,25 +117,17 @@ def _qss_errors(stylesheet: str) -> list[str]:
 
     # 1. Couleurs hex sur 8 chiffres (#RRGGBBAA) → non supportées Qt
     for m in _RE_HEX8.finditer(stylesheet):
-        errors.append(
-            f"Couleur {m.group()} sur 8 chiffres non supportée par Qt. "
-            f"Utiliser rgba() à la place."
-        )
+        errors.append(f"Couleur {m.group()} sur 8 chiffres non supportée par Qt. Utiliser rgba() à la place.")
 
     # 2. Couleurs hex sur 3 chiffres (#RGB) → non supportées Qt
     for m in _RE_HEX3.finditer(stylesheet):
-        errors.append(
-            f"Couleur {m.group()} sur 3 chiffres non supportée par Qt. "
-            f"Utiliser #RRGGBB à la place."
-        )
+        errors.append(f"Couleur {m.group()} sur 3 chiffres non supportée par Qt. Utiliser #RRGGBB à la place.")
 
     # 3. Vérifie les accolades mal équilibrées
     open_br = stylesheet.count("{")
     close_br = stylesheet.count("}")
     if open_br != close_br:
-        errors.append(
-            f"Accolades déséquilibrées : {open_br} ouvertes, {close_br} fermées."
-        )
+        errors.append(f"Accolades déséquilibrées : {open_br} ouvertes, {close_br} fermées.")
 
     # 4. Vérifie les sélecteurs vides
     for m in re.finditer(r"\{\s*\}", stylesheet):
@@ -129,7 +139,13 @@ def _qss_errors(stylesheet: str) -> list[str]:
         stripped = line.strip()
         if not stripped or stripped.startswith("/*") or stripped.endswith("/*"):
             continue
-        if ":" in stripped and not stripped.endswith(";") and not stripped.endswith("{") and not stripped.endswith("}") and not stripped.endswith(","):
+        if (
+            ":" in stripped
+            and not stripped.endswith(";")
+            and not stripped.endswith("{")
+            and not stripped.endswith("}")
+            and not stripped.endswith(",")
+        ):
             # Évite les faux positifs pour les sélecteurs
             if not stripped.startswith(".") and not stripped.startswith("#"):
                 errors.append(f"Ligne {i} : point-virgule manquant — '{stripped[:60]}'")
@@ -139,6 +155,7 @@ def _qss_errors(stylesheet: str) -> list[str]:
 
 
 # ── Widget d'affichage des propriétés ──────────────────────────────────────
+
 
 class _PropertyPanel(QWidget):
     """Panneau affichant les propriétés d'un widget sélectionné."""
@@ -232,12 +249,20 @@ class _PropertyPanel(QWidget):
         geo = widget.geometry()
         min_s = widget.minimumSize()
         max_s = widget.maximumSize()
-        size_policy_h = widget.sizePolicy().horizontalPolicy().name if hasattr(widget.sizePolicy().horizontalPolicy(), "name") else str(widget.sizePolicy().horizontalPolicy())
-        size_policy_v = widget.sizePolicy().verticalPolicy().name if hasattr(widget.sizePolicy().verticalPolicy(), "name") else str(widget.sizePolicy().verticalPolicy())
+        size_policy_h = (
+            widget.sizePolicy().horizontalPolicy().name
+            if hasattr(widget.sizePolicy().horizontalPolicy(), "name")
+            else str(widget.sizePolicy().horizontalPolicy())
+        )
+        size_policy_v = (
+            widget.sizePolicy().verticalPolicy().name
+            if hasattr(widget.sizePolicy().verticalPolicy(), "name")
+            else str(widget.sizePolicy().verticalPolicy())
+        )
 
         info_lines = [
             f"Classe        : {widget.__class__.__name__}",
-            f"objectName    : \"{widget.objectName()}\"",
+            f'objectName    : "{widget.objectName()}"',
             f"Chemin        : {path}",
             "",
             "─ Géométrie ─────────────────────",
@@ -257,11 +282,13 @@ class _PropertyPanel(QWidget):
         # Ajoute le parent s'il existe
         parent = widget.parentWidget()
         if parent is not None:
-            info_lines.extend([
-                "",
-                "─ Parent ────────────────────────",
-                f"  {_widget_label(parent)}",
-            ])
+            info_lines.extend(
+                [
+                    "",
+                    "─ Parent ────────────────────────",
+                    f"  {_widget_label(parent)}",
+                ]
+            )
 
         self._info_text.setPlainText("\n".join(info_lines))
 
@@ -336,11 +363,11 @@ class _PropertyPanel(QWidget):
             item.setForeground(QColor("#a6e3a1"))
             self._validation_list.addItem(item)
 
-
         # Reste sur l'onglet actif (laisse l'utilisateur choisir)
 
 
 # ── Widget arbre des widgets ───────────────────────────────────────────────
+
 
 class _WidgetTree(QTreeWidget):
     """Arbre hiérarchique des widgets de l'application."""
@@ -460,6 +487,7 @@ class _WidgetTree(QTreeWidget):
 
 # ── Filtre d'événements pour le mode Pick ─────────────────────────────────
 
+
 class _PickFilter:
     """Filtre d'événements qui capture les clics pour le mode inspection."""
 
@@ -484,6 +512,7 @@ class _PickFilter:
 
 # ── QSS Inspector principal (QDockWidget) ─────────────────────────────────
 
+
 class QssInspector(QDockWidget):
     """Panneau d'inspection QSS flottant / ancrable.
 
@@ -499,14 +528,10 @@ class QssInspector(QDockWidget):
 
         # Configuration du dock
         self.setObjectName("_qss_inspector")
-        self.setAllowedAreas(
-            Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea
-        )
+        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
         self.setMinimumWidth(420)
         self.setFeatures(
-            QDockWidget.DockWidgetClosable
-            | QDockWidget.DockWidgetMovable
-            | QDockWidget.DockWidgetFloatable
+            QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable
         )
 
         # ── Widget central ────────────────────────────────────────────────
@@ -651,17 +676,12 @@ class QssInspector(QDockWidget):
 
         if not warnings and not call_logs:
             QMessageBox.information(
-                self, "Qt Warnings",
-                "Aucun warning Qt ni appel setStyleSheet capturé "
-                "depuis le lancement."
+                self, "Qt Warnings", "Aucun warning Qt ni appel setStyleSheet capturé depuis le lancement."
             )
             return
 
         dialog = QDialog(self)
-        dialog.setWindowTitle(
-            f"⚠ {len(warnings)} warning(s) Qt — "
-            f"{len(call_logs)} appel(s) setStyleSheet"
-        )
+        dialog.setWindowTitle(f"⚠ {len(warnings)} warning(s) Qt — {len(call_logs)} appel(s) setStyleSheet")
         dialog.resize(820, 580)
         layout = QVBoxLayout(dialog)
 
@@ -692,7 +712,7 @@ class QssInspector(QDockWidget):
             "  font-size: 12px; padding: 8px;"
             "}"
         )
-        warn_lines = [f"{i+1}. {w}" for i, w in enumerate(warnings)] if warnings else ["(aucun warning)"]
+        warn_lines = [f"{i + 1}. {w}" for i, w in enumerate(warnings)] if warnings else ["(aucun warning)"]
         warn_text.setPlainText("\n".join(warn_lines))
         warn_layout.addWidget(warn_text)
         tabs.addTab(warn_widget, f"⚠ Qt Warnings ({len(warnings)})")
@@ -750,9 +770,7 @@ class QssInspector(QDockWidget):
         ss_impact: dict[int, list[str]] = {}  # hash -> [labels des widgets impactés]
 
         all_widgets = [self._main_window]
-        all_widgets.extend(
-            self._main_window.findChildren(QWidget, options=Qt.FindChildrenRecursively)
-        )
+        all_widgets.extend(self._main_window.findChildren(QWidget, options=Qt.FindChildrenRecursively))
 
         # Stylesheet QApplication (collecté une fois)
         qapp = QApplication.instance()
@@ -824,9 +842,9 @@ class QssInspector(QDockWidget):
         # ── Affiche les résultats ─────────────────────────────────────
         if not error_groups:
             QMessageBox.information(
-                self, "Scan QSS",
-                "✓ Aucune erreur QSS détectée (regex + Qt) dans aucun stylesheet "
-                "(local + hérité + global)."
+                self,
+                "Scan QSS",
+                "✓ Aucune erreur QSS détectée (regex + Qt) dans aucun stylesheet (local + hérité + global).",
             )
             return
 
