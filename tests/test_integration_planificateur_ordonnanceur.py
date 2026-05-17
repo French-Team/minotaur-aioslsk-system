@@ -86,15 +86,51 @@ def _isolate_db(monkeypatch: MonkeyPatch) -> Generator[None, None, None]:
                 pass
         EventBus._instance = None
 
+        # Forcer une instance fraîche de PlanificateurService avec les paths patchés
+        from src.services.planificateur_service import PlanificateurService
+
+        if PlanificateurService._instance is not None:
+            try:
+                PlanificateurService._instance._db.close()
+            except Exception:
+                pass
+        PlanificateurService._instance = None
+        _isolated_svc = PlanificateurService()
+
+        # Patcher la référence module-level dans bot_ordonnanceur (si déjà importé)
+        try:
+            import src.gui.widgets.bots.bot_ordonnanceur as _bot_ord
+
+            _bot_ord.planificateur_service = _isolated_svc
+            # Reconnecter le signal sur l'instance fraîche
+            _bot_ord.planificateur_service.action_changed.connect(_bot_ord._on_action_planifiee)
+        except (ImportError, AttributeError):
+            pass
+
         yield
 
-        # Nettoyage EventBus
+        # Nettoyage EventBus (après le yield pour libérer le verrou avant suppression tempdir)
         if EventBus._instance is not None:
             try:
                 EventBus._instance.shutdown()
             except Exception:
                 pass
             EventBus._instance = None
+
+        # Nettoyage PlanificateurService — fermer TOUTES les connexions au tempdir
+        # pour éviter PermissionError Windows.
+        try:
+            if PlanificateurService._instance is not None:
+                PlanificateurService._instance._db.close()
+        except Exception:
+            pass
+        # L'instance créée dans ce setup peut différer de _instance
+        # si une autre fixture (planif_svc) a reset le singleton entre-temps.
+        try:
+            _isolated_svc._db.close()
+        except Exception:
+            pass
+        PlanificateurService._instance = None
 
 
 @pytest.fixture
@@ -502,7 +538,7 @@ class TestPlanificateurReceiver:
         fresh_svc = PlanificateurService()
 
         # Patcher la référence module-level de bot_ordonnanceur
-        bot_ordonnanceur.planificateur_service = fresh_svc  # type: ignore[attr-defined]
+        bot_ordonnanceur.planificateur_service = fresh_svc
 
         # Reconnecter le signal sur la nouvelle instance
         fresh_svc.action_changed.connect(bot_ordonnanceur._on_action_planifiee)
@@ -514,9 +550,7 @@ class TestPlanificateurReceiver:
         _isolate_db autouse gère déjà EventBus.shutdown en fin de test.
         """
         try:
-            if hasattr(planif_svc, "_conn") and planif_svc._conn is not None:
-                planif_svc._conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
-                planif_svc._conn.close()
+            planif_svc._db.close()
         except Exception:
             pass
         # Vider le cache de modules pour que le prochain _setup()

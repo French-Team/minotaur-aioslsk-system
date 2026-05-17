@@ -25,6 +25,7 @@ def qapp() -> QApplication:
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
+    assert isinstance(app, QApplication)
     return app
 
 
@@ -32,7 +33,7 @@ def qapp() -> QApplication:
 
 
 @pytest.fixture
-def tmp_data_dir(monkeypatch: MonkeyPatch) -> Path:
+def tmp_data_dir(monkeypatch: MonkeyPatch) -> Generator[Path, None, None]:
     """Crée un répertoire ``data/`` temporaire et l'injecte via monkeypatch.
 
     Utile pour les tests qui écrivent des fichiers dans ``data/``
@@ -49,7 +50,7 @@ def tmp_data_dir(monkeypatch: MonkeyPatch) -> Path:
 
 
 @pytest.fixture
-def tmp_app_config(monkeypatch: MonkeyPatch) -> Path:
+def tmp_app_config(monkeypatch: MonkeyPatch) -> Generator[Path, None, None]:
     """Crée un fichier ``app_config.json`` temporaire avec les valeurs par défaut.
 
     Monkeypatche ``src.services.app_config._CONFIG_FILE`` pour que les

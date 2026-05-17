@@ -9,7 +9,7 @@ Vérifie le flux bout-en-bout :
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generator
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
@@ -137,7 +137,7 @@ def mock_soulseek(mock_users: dict[str, FakeUser]) -> MagicMock:
 
     # users dict — mappe les FakeUser comme des User aioslsk
     client.users = MagicMock()
-    client.users.users = mock_users  # type: ignore[assignment]
+    client.users.users = mock_users
 
     # events.register — enregistre les handlers dans un dict interne
     event_handlers: dict[type, Any] = {}
@@ -145,7 +145,7 @@ def mock_soulseek(mock_users: dict[str, FakeUser]) -> MagicMock:
     client.events.register = lambda event_type, handler: event_handlers.update({event_type: handler})
 
     # Stocker les handlers pour pouvoir les appeler depuis les tests
-    slsk._event_handlers = event_handlers  # type: ignore[attr-defined]
+    slsk._event_handlers = event_handlers
 
     # Helper pour déclencher un événement enregistré
     def _trigger_event(event_type: type, **kwargs: Any) -> None:
@@ -169,7 +169,7 @@ def mock_soulseek(mock_users: dict[str, FakeUser]) -> MagicMock:
                     setattr(evt, attr, kwargs[attr])
             handler(evt)
 
-    slsk._trigger_event = _trigger_event  # type: ignore[attr-defined]
+    slsk._trigger_event = _trigger_event
 
     # Signaux Qt mockés (pas de vrai Signal sur instance)
     slsk.search_result_received = MagicMock()
@@ -190,7 +190,7 @@ def _patch_soulseek(
 
 
 @pytest.fixture
-def center(qapp: QApplication, mock_soulseek: MagicMock) -> CenterZone:
+def center(qapp: QApplication, mock_soulseek: MagicMock) -> Generator[CenterZone, None, None]:
     """CentreZone avec mock SoulseekService."""
     cz = CenterZone()
     yield cz
@@ -219,7 +219,7 @@ class TestIntegrationServiceHeader:
     ) -> None:
         """BotClientsActifs reçoit le service via setup()."""
         page = center.bot_clients_actifs_page
-        assert page is not None
+        assert isinstance(page, BotClientsActifs)
         assert page._service is not None
         assert isinstance(page._service, ClientsActifsService)
 
@@ -229,7 +229,7 @@ class TestIntegrationServiceHeader:
     ) -> None:
         """BotTelechargement reçoit le service."""
         page = center.telechargements_page
-        assert page is not None
+        assert isinstance(page, BotTelechargement)
         assert page._clients_actifs_service is not None
         assert isinstance(page._clients_actifs_service, ClientsActifsService)
 
@@ -239,7 +239,7 @@ class TestIntegrationServiceHeader:
     ) -> None:
         """BotRecherche reçoit le service."""
         page = center._pages.get("Recherche")
-        assert page is not None
+        assert isinstance(page, BotRecherche)
         assert page._clients_actifs_service is not None
         assert isinstance(page._clients_actifs_service, ClientsActifsService)
 
@@ -254,6 +254,7 @@ class TestIntegrationSynchronisation:
     ) -> None:
         """La synchronisation initiale remplit le tableau des clients."""
         page = center.bot_clients_actifs_page
+        assert isinstance(page, BotClientsActifs)
         assert page._table.rowCount() == 3  # alice(ONLINE), bob(AWAY), charlie(OFFLINE)
 
     def test_tableau_contient_alice(
@@ -262,7 +263,12 @@ class TestIntegrationSynchronisation:
     ) -> None:
         """Alice est dans le tableau."""
         page = center.bot_clients_actifs_page
-        items = [page._table.item(row, 1).text() for row in range(page._table.rowCount())]
+        assert isinstance(page, BotClientsActifs)
+        items = []
+        for row in range(page._table.rowCount()):
+            item = page._table.item(row, 1)
+            assert item is not None
+            items.append(item.text())
         assert "alice" in items
 
     def test_tableau_exclut_unknown(
@@ -271,7 +277,12 @@ class TestIntegrationSynchronisation:
     ) -> None:
         """Dave (UNKNOWN) n'apparaît pas dans le tableau."""
         page = center.bot_clients_actifs_page
-        items = [page._table.item(row, 1).text() for row in range(page._table.rowCount())]
+        assert isinstance(page, BotClientsActifs)
+        items = []
+        for row in range(page._table.rowCount()):
+            item = page._table.item(row, 1)
+            assert item is not None
+            items.append(item.text())
         assert "dave" not in items
 
     def test_stats_mises_a_jour(
@@ -280,6 +291,7 @@ class TestIntegrationSynchronisation:
     ) -> None:
         """Les compteurs stats sont cohérents après synchronisation."""
         page = center.bot_clients_actifs_page
+        assert isinstance(page, BotClientsActifs)
         assert "Total: 3" in page._lbl_total.text()
         # alice(ONLINE) + bob(AWAY) = 2 actifs
         # alice(ONLINE) = 1 connecté
@@ -295,6 +307,7 @@ class TestIntegrationEvenements:
     ) -> None:
         """Un nouveau client ONLINE apparaît dans le tableau."""
         page = center.bot_clients_actifs_page
+        assert isinstance(page, BotClientsActifs)
         before = page._table.rowCount()
 
         # Ajouter eve dans users mock pour que _synchroniser fonctionne
@@ -319,7 +332,11 @@ class TestIntegrationEvenements:
         )
 
         assert page._table.rowCount() == before + 1
-        items = [page._table.item(row, 1).text() for row in range(page._table.rowCount())]
+        items = []
+        for row in range(page._table.rowCount()):
+            item = page._table.item(row, 1)
+            assert item is not None
+            items.append(item.text())
         assert "eve" in items
 
     def test_statut_change_applique(
@@ -329,6 +346,7 @@ class TestIntegrationEvenements:
     ) -> None:
         """Un changement de statut est répercuté dans le tableau."""
         page = center.bot_clients_actifs_page
+        assert isinstance(page, BotClientsActifs)
 
         # Alice passe de ONLINE à AWAY
         mock_soulseek._trigger_event(
@@ -339,8 +357,12 @@ class TestIntegrationEvenements:
 
         # Vérifier que la ligne d'Alice a changé (colonne 0 = statut)
         for row in range(page._table.rowCount()):
-            if page._table.item(row, 1).text() == "alice":
-                statut_text = page._table.item(row, 0).text()
+            name_item = page._table.item(row, 1)
+            assert name_item is not None
+            if name_item.text() == "alice":
+                statut_item = page._table.item(row, 0)
+                assert statut_item is not None
+                statut_text = statut_item.text()
                 # Le texte de statut contient l'emoji + libellé (ex: "  \U0001f7e1  Away" ou "  \U0001f7e2  Actif")
                 # On vérifie juste que le statut a été mis à jour
                 assert "\U0001f7e1" in statut_text or "Away" in statut_text
@@ -355,6 +377,7 @@ class TestIntegrationEvenements:
     ) -> None:
         """Un client qui passe OFFLINE reste dans le tableau (pas supprimé)."""
         page = center.bot_clients_actifs_page
+        assert isinstance(page, BotClientsActifs)
         before = page._table.rowCount()
 
         mock_soulseek._trigger_event(
@@ -365,7 +388,11 @@ class TestIntegrationEvenements:
 
         # Le client reste dans le tableau (les clients OFFLINE sont conservés)
         assert page._table.rowCount() == before
-        items = [page._table.item(row, 1).text() for row in range(page._table.rowCount())]
+        items = []
+        for row in range(page._table.rowCount()):
+            item = page._table.item(row, 1)
+            assert item is not None
+            items.append(item.text())
         assert "alice" in items
 
     def test_multiple_evenements_consecutifs(
@@ -375,6 +402,7 @@ class TestIntegrationEvenements:
     ) -> None:
         """Plusieurs événements consécutifs ne crashent pas."""
         page = center.bot_clients_actifs_page
+        assert isinstance(page, BotClientsActifs)
 
         for i in range(5):
             username = f"user_{i}"
@@ -389,7 +417,11 @@ class TestIntegrationEvenements:
             )
 
         # Tous les nouveaux utilisateurs sont dans le tableau
-        items = [page._table.item(row, 1).text() for row in range(page._table.rowCount())]
+        items = []
+        for row in range(page._table.rowCount()):
+            item = page._table.item(row, 1)
+            assert item is not None
+            items.append(item.text())
         for i in range(5):
             assert f"user_{i}" in items
 
@@ -403,6 +435,7 @@ class TestIntegrationTelechargement:
     ) -> None:
         """BotTelechargement a le service injecté."""
         page = center.telechargements_page
+        assert isinstance(page, BotTelechargement)
         assert page._clients_actifs_service is not None
 
     def test_telechargement_status_emoji_online(
@@ -411,6 +444,7 @@ class TestIntegrationTelechargement:
     ) -> None:
         """Un téléchargement depuis alice (ONLINE) affiche 🟢."""
         page = center.telechargements_page
+        assert isinstance(page, BotTelechargement)
         display = page._user_display("alice")
         assert "🟢" in display
 
@@ -420,6 +454,7 @@ class TestIntegrationTelechargement:
     ) -> None:
         """Un téléchargement depuis bob (AWAY) affiche 🟡."""
         page = center.telechargements_page
+        assert isinstance(page, BotTelechargement)
         display = page._user_display("bob")
         assert "🟡" in display
 
@@ -429,6 +464,7 @@ class TestIntegrationTelechargement:
     ) -> None:
         """Un téléchargement depuis charlie (OFFLINE) affiche ⚫."""
         page = center.telechargements_page
+        assert isinstance(page, BotTelechargement)
         display = page._user_display("charlie")
         assert "⚫" in display
 
@@ -438,6 +474,7 @@ class TestIntegrationTelechargement:
     ) -> None:
         """Un utilisateur inconnu affiche ⚪."""
         page = center.telechargements_page
+        assert isinstance(page, BotTelechargement)
         display = page._user_display("ghost")
         assert "⚪" in display
 
@@ -448,6 +485,7 @@ class TestIntegrationTelechargement:
     ) -> None:
         """Quand alice passe AWAY, la colonne utilisateur est mise à jour."""
         tel_page = center.telechargements_page
+        assert isinstance(tel_page, BotTelechargement)
 
         # Ajouter un téléchargement pour alice
         tel_page.add_download(
@@ -460,7 +498,9 @@ class TestIntegrationTelechargement:
 
         # Récupérer la ligne ajoutée (colonne 2 = utilisateur)
         row = tel_page._table.rowCount() - 1
-        user_text_online = tel_page._table.item(row, _COL_USER).text()
+        online_item = tel_page._table.item(row, _COL_USER)
+        assert online_item is not None
+        user_text_online = online_item.text()
         assert "🟢" in user_text_online
 
         # Alice passe AWAY
@@ -471,7 +511,9 @@ class TestIntegrationTelechargement:
         )
 
         # La colonne devrait maintenant afficher 🟡
-        user_text_away = tel_page._table.item(row, _COL_USER).text()
+        away_item = tel_page._table.item(row, _COL_USER)
+        assert away_item is not None
+        user_text_away = away_item.text()
         assert "🟡" in user_text_away
 
 
@@ -484,6 +526,7 @@ class TestIntegrationRecherche:
     ) -> None:
         """BotRecherche a le service injecté."""
         page = center._pages.get("Recherche")
+        assert isinstance(page, BotRecherche)
         assert page._clients_actifs_service is not None
 
     def test_recherche_checkbox_presente(
@@ -492,6 +535,7 @@ class TestIntegrationRecherche:
     ) -> None:
         """La checkbox '🔒 Actifs' est présente dans l'UI."""
         page = center._pages.get("Recherche")
+        assert isinstance(page, BotRecherche)
         assert page._clients_actifs_cb is not None
         assert "Actifs" in page._clients_actifs_cb.text()
 
@@ -501,6 +545,7 @@ class TestIntegrationRecherche:
     ) -> None:
         """La checkbox est décochée par défaut."""
         page = center._pages.get("Recherche")
+        assert isinstance(page, BotRecherche)
         assert page._clients_actifs_cb.isChecked() is False
 
 

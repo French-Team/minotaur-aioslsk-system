@@ -175,7 +175,8 @@ class TestSignalPageChanged:
         On navigue d'abord vers Bibliothèque, puis on émet le signal
         depuis Bibliothèque pour vérifier que CenterZone navigue.
         """
-        biblio: BotBibliotheque = center._pages["Bibliothèque"]
+        biblio = center._pages["Bibliothèque"]
+        assert isinstance(biblio, BotBibliotheque)
 
         # 1. Naviguer d'abord vers Bibliothèque pour établir un point de départ
         center.show_page("Bibliothèque")
@@ -190,7 +191,8 @@ class TestSignalPageChanged:
 
     def test_bibliotheque_page_changed_self_reference(self, center: CenterZone) -> None:
         """Le signal page_changed de BotBibliotheque est émettable et capturable."""
-        biblio: BotBibliotheque = center._pages["Bibliothèque"]
+        biblio = center._pages["Bibliothèque"]
+        assert isinstance(biblio, BotBibliotheque)
         received: list[str] = []
         biblio.page_changed.connect(lambda name: received.append(name))
 
@@ -230,6 +232,7 @@ class TestStructureInterne:
     def test_bibliotheque_disconnected_page_visible_initially(self, center: CenterZone) -> None:
         """À l'init (Soulseek déconnecté), la page déconnectée est visible."""
         page = center._pages["Bibliothèque"]
+        assert isinstance(page, BotBibliotheque)
         assert page._main_stack.currentIndex() == 0
 
     def test_stack_widget_contains_bibliotheque(self, center: CenterZone) -> None:

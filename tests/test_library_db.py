@@ -180,6 +180,7 @@ class TestFolders:
     def test_remove_folder(self, db: LibraryDB) -> None:
         """remove_folder() supprime un dossier."""
         folder_id = db.add_folder("/tmp/test_remove")
+        assert folder_id is not None
         assert db.remove_folder(folder_id) is True
         assert db.get_folders() == []
 
@@ -190,6 +191,7 @@ class TestFolders:
     def test_remove_folder_cascade_deletes_files(self, db: LibraryDB) -> None:
         """remove_folder() supprime les fichiers enfants via CASCADE."""
         folder_id = db.add_folder("/tmp/test_cascade")
+        assert folder_id is not None
         conn = db._connect()
         try:
             conn.execute(

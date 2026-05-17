@@ -7,7 +7,7 @@ le menu contextuel, et les utilitaires.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generator
 
 import pytest
 from PySide6.QtCore import QObject, Signal
@@ -123,7 +123,7 @@ def mock_service(qapp: Any) -> MockSoulseekService:
 
 
 @pytest.fixture
-def bot(qapp: Any) -> BotTelechargement:
+def bot(qapp: Any) -> Generator[BotTelechargement, None, None]:
     """Crée une instance de BotTelechargement avec les dépendances mockées."""
     instance = BotTelechargement()
     yield instance

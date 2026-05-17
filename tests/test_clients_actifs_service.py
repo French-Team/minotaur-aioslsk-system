@@ -544,8 +544,8 @@ class TestFluxReel:
         assert service._clients["alice"].statut == UserStatus.AWAY
 
         # Alice reçoit une mise à jour d'info
-        evt = _FakeUserInfoEvent("alice", description="Bonjour!", slots_free=3)
-        service._on_user_info_update(evt)
+        info_evt = _FakeUserInfoEvent("alice", description="Bonjour!", slots_free=3)
+        service._on_user_info_update(info_evt)
         assert service._clients["alice"].description == "Bonjour!"
         assert service._clients["alice"].slots_libres == 3
 

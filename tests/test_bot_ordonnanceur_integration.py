@@ -7,6 +7,7 @@ prévisualisation, rapport, gestion d'erreurs.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,7 +48,7 @@ def qapp():
 
 
 @pytest.fixture
-def bot(qapp) -> BotOrdonnanceur:
+def bot(qapp) -> Generator[BotOrdonnanceur, None, None]:
     """Crée un BotOrdonnanceur et le nettoie après le test."""
     b = BotOrdonnanceur()
     yield b
@@ -207,7 +208,9 @@ class TestNavigation:
         """Le bouton suivant démarre l'analyse quand on est à l'étape 0."""
         bot._dossier = Path("/tmp/test")
         bot._selected_ops = {"renommage"}
-        bot._next_btn.setEnabled(True)  # Simule l'activation UI via sélection dossier + ops
+        next_btn = bot._next_btn
+        assert next_btn is not None
+        next_btn.setEnabled(True)  # Simule l'activation UI via sélection dossier + ops
         # Simuler un clic sur "Analyser →" à l'étape 0
         with patch.object(bot, "_run_analysis") as mock_run:
             bot._on_next()
@@ -454,7 +457,7 @@ class TestApercu:
 
     def test_apercu_avec_donnees(self, bot: BotOrdonnanceur) -> None:
         """Avec des données d'analyse, l'aperçu peuple les sections."""
-        bot._analyse = AnalyseResultat(
+        bot._analyse = AnalyseResultat(  # type: ignore[assignment]
             dossier_source=Path("/tmp/test"),
             fichiers=[
                 FichierInfo(
@@ -482,7 +485,7 @@ class TestApercu:
 
     def test_apercu_checkbox_execution(self, bot: BotOrdonnanceur) -> None:
         """La checkbox 'Exécuter pour de vrai' est présente dans l'aperçu."""
-        bot._analyse = AnalyseResultat(
+        bot._analyse = AnalyseResultat(  # type: ignore[assignment]
             dossier_source=Path("/tmp/test"),
             fichiers=[],
             total_fichiers=0,

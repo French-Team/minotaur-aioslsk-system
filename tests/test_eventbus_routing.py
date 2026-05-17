@@ -8,6 +8,8 @@ Couvre :
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from PySide6.QtCore import QObject, Signal
 
@@ -424,3 +426,54 @@ class TestEventBusPersistence:
         assert found.title == "Persistant"
         bus2.shutdown()
         EventBus._instance = old
+
+
+# ═══════════════════════════════════════════════════════════════════
+# EventBus — shutdown (fermeture SQLite)
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestEventBusShutdown:
+    """Vérifie que shutdown() ferme proprement la connexion SQLite."""
+
+    @pytest.fixture
+    def bus(self, monkeypatch):
+        monkeypatch.setattr("src.services.event_bus._DB_PATH", ":memory:")
+        old = EventBus._instance
+        if old is not None:
+            old.shutdown()
+        EventBus._instance = None
+        bus = EventBus()
+        yield bus
+        EventBus._instance = old
+
+    def test_shutdown_appelle_wal_checkpoint_et_close(self, bus):
+        """shutdown() exécute WAL checkpoint puis ferme la connexion."""
+        mock_db = MagicMock()
+        bus._db = mock_db
+        bus._purge_timer = None
+
+        bus.shutdown()
+
+        mock_db.execute.assert_called_once_with("PRAGMA wal_checkpoint(TRUNCATE);")
+        mock_db.close.assert_called_once()
+        assert bus._db is None
+
+    def test_shutdown_sans_db_ne_leve_pas(self, bus):
+        """shutdown() ne lève pas d'erreur si _db est déjà None."""
+        bus._db = None
+        bus._purge_timer = None
+        bus.shutdown()  # ne doit pas lever
+
+    def test_shutdown_stop_purge_timer(self, bus):
+        """shutdown() arrête le purge timer s'il existe."""
+        mock_timer = MagicMock()
+        bus._purge_timer = mock_timer
+        mock_db = MagicMock()
+        bus._db = mock_db
+
+        bus.shutdown()
+
+        mock_timer.stop.assert_called_once()
+        mock_db.execute.assert_called_once_with("PRAGMA wal_checkpoint(TRUNCATE);")
+        mock_db.close.assert_called_once()

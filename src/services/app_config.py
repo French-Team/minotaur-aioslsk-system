@@ -91,25 +91,25 @@ def get(key: str, default: Any = None) -> Any:
     Si la clé n'existe pas, retourne la valeur par défaut du fichier
     ou ``default`` si fourni.
     """
-    _ensure_loaded()
-    return _config.get(key, _DEFAULTS.get(key, default))
+    config = _ensure_loaded()
+    return config.get(key, _DEFAULTS.get(key, default))
 
 
 def set(key: str, value: Any) -> None:
     """Définit une valeur et sauvegarde immédiatement."""
-    _ensure_loaded()
-    _config[key] = value
+    config = _ensure_loaded()
+    config[key] = value
     _save()
 
 
 def reset(key: str | None = None) -> None:
     """Remet une clé (ou toutes les clés) à leurs valeurs par défaut."""
-    _ensure_loaded()
+    config = _ensure_loaded()
     if key is None:
-        _config.clear()
-        _config.update(_DEFAULTS.copy())
-    elif key in _config:
-        _config[key] = _DEFAULTS.get(key)
+        config.clear()
+        config.update(_DEFAULTS.copy())
+    elif key in config:
+        config[key] = _DEFAULTS.get(key)
     else:
         logger.warning("Tentative de reset d'une clé inconnue : %s", key)
     _save()
@@ -117,8 +117,8 @@ def reset(key: str | None = None) -> None:
 
 def dictionary() -> dict[str, Any]:
     """Retourne une copie du dictionnaire de configuration complet."""
-    _ensure_loaded()
-    return dict(_config)
+    config = _ensure_loaded()
+    return dict(config)
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -126,10 +126,12 @@ def dictionary() -> dict[str, Any]:
 # ═════════════════════════════════════════════════════════════════
 
 
-def _ensure_loaded() -> None:
+def _ensure_loaded() -> dict[str, Any]:
     global _config
     if _config is None:
         _config = _load()
+    assert _config is not None
+    return _config
 
 
 def _load() -> dict[str, Any]:
@@ -141,7 +143,7 @@ def _load() -> dict[str, Any]:
 
     try:
         raw = _CONFIG_FILE.read_text(encoding="utf-8")
-        data: dict[str, Any] = json.loads(raw)
+        data = json.loads(raw)
 
         # Fusionner avec les défauts pour les clés manquantes (mise à jour)
         merged = _DEFAULTS.copy()

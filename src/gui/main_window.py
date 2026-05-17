@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 from PySide6.QtCore import Qt, qInstallMessageHandler
 from PySide6.QtGui import QAction, QCloseEvent
@@ -190,7 +191,7 @@ def _patch_set_style_sheet() -> None:
         # Appelle l'original
         original(widget, stylesheet)
 
-    QWidget.setStyleSheet = _logged_set_style_sheet  # type: ignore[assignment]
+    QWidget.setStyleSheet = _logged_set_style_sheet  # type: ignore[method-assign]
 
 
 def _qss_warning_handler(msg_type: int, *args: object) -> None:
@@ -224,7 +225,7 @@ class MainWindow(QMainWindow):
 
         # QSS Inspector (DevTool) - Ctrl+Shift+I pour afficher
         self._qss_inspector = QssInspector(self)
-        self.addDockWidget(Qt.RightDockWidgetArea, self._qss_inspector)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._qss_inspector)
         self._qss_inspector.hide()
 
         # ── Barre de menu ──
@@ -270,7 +271,8 @@ class MainWindow(QMainWindow):
 
         # Raccourcis vers les widgets UI
         connexion_header = self._layout.header.connexion_widget
-        connexion_page = self._layout.center.connexion_page
+        connexion_page: Any = self._layout.center.connexion_page
+        assert connexion_header is not None
 
         # UI → Manager
         connexion_page.login_requested.connect(self._connexion_manager.login)
@@ -285,37 +287,43 @@ class MainWindow(QMainWindow):
         header = self._layout.header
         footer = self._layout.footer
         left = self._layout.left
-        self._connexion_manager.connected.connect(
-            lambda username: (
-                header.setVisible(True),
-                footer.setVisible(True),
-                setattr(left, "home_button_visible", True),
-                connexion_header.set_username(username),
-                connexion_header.set_photo(
-                    cfg_get("general.photo_profil")  # type: ignore[arg-type]
-                ),
-            )
-        )
-        self._connexion_manager.disconnected.connect(
-            lambda: (
-                header.setVisible(False),
-                footer.setVisible(False),
-                setattr(left, "home_button_visible", False),
-            )
-        )
+        assert header is not None
+        assert footer is not None
+        assert left is not None
+
+        def _on_connected(username: str) -> None:
+            header.setVisible(True)
+            footer.setVisible(True)
+            setattr(left, "home_button_visible", True)
+            connexion_header.set_username(username)
+            connexion_header.set_photo(cfg_get("general.photo_profil"))
+
+        self._connexion_manager.connected.connect(_on_connected)
+
+        def _on_disconnected() -> None:
+            header.setVisible(False)
+            footer.setVisible(False)
+            setattr(left, "home_button_visible", False)
+
+        self._connexion_manager.disconnected.connect(_on_disconnected)
 
         # Manager → barre de statut
         self._connexion_manager.status_changed.connect(self._status_label.setText)
 
         # Navigation automatique : connexion → accueil, déconnexion → connexion
         center = self._layout.center
-        self._connexion_manager.connected.connect(
-            lambda username: (
-                connexion_page.set_connected(username),
-                center.show_home(username),
-            )
-        )
-        self._connexion_manager.disconnected.connect(lambda: center.show_connexion())
+        assert center is not None
+
+        def _on_connected_nav(username: str) -> None:
+            connexion_page.set_connected(username)
+            center.show_home(username)
+
+        self._connexion_manager.connected.connect(_on_connected_nav)
+
+        def _on_disconnected_nav() -> None:
+            center.show_connexion()
+
+        self._connexion_manager.disconnected.connect(_on_disconnected_nav)
 
         # Bouton "Se déconnecter" de la page de connexion
         connexion_page.disconnect_requested.connect(self._connexion_manager.disconnect)
@@ -357,7 +365,9 @@ class MainWindow(QMainWindow):
         file_menu = menubar.addMenu("&Fichier")
         quit_action = QAction("&Quitter", self)
         quit_action.setShortcut("Ctrl+Q")
-        quit_action.triggered.connect(QApplication.instance().quit)
+        app = QApplication.instance()
+        assert app is not None
+        quit_action.triggered.connect(app.quit)
         file_menu.addAction(quit_action)
 
         # Menu Outils — QSS Inspector

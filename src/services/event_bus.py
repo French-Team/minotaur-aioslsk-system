@@ -449,6 +449,7 @@ class EventBus(QObject):
         if self._purge_timer:
             self._purge_timer.stop()
         if self._db:
+            self._db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
             self._db.close()
             self._db = None
             logger.info("EventBus fermé")

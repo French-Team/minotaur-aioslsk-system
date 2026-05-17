@@ -54,7 +54,7 @@ class TestClientsHeaderWidget:
         """Le widget s'instancie avec les bons defaults."""
         assert header_widget.objectName() == "clientsHeader"
         assert header_widget.cursor().shape() == Qt.CursorShape.PointingHandCursor
-        assert header_widget.frameShape() == QFrame.NoFrame
+        assert header_widget.frameShape() == QFrame.Shape.NoFrame
 
     def test_title_label_exists(self, header_widget: ClientsHeaderWidget) -> None:
         """Le titre '👥  Clients' est présent."""
@@ -82,6 +82,7 @@ class TestClientsHeaderWidget:
         header_widget.set_counts(actifs=10, joignables=20)
         header_widget.set_counts(actifs=0, joignables=0)
         statut = header_widget.findChild(QLabel, "clientsHeaderStatut")
+        assert statut is not None
         assert "Actif : 0" in statut.text()
         assert "Joignable : 0" in statut.text()
 
@@ -294,7 +295,7 @@ class TestClientsActifsHeader:
         scroll = actifs_header.findChild(QScrollArea, "clientsScroll")
         assert scroll is not None
         assert scroll.widgetResizable() is True
-        assert scroll.frameShape() == QFrame.NoFrame
+        assert scroll.frameShape() == QFrame.Shape.NoFrame
 
     def test_add_client(self, actifs_header: ClientsActifsHeader) -> None:
         """add_client() ajoute un client et incrémente le compteur."""
@@ -313,6 +314,7 @@ class TestClientsActifsHeader:
         """Ajout d'un client joignable → stats mises à jour."""
         actifs_header.add_client("Bob", actif=False, joignable=True)
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 0" in stats.text()
         assert "Joignable : 1" in stats.text()
 
@@ -320,6 +322,7 @@ class TestClientsActifsHeader:
         """Ajout d'un client actif ET joignable."""
         actifs_header.add_client("Charlie", actif=True, joignable=True)
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 1" in stats.text()
         assert "Joignable : 1" in stats.text()
 
@@ -348,6 +351,7 @@ class TestClientsActifsHeader:
         actifs_header.remove_client("Alice")
 
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 0" in stats.text()  # seul Alice était actif
         assert "Joignable : 1" in stats.text()  # Bob est encore joignable
 
@@ -358,6 +362,7 @@ class TestClientsActifsHeader:
         actifs_header.remove_client("Alice")
 
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Total : 1" in stats.text()
 
     def test_clear_clients_vide_liste(self, actifs_header: ClientsActifsHeader) -> None:
@@ -374,6 +379,7 @@ class TestClientsActifsHeader:
         actifs_header.clear_clients()
 
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 0" in stats.text()
         assert "Joignable : 0" in stats.text()
         assert "Total : 0" in stats.text()
@@ -405,17 +411,20 @@ class TestClientsActifsHeader:
         actifs_header.add_client("C", actif=True, joignable=True)
 
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 2" in stats.text()
         assert "Joignable : 2" in stats.text()
         assert "Total : 3" in stats.text()
 
         actifs_header.remove_client("A")
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 1" in stats.text()
         assert "Joignable : 2" in stats.text()
 
         actifs_header.clear_clients()
         stats = actifs_header.findChild(QLabel, "clientsStats")
+        assert stats is not None
         assert "Actif : 0" in stats.text()
         assert "Joignable : 0" in stats.text()
 

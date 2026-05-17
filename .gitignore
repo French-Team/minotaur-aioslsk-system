@@ -62,3 +62,7 @@ nul
 
 # Logs
 *.log
+
+# SQLite (fichiers temporaires WAL/SHM)
+*.db-shm
+*.db-wal

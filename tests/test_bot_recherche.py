@@ -131,11 +131,13 @@ class TestBotRechercheSuggestionsRow:
     def test_add_widget_to_row(self, bot: BotRecherche) -> None:
         """On peut ajouter un widget à _suggestions_row sans planter."""
         btn = QPushButton("Test")
-        bot._suggestions_row.layout().addWidget(btn)
+        layout = bot._suggestions_row.layout()
+        assert layout is not None
+        layout.addWidget(btn)
         # Vérifie que le bouton a bien été ajouté
         assert btn.parent() is bot._suggestions_row
         # Nettoyage
-        bot._suggestions_row.layout().removeWidget(btn)
+        layout.removeWidget(btn)
         btn.deleteLater()
 
 

@@ -10,6 +10,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Generator
+from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QObject, Signal
@@ -340,11 +341,11 @@ class TestExecution:
 
         # Lancer la première
         service.execute_manual(id1)
-        assert service.get_action(id1)["statut"] == "en_cours"  # type: ignore[union-attr]
+        assert service.get_action(id1)["statut"] == "en_cours"
 
         # Tenter de lancer la seconde (même type) → bloquée silencieusement
         service.execute_manual(id2)
-        assert service.get_action(id2)["statut"] == "en_attente"  # type: ignore[union-attr]
+        assert service.get_action(id2)["statut"] == "en_attente"
 
     def test_actions_bloquantes_poll(self, service: Any) -> None:
         """_on_poll saute les actions dont le type est bloqué (même type en_cours dans la DB)."""
@@ -354,7 +355,7 @@ class TestExecution:
 
         # Démarrer id1 manuellement
         service.execute_manual(id1)
-        assert service.get_action(id1)["statut"] == "en_cours"  # type: ignore[union-attr]
+        assert service.get_action(id1)["statut"] == "en_cours"
 
         # Simuler un état où _current_action_id est perdu mais la DB montre encore
         # une action 'recherche' en_cours
@@ -364,8 +365,8 @@ class TestExecution:
         # _on_poll doit sauter id2 (recherche bloquée car id1 est encore en_cours dans la DB)
         # et prendre id3 (scan, type différent)
         service._on_poll()
-        assert service.get_action(id2)["statut"] == "en_attente"  # type: ignore[union-attr]
-        assert service.get_action(id3)["statut"] == "en_cours"  # type: ignore[union-attr]
+        assert service.get_action(id2)["statut"] == "en_attente"
+        assert service.get_action(id3)["statut"] == "en_cours"
 
     def test_actions_non_bloquantes_types_differents(self, service: Any) -> None:
         """execute_manual bloque aussi si une action est déjà en cours (séquentiel), même de type différent."""
@@ -373,11 +374,11 @@ class TestExecution:
         id2 = service.create_action(type_="scan", parametres={}, mode="immediat")
 
         service.execute_manual(id1)
-        assert service.get_action(id1)["statut"] == "en_cours"  # type: ignore[union-attr]
+        assert service.get_action(id1)["statut"] == "en_cours"
 
         # Bloqué par _current_action_id, même si le type est différent
         service.execute_manual(id2)
-        assert service.get_action(id2)["statut"] == "en_attente"  # type: ignore[union-attr]
+        assert service.get_action(id2)["statut"] == "en_attente"
 
     def test_max_retries_echoue(self, service: Any) -> None:
         """Après 3 échecs, l'action est marquée echouee."""
@@ -422,7 +423,7 @@ class TestExecution:
         action = service.get_action(action_id)
         assert action is not None
         assert action["statut"] == "planifiee"
-        next1 = datetime.strptime(action["prochaine_execution"], "%Y-%m-%d %H:%M:%S")  # type: ignore[arg-type]
+        next1 = datetime.strptime(action["prochaine_execution"], "%Y-%m-%d %H:%M:%S")
 
         # Tentative 2 : nb_tentatives=1 → 2, backoff 120s, statut=planifiee
         service._db.update_action(action_id, statut="en_cours")
@@ -430,7 +431,7 @@ class TestExecution:
         action = service.get_action(action_id)
         assert action is not None
         assert action["statut"] == "planifiee"
-        next2 = datetime.strptime(action["prochaine_execution"], "%Y-%m-%d %H:%M:%S")  # type: ignore[arg-type]
+        next2 = datetime.strptime(action["prochaine_execution"], "%Y-%m-%d %H:%M:%S")
         assert (next2 - next1).total_seconds() > 60, f"next2-next1 = {(next2 - next1).total_seconds()}s, attendu > 60"
 
         # Tentative 3 : nb_tentatives=2 → 3, echouee (max atteint)
@@ -590,10 +591,10 @@ class TestSignaux:
     @pytest.fixture(autouse=True)
     def _setup_spy(self, service: Any) -> Generator[None, None, None]:
         """Ajoute un spy sur le signal action_changed avant chaque test."""
-        self._signals: list[tuple[int, str, str]] = []  # type: ignore[attr-defined]
+        self._signals: list[tuple[int, str, str]] = []
 
         def _spy(aid: int, atype: str, statut: str) -> None:
-            self._signals.append((aid, atype, statut))  # type: ignore[attr-defined]
+            self._signals.append((aid, atype, statut))
 
         service.action_changed.connect(_spy)
         yield
@@ -602,13 +603,13 @@ class TestSignaux:
         """Vérifie qu'un signal spécifique a été émis."""
         assert (action_id, action_type, statut) in self._signals, (
             f"Signal ({action_id}, {action_type}, {statut}) non trouvé parmi {self._signals}"
-        )  # type: ignore[attr-defined]
+        )
 
     def _assert_no_signal(self, action_id: int, action_type: str, statut: str) -> None:
         """Vérifie qu'un signal spécifique n'a PAS été émis."""
         assert (action_id, action_type, statut) not in self._signals, (
             f"Signal ({action_id}, {action_type}, {statut})不应该 être émis, mais trouvé"
-        )  # type: ignore[attr-defined]
+        )
 
     def test_signal_creation_immediat(self, service: Any) -> None:
         """La création d'une action immédiate émet le signal 'en_attente'."""
@@ -664,7 +665,7 @@ class TestSignaux:
         """update_action sans paramètre 'statut' n'émet PAS de signal."""
         aid = service.create_action(type_="recherche", parametres={"original": True}, mode="immediat")
         # Nettoyer les signaux de création
-        self._signals.clear()  # type: ignore[attr-defined]
+        self._signals.clear()
 
         # Modifier seulement les paramètres (pas de statut)
         service.update_action(aid, parametres={"modifié": True})
@@ -802,3 +803,31 @@ class TestEventBusEmission:
             service._db.update_action(aid, statut="en_cours")
             service.complete_action(aid, succes=False)
         self._assert_event("planificateur.action_echouee", "ERROR", aid, "nettoyage")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PlanificationDB — close (fermeture SQLite)
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestPlanificationDBClose:
+    """Vérifie que PlanificationDB.close() ferme proprement la connexion SQLite."""
+
+    def test_close_appelle_wal_checkpoint_et_close(self, monkeypatch, tmp_path):
+        """close() exécute WAL checkpoint puis ferme la connexion."""
+        db_path = str(tmp_path / "test_planificateur.db")
+        monkeypatch.setattr("src.services.planificateur_service._DB_PATH", db_path)
+        monkeypatch.setattr("src.services.planificateur_service._DATA_DIR", tmp_path)
+
+        from src.services.planificateur_service import PlanificationDB
+
+        db = PlanificationDB()
+        db._conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        db._conn.close()  # fermer la vraie connexion créée par __init__
+        mock_conn = MagicMock()
+        db._conn = mock_conn
+
+        db.close()
+
+        mock_conn.execute.assert_called_once_with("PRAGMA wal_checkpoint(TRUNCATE);")
+        mock_conn.close.assert_called_once()

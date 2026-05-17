@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -24,7 +24,7 @@ from src.services.event_bus import EventBus
 
 
 @pytest.fixture(autouse=True)
-def _isolate_eventbus(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def _isolate_eventbus(tmp_path: Path, monkeypatch: MonkeyPatch) -> Generator[None, None, None]:
     """Isoler EventBus avec une base SQLite temporaire (évite conflits xdist)."""
     db_file = tmp_path / "test_events.db"
     monkeypatch.setattr("src.services.event_bus._DB_PATH", db_file)

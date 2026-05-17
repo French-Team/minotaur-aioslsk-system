@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Generator
 from unittest.mock import patch
 
 import pytest
@@ -33,7 +34,7 @@ from src.services.library_scanner import LibraryScanner
 
 
 @pytest.fixture(autouse=True)
-def _isolate_eventbus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolate_eventbus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """Isoler EventBus avec une base SQLite temporaire (évite conflits xdist)."""
     db_file = tmp_path / "test_events.db"
     monkeypatch.setattr("src.services.event_bus._DB_PATH", db_file)
@@ -46,7 +47,7 @@ def _isolate_eventbus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _mock_soulseek(monkeypatch: pytest.MonkeyPatch) -> None:
+def _mock_soulseek(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """Mock Soulseek service comme connecté pour la compatibilité des tests existants.
 
     Sans ce mock, _update_connection_state() empêcherait refresh() de s'exécuter
@@ -177,7 +178,9 @@ class TestLayout:
         """Le tableau a 6 colonnes avec les bons en-têtes."""
         expected = ["📄 Nom", "📏 Taille", "🎵 Durée", "🎧 Bitrate", "📁 Dossier", "📅 Modifié"]
         for i, expected_text in enumerate(expected):
-            assert bot._table_widget.horizontalHeaderItem(i).text() == expected_text
+            header_item = bot._table_widget.horizontalHeaderItem(i)
+            assert header_item is not None
+            assert header_item.text() == expected_text
 
     def test_status_bar_exists(self, bot: BotBibliotheque) -> None:
         """La barre de statut est présente."""
@@ -286,11 +289,15 @@ class TestArbreDossiers:
 
     def test_tree_root_has_no_folder_id(self, bot: BotBibliotheque) -> None:
         """Le UserRole de la racine est None (pas de folder_id)."""
-        assert bot._tree_root.data(0, Qt.ItemDataRole.UserRole) is None
+        root = bot._tree_root
+        assert root is not None
+        assert root.data(0, Qt.ItemDataRole.UserRole) is None
 
     def test_tree_root_is_expanded(self, bot: BotBibliotheque) -> None:
         """La racine est dépliée par défaut."""
-        assert bot._tree_root.isExpanded() is True
+        root = bot._tree_root
+        assert root is not None
+        assert root.isExpanded() is True
 
     def test_tree_root_is_selected(self, bot: BotBibliotheque) -> None:
         """La racine est sélectionnée par défaut."""
@@ -298,8 +305,11 @@ class TestArbreDossiers:
 
     def test_folder_items_have_folder_id(self, bot: BotBibliotheque) -> None:
         """Chaque dossier enfant (si présent) a un folder_id dans UserRole."""
-        for i in range(bot._tree_root.childCount()):
-            child = bot._tree_root.child(i)
+        root = bot._tree_root
+        assert root is not None
+        for i in range(root.childCount()):
+            child = root.child(i)
+            assert child is not None
             child.data(0, Qt.ItemDataRole.UserRole)
             # folder_id peut être None si la DB est vide, doit être présent si enfant
             assert child.text(0).startswith("📁")
@@ -313,20 +323,26 @@ class TestClicDossier:
 
     def test_click_root_sets_folder_none(self, bot: BotBibliotheque) -> None:
         """Clic sur la racine réinitialise _current_folder à None."""
-        bot._on_tree_item_clicked(bot._tree_root, 0)
+        root = bot._tree_root
+        assert root is not None
+        bot._on_tree_item_clicked(root, 0)
         assert bot._current_folder is None
         assert bot._current_folder_id is None
         assert bot._current_folder_label is None
 
     def test_click_root_clears_table(self, bot: BotBibliotheque) -> None:
         """Clic sur la racine vide le tableau."""
-        bot._on_tree_item_clicked(bot._tree_root, 0)
+        root = bot._tree_root
+        assert root is not None
+        bot._on_tree_item_clicked(root, 0)
         # Le tableau doit être vide (0 lignes ou une cellule message)
         assert bot._table_widget.rowCount() >= 0
 
     def test_click_root_shows_message(self, bot: BotBibliotheque) -> None:
         """Clic sur la racine affiche un message d'invite."""
-        bot._on_tree_item_clicked(bot._tree_root, 0)
+        root = bot._tree_root
+        assert root is not None
+        bot._on_tree_item_clicked(root, 0)
         # Doit afficher le message de sélection
         assert bot._table_widget.rowCount() == 1
         # Vérifie qu'il y a un widget message
@@ -339,14 +355,17 @@ class TestClicDossier:
         """Clic sur un dossier met à jour la barre de statut."""
         # Simuler un clic sur un enfant de dossier (s'il existe)
         # Si aucun enfant, la racine est déjà sélectionnée → status = "Prêt"
-        if bot._tree_root.childCount() > 0:
-            child = bot._tree_root.child(0)
+        root = bot._tree_root
+        assert root is not None
+        if root.childCount() > 0:
+            child = root.child(0)
+            assert child is not None
             bot._on_tree_item_clicked(child, 0)
             label = child.text(0).removeprefix("📁 ")
             assert label in bot._status_lbl.text() or bot._current_folder == label
         else:
             # Pas de dossier → clic sur racine → "Prêt"
-            bot._on_tree_item_clicked(bot._tree_root, 0)
+            bot._on_tree_item_clicked(root, 0)
             assert "Prêt" in bot._status_lbl.text()
 
 
@@ -363,6 +382,7 @@ class TestChargementFichiers:
         assert bot._table_widget.rowCount() >= 1
         cell_widget = bot._table_widget.cellWidget(0, 0)
         assert cell_widget is not None
+        assert isinstance(cell_widget, QLabel)
         assert "Sélectionne" in cell_widget.text()
 
     def test_load_files_sets_folder_label_column(self, bot: BotBibliotheque) -> None:
@@ -598,8 +618,9 @@ class TestFileInfoPopup:
         row = popup._make_info_row("📄 Nom", "track01.mp3")
         assert row is not None
         # Vérifie qu'il a un layout avec des enfants
-        assert row.layout() is not None
-        assert row.layout().count() >= 2
+        layout = row.layout()
+        assert layout is not None
+        assert layout.count() >= 2
 
 
 # ── Test de la suppression ──────────────────────────────────────────

@@ -306,6 +306,7 @@ class PlanificationDB:
         return cursor.rowcount
 
     def close(self) -> None:
+        self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
         self._conn.close()
 
     # ── Helpers ─────────────────────────────────────────────────────────

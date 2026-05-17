@@ -46,8 +46,10 @@ def bot(qapp: QApplication, tmp_history_file: Path) -> BotAccueil:
     bot._messages = []
     while bot._messages_layout.count() > 1:
         item = bot._messages_layout.takeAt(0)
-        if item.widget():
-            item.widget().deleteLater()
+        assert item is not None
+        widget = item.widget()
+        if widget:
+            widget.deleteLater()
 
     return bot
 
@@ -437,8 +439,10 @@ class TestHistory:
         bot._messages = []
         while bot._messages_layout.count() > 1:
             item = bot._messages_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            assert item is not None
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
 
         bot._restore_history()
         assert len(bot._messages) == 2
