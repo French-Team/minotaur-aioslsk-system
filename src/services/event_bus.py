@@ -449,7 +449,13 @@ class EventBus(QObject):
         if self._purge_timer:
             self._purge_timer.stop()
         if self._db:
-            self._db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
-            self._db.close()
+            try:
+                self._db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+            except sqlite3.Error as exc:
+                logger.warning("Échec du checkpoint WAL au shutdown : %s", exc)
+            try:
+                self._db.close()
+            except sqlite3.Error as exc:
+                logger.warning("Échec de la fermeture de la base au shutdown : %s", exc)
             self._db = None
             logger.info("EventBus fermé")

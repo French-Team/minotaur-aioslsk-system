@@ -143,6 +143,7 @@ class TestWorker:
 # ── Tests : Scan threadé complet ─────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestScanThreaded:
     """Tests du scan complet dans un thread Qt."""
 
@@ -304,6 +305,7 @@ class TestScanThreaded:
 # ── Tests : Annulation ───────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestCancel:
     """Tests d'annulation du scan."""
 
@@ -366,6 +368,7 @@ class TestCancel:
 # ── Tests : Scan avec plusieurs dossiers ──────────────────
 
 
+@pytest.mark.qt_heavy
 class TestMultiFolder:
     """Tests avec plusieurs dossiers partagés."""
 

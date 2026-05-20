@@ -7,6 +7,7 @@ import logging
 from aioslsk.client import SoulSeekClient
 from aioslsk.events import (
     PrivateMessageEvent,
+    RoomListEvent,
     RoomMessageEvent,
     SearchResultEvent,
     TransferAddedEvent,
@@ -188,6 +189,7 @@ class SoulseekService(QObject):
 
     # Signaux — Connexion
     connection_changed = Signal(bool)  # True = connecté, False = déconnecté
+    room_list_received = Signal(object)  # RoomListEvent
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -210,6 +212,7 @@ class SoulseekService(QObject):
     def username(self) -> str:
         return self._username
 
+    # pyrefly: ignore [bad-override]
     async def connect(self, username: str, password: str) -> str:
         """
         Connecte au serveur Soulseek.
@@ -226,6 +229,15 @@ class SoulseekService(QObject):
         """
         if self.is_connected:
             return f"Déjà connecté en tant que {self._username}"
+
+        # Nettoyer l'ancien client s'il existe (après un échec ou une connexion partielle)
+        if self._client is not None:
+            logger.warning("Nettoyage d'un ancien client avant reconnect")
+            try:
+                await asyncio.wait_for(self._client.stop(), timeout=5.0)
+            except Exception as e:
+                logger.warning("Erreur lors du nettoyage du client précédent: %s", e)
+            self._client = None
 
         # Lire la configuration utilisateur
         upnp_enabled = bool(app_config.get("reseau.upnp", False))
@@ -376,6 +388,7 @@ class SoulseekService(QObject):
         )
         self._client.events.register(
             TransferAddedEvent,
+            # pyrefly: ignore [bad-argument-type]
             lambda evt: (
                 self.transfer_added.emit(evt),
                 EventBus().emit_event(
@@ -389,6 +402,7 @@ class SoulseekService(QObject):
         )
         self._client.events.register(
             TransferRemovedEvent,
+            # pyrefly: ignore [bad-argument-type]
             lambda evt: (
                 self.transfer_removed.emit(evt),
                 EventBus().emit_event(
@@ -412,17 +426,31 @@ class SoulseekService(QObject):
             RoomMessageEvent,
             lambda evt: self.room_message_received.emit(evt),
         )
+        self._client.events.register(
+            RoomListEvent,
+            lambda evt: self.room_list_received.emit(evt),
+        )
 
+        logger.info("SoulseekService: Tous les écouteurs d'événements ont été enregistrés avec succès.")
         try:
+            logger.info("SoulseekService: Démarrage des sockets et de la boucle réseau du client avec client.start()...")
             await self._client.start()
+            logger.info("SoulseekService: [SUCCÈS] client.start() complété. Connexions d'écoute et d'envoi ouvertes.")
+            
+            logger.info("SoulseekService: Envoi du paquet d'authentification et attente du handshake avec client.login()...")
             await self._client.login()
+            logger.info("SoulseekService: [SUCCÈS] client.login() complété, authentification acceptée par le serveur Soulseek !")
+            
             self._running = True
+            logger.info("SoulseekService: Émission du signal connection_changed(True)...")
             self.connection_changed.emit(True)
             logger.info("Connecté à Soulseek en tant que %s", username)
             return f"Connecté à Soulseek en tant que {username}"
         except Exception as e:
             self._running = False
+            logger.warning("SoulseekService: Échec de connexion rencontré. Émission de connection_changed(False)...")
             self.connection_changed.emit(False)
+            logger.info("SoulseekService: Nettoyage et arrêt des sockets du client...")
             await self._cleanup_client()
             logger.error("Échec de connexion: %s", e)
             raise
@@ -454,6 +482,7 @@ class SoulseekService(QObject):
                 else:
                     self._transfer_states.add(key)
 
+    # pyrefly: ignore [bad-override]
     async def disconnect(self) -> str:
         """
         Déconnecte du serveur Soulseek.

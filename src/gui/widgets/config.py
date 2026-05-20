@@ -59,6 +59,7 @@ class ConfigSection(QFrame):
 
         # Séparateur
         sep = QFrame()
+        # pyrefly: ignore [missing-attribute]
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet("color: #2e2e3a;")
         layout.addWidget(sep)
@@ -842,6 +843,7 @@ class ConfigPage(QFrame):
         self._scroll = QScrollArea()
         self._scroll.setObjectName("configScroll")
         self._scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         self._scroll.setFrameShape(QFrame.NoFrame)
 
         self._content = QWidget()

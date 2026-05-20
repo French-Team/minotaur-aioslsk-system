@@ -47,15 +47,33 @@ def _isolate_eventbus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Genera
 
 
 @pytest.fixture(autouse=True)
-def _mock_soulseek(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
-    """Mock Soulseek service comme connecté pour la compatibilité des tests existants.
+def _mock_soulseek(monkeypatch: pytest.MonkeyPatch, tmp_app_config) -> Generator[None, None, None]:
+    """Mock Soulseek service comme connecté pour les tests existants.
 
-    Sans ce mock, _update_connection_state() empêcherait refresh() de s'exécuter
-    dans __init__, ce qui casserait tous les tests qui utilisent BotBibliotheque().
-    Les tests dans TestSoulseekIntegration peuvent surcharger ce comportement
-    avec leurs propres @patch.
+    Désactive aussi l'auto-scan au démarrage pour éviter qu'un QTimer
+    ne se déclenche après la fin du test et appelle _on_rescan() sur
+    un objet libéré (cause du crash "QThread: Destroyed while thread
+    is still running").
+
+    Les tests dans TestSoulseekIntegration surchargent ``is_connected``
+    avec leurs propres ``@patch``.
     """
-    # Patcher la base de données pour qu'elle retourne des stats vides
+    import src.services.app_config as ac
+
+    _orig_scan = ac.get("general.scan_on_start", True)
+    ac.set("general.scan_on_start", False)
+
+    # Patcher start_scan : on remplace la méthode de classe par une
+    # vraie fonction (pas un Mock) qui émet scan_started mais sans
+    # créer de QThread. Une vraie fonction sur une classe est un
+    # descripteur Python : instance.methode() passe self automatiquement.
+    _orig_start_scan = LibraryScanner.start_scan
+
+    def _safe_start_scan(self: LibraryScanner) -> None:
+        """Émet scan_started mais ne crée pas de QThread."""
+        self.scan_started.emit()
+
+    LibraryScanner.start_scan = _safe_start_scan
     mock_db = _MockDb()
     monkeypatch.setattr(
         "src.gui.widgets.bots.bot_bibliotheque.get_library_db",
@@ -64,12 +82,16 @@ def _mock_soulseek(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, Non
     # Réinitialiser les caches module-level pour éviter la contamination entre tests
     monkeypatch.setattr("src.gui.widgets.bots.bot_bibliotheque._STATS_CACHE", None)
     monkeypatch.setattr("src.gui.widgets.bots.bot_bibliotheque._LAST_SCAN", None)
+
     with patch("src.gui.widgets.bots.bot_bibliotheque.soulseek_service") as mock_slsk:
-        # is_connected est un @property dans la vraie classe
         from unittest.mock import PropertyMock
 
         type(mock_slsk).is_connected = PropertyMock(return_value=True)
         yield
+
+    # Restaurer les originaux (bon citoyen)
+    LibraryScanner.start_scan = _orig_start_scan
+    ac.set("general.scan_on_start", _orig_scan)
 
 
 @pytest.fixture
@@ -81,6 +103,7 @@ def bot(qapp: QApplication) -> BotBibliotheque:
 # ── Test d'instanciation ───────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestInit:
     """Vérifie que le bot s'initialise sans erreur."""
 
@@ -125,6 +148,7 @@ class TestInit:
 # ── Test du layout ─────────────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestLayout:
     """Vérifie la structure visuelle du bot."""
 
@@ -199,6 +223,7 @@ class TestLayout:
 # ── Test de _StatCard ──────────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestStatCard:
     """Vérifie le sous-composant _StatCard."""
 
@@ -225,6 +250,7 @@ class TestStatCard:
 # ── Test de _Toolbar ──────────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestToolbar:
     """Vérifie le sous-composant _Toolbar."""
 
@@ -273,6 +299,7 @@ class TestToolbar:
 # ── Test de l'arborescence des dossiers ────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestArbreDossiers:
     """Vérifie le chargement et l'affichage de l'arborescence."""
 
@@ -318,6 +345,7 @@ class TestArbreDossiers:
 # ── Test du clic sur un dossier ────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestClicDossier:
     """Vérifie le comportement au clic sur un item de l'arbre."""
 
@@ -372,6 +400,7 @@ class TestClicDossier:
 # ── Test du chargement des fichiers ────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestChargementFichiers:
     """Vérifie le chargement des fichiers dans le QTableWidget."""
 
@@ -415,6 +444,7 @@ class TestChargementFichiers:
 # ── Test de la méthode refresh ─────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestRefresh:
     """Vérifie que refresh() recharge les données."""
 
@@ -443,6 +473,7 @@ class TestRefresh:
 # ── Test des méthodes publiques de BotBibliotheque ─────────────────
 
 
+@pytest.mark.qt_heavy
 class TestPublicAPI:
     """Vérifie l'API publique du bot."""
 
@@ -486,6 +517,7 @@ class TestPublicAPI:
 # ── Test des appels réseau — signaux _Toolbar ─────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestToolbarSignals:
     """Vérifie que les signaux de la toolbar sont bien câblés."""
 
@@ -503,6 +535,7 @@ class TestToolbarSignals:
 # ── Test du menu contextuel ─────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestMenuContextuel:
     """Vérifie le menu contextuel (clic droit) sur le tableau."""
 
@@ -538,6 +571,7 @@ class TestMenuContextuel:
 # ── Test du FileInfoPopup ───────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestFileInfoPopup:
     """Vérifie la popup d'informations détaillées."""
 
@@ -626,6 +660,7 @@ class TestFileInfoPopup:
 # ── Test de la suppression ──────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestSuppression:
     """Vérifie le comportement de suppression de fichiers."""
 
@@ -676,6 +711,7 @@ class TestSuppression:
 # ── Tests du scan threadé ───────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestScanThreaded:
     """Tests pour le re-scanner threadé (LibraryScanner) dans BotBibliotheque."""
 
@@ -815,6 +851,7 @@ class TestScanThreaded:
 # ── Tests du cache des stats et auto-scan au démarrage ────────────
 
 
+@pytest.mark.qt_heavy
 class TestCacheEtAutoScan:
     """Tests pour le module-level _STATS_CACHE et l'auto-scan au démarrage."""
 
@@ -895,31 +932,33 @@ class TestCacheEtAutoScan:
             bb._STATS_CACHE = None
 
     def test_auto_scan_enabled_programme_timer(self, qapp: QApplication) -> None:
-        """scan_on_start=True → QTimer.singleShot est appelé avec _on_rescan.
+        """scan_on_start=True → un QTimer instance parenté avec 1500ms singleShot est créé.
 
-        On vérifie en mockant QTimer.singleShot directement.
+        On vérifie l'état interne (self._auto_scan_timer) plutôt que de mock
+        QTimer.singleShot, puisque la nouvelle implémentation utilise une
+        instance QTimer(self) qui suit le cycle de vie du widget.
         """
-        from unittest.mock import ANY, patch
+        from unittest.mock import patch
 
         import src.services.app_config as ac
 
         original = ac.get("general.scan_on_start", True)
         try:
             ac.set("general.scan_on_start", True)
-            with patch("PySide6.QtCore.QTimer.singleShot") as mock_singleshot:
-                from unittest.mock import patch as patch_db
-
-                with patch.object(BotBibliotheque, "_get_db", return_value=_MockDb()):
-                    bot = BotBibliotheque()
-                    try:
-                        mock_singleshot.assert_called_once_with(1500, bot._on_rescan)
-                    finally:
-                        bot.deleteLater()
+            with patch.object(BotBibliotheque, "_get_db", return_value=_MockDb()):
+                bot = BotBibliotheque()
+                try:
+                    assert hasattr(bot, "_auto_scan_timer")
+                    assert bot._auto_scan_timer is not None
+                    assert bot._auto_scan_timer.isSingleShot() is True
+                    assert bot._auto_scan_timer.interval() == 1500
+                finally:
+                    bot.deleteLater()
         finally:
             ac.set("general.scan_on_start", original)
 
     def test_auto_scan_disabled_ne_programme_pas_timer(self, qapp: QApplication) -> None:
-        """scan_on_start=False → QTimer.singleShot n'est PAS appelé."""
+        """scan_on_start=False → aucun QTimer n'est créé."""
         from unittest.mock import patch
 
         import src.services.app_config as ac
@@ -927,13 +966,12 @@ class TestCacheEtAutoScan:
         original = ac.get("general.scan_on_start", True)
         try:
             ac.set("general.scan_on_start", False)
-            with patch("PySide6.QtCore.QTimer.singleShot") as mock_singleshot:
-                with patch.object(BotBibliotheque, "_get_db", return_value=_MockDb()):
-                    bot = BotBibliotheque()
-                    try:
-                        mock_singleshot.assert_not_called()
-                    finally:
-                        bot.deleteLater()
+            with patch.object(BotBibliotheque, "_get_db", return_value=_MockDb()):
+                bot = BotBibliotheque()
+                try:
+                    assert not hasattr(bot, "_auto_scan_timer")
+                finally:
+                    bot.deleteLater()
         finally:
             ac.set("general.scan_on_start", original)
 
@@ -941,6 +979,7 @@ class TestCacheEtAutoScan:
 # ── Tests de l'historique du dernier scan ──────────────────
 
 
+@pytest.mark.qt_heavy
 class TestDernierScan:
     """Tests pour _LAST_SCAN : stockage et affichage du dernier scan."""
 
@@ -1144,6 +1183,7 @@ class TestDernierScan:
 # ── Tests de la barre de statut ─────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestStatusBar:
     """Tests pour la barre de statut : texte, historique de scan, formatage."""
 
@@ -1390,6 +1430,7 @@ class TestStatusBar:
 # ── Tests de l'intégration Soulseek ────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestSoulseekIntegration:
     """Tests pour l'état de connexion Soulseek et la vue déconnectée."""
 

@@ -47,6 +47,10 @@ jobs:
         run: |
           python -m ruff check src/ --no-cache
 
+      - name: Vérifier les marqueurs qt_heavy sur les tests
+        run: |
+          python scripts/check_qt_heavy_markers.py
+
       - name: Ruff — vérification du style (tests/)
         run: |
           python -m ruff check tests/ --no-cache

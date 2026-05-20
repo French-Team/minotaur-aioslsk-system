@@ -65,6 +65,7 @@ _STATUT_ICONES: dict[str, str] = {
 }
 
 # Rôle Qt pour stocker le tri numérique
+# pyrefly: ignore [missing-attribute]
 _SortRole = Qt.UserRole + 1
 
 # Index des colonnes
@@ -378,6 +379,7 @@ class BotTelechargement(QFrame):
         """Trouve la ligne d'un téléchargement par son identifiant (stocké dans Qt.UserRole)."""
         for row in range(self._table.rowCount()):
             item = self._table.item(row, 0)
+            # pyrefly: ignore [missing-attribute]
             if item and item.data(Qt.UserRole) == identifiant:
                 return row
         return -1
@@ -386,6 +388,7 @@ class BotTelechargement(QFrame):
         """Retourne l'identifiant stocké à la ligne donnée."""
         item = self._table.item(row, 0)
         if item:
+            # pyrefly: ignore [missing-attribute]
             return item.data(Qt.UserRole)
         return None
 
@@ -403,6 +406,7 @@ class BotTelechargement(QFrame):
 
     # ── Connexion backend ────────────────────────────────────────────────
 
+    # pyrefly: ignore [unknown-name]
     def setup(self, svc: "SoulseekService") -> None:  # noqa: F821
         """Connecte le bot aux signaux SoulseekService."""
         if self._setup_done:
@@ -515,6 +519,7 @@ class BotTelechargement(QFrame):
             if data and data["statut"] != "en_cours" and progression > 0:
                 fichier = data["fichier"]
                 row = self._find_row(remote_path)
+                # pyrefly: ignore [missing-attribute]
                 username = self._table.item(row, 2).text() if row >= 0 and self._table.item(row, 2) else ""
                 EventBus().emit_event(
                     severity="INFO",
@@ -902,6 +907,7 @@ class BotTelechargement(QFrame):
 
         # Fichier (col 0) — stocke l'identifiant dans Qt.UserRole
         item_fichier = QTableWidgetItem(fichier)
+        # pyrefly: ignore [missing-attribute]
         item_fichier.setData(Qt.UserRole, identifiant)
         self._table.setItem(row, 0, item_fichier)
 

@@ -145,10 +145,13 @@ class TableItem(QTableWidgetItem):
     def __init__(self, text: str, sort_value: Any = None) -> None:
         super().__init__(text)
         if sort_value is not None:
+            # pyrefly: ignore [missing-attribute]
             self.setData(Qt.UserRole, sort_value)
 
     def __lt__(self, other: QTableWidgetItem) -> bool:
+        # pyrefly: ignore [missing-attribute]
         my_val = self.data(Qt.UserRole)
+        # pyrefly: ignore [missing-attribute]
         other_val = other.data(Qt.UserRole)
         if my_val is not None and other_val is not None:
             return my_val < other_val
@@ -270,9 +273,11 @@ class FiltresRechercheModal(QDialog):
 
         # Bitrate min : Slider + SpinBox côte à côte
         bitrate_row = QHBoxLayout()
+        # pyrefly: ignore [missing-attribute]
         self._bitrate_slider = QSlider(Qt.Horizontal)
         self._bitrate_slider.setRange(0, 1000)
         self._bitrate_slider.setTickInterval(128)
+        # pyrefly: ignore [missing-attribute]
         self._bitrate_slider.setTickPosition(QSlider.TicksBelow)
         self._bitrate_slider.valueChanged.connect(self._on_bitrate_slider)
         bitrate_row.addWidget(self._bitrate_slider, 1)
@@ -349,9 +354,11 @@ class FiltresRechercheModal(QDialog):
 
         # ── Boutons ──
         layout.addStretch(1)
+        # pyrefly: ignore [missing-attribute]
         buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Apply)
         buttons.accepted.connect(self._on_apply)
         buttons.rejected.connect(self.reject)
+        # pyrefly: ignore [missing-attribute]
         buttons.button(QDialogButtonBox.Apply).setStyleSheet(
             f"""
             QPushButton {{
@@ -367,6 +374,7 @@ class FiltresRechercheModal(QDialog):
             }}
             """
         )
+        # pyrefly: ignore [missing-attribute]
         buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
             f"""
             QPushButton {{
@@ -482,6 +490,7 @@ class HistoryPopup(QDialog):
         # Liste défilable
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setStyleSheet(f"background: transparent; border: none;")
 
@@ -583,6 +592,7 @@ class HistoryPopup(QDialog):
             x_btn.clicked.connect(lambda checked, e=entry: self._on_remove_entry(e))
             row_layout.addWidget(x_btn)
 
+            # pyrefly: ignore [missing-attribute]
             self._list_layout.addWidget(row)
 
     def _on_remove_entry(self, entry: dict) -> None:
@@ -601,7 +611,9 @@ class HistoryPopup(QDialog):
     def _rebuild_entries_ui(self) -> None:
         """Reconstruit la liste des entrées après une suppression."""
         # Vider la liste existante
+        # pyrefly: ignore [missing-attribute]
         while self._list_layout.count():
+            # pyrefly: ignore [missing-attribute]
             item = self._list_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
@@ -614,11 +626,14 @@ class HistoryPopup(QDialog):
             empty = QLabel("Aucune recherche pour l'instant.")
             empty.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 13px; padding: 20px;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # pyrefly: ignore [missing-attribute]
             self._list_layout.addWidget(empty)
+            # pyrefly: ignore [missing-attribute]
             self._list_layout.addStretch(1)
             return
 
         self._build_entry_rows(self._entries)
+        # pyrefly: ignore [missing-attribute]
         self._list_layout.addStretch(1)
 
     def _close_btn(self, layout: QVBoxLayout) -> None:
@@ -696,6 +711,7 @@ class BotRecherche(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("botRecherche")
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
 
         self._connexion_manager = connexion_manager
@@ -1115,6 +1131,7 @@ class BotRecherche(QFrame):
         # ── Suggestions d'historique ──
         self._suggestions_row = QWidget()
         self._suggestions_row.setLayout(QHBoxLayout())
+        # pyrefly: ignore [missing-attribute]
         self._suggestions_row.layout().setSpacing(6)
         self._suggestions_widgets: list[QPushButton] = []
 
@@ -1149,8 +1166,11 @@ class BotRecherche(QFrame):
         self._table.setColumnCount(len(COLUMNS))
         self._table.setHorizontalHeaderLabels(COLUMNS)
         self._table.setAlternatingRowColors(True)
+        # pyrefly: ignore [missing-attribute]
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
+        # pyrefly: ignore [missing-attribute]
         self._table.setSelectionMode(QTableWidget.SingleSelection)
+        # pyrefly: ignore [missing-attribute]
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
         self._table.setShowGrid(False)
@@ -1191,14 +1211,23 @@ class BotRecherche(QFrame):
 
         header = self._table.horizontalHeader()
         header.setStretchLastSection(False)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_FICHIER, QHeaderView.Stretch)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_EXTENSION, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_TAILLE, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_BITRATE, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_DUREE, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_UTILISATEUR, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_SLOTS, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_VITESSE, QHeaderView.Fixed)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(COL_DL, QHeaderView.Fixed)
 
         self._table.setColumnWidth(COL_EXTENSION, 80)
@@ -1211,9 +1240,11 @@ class BotRecherche(QFrame):
         self._table.setColumnWidth(COL_DL, 40)
 
         self._table.setSortingEnabled(True)
+        # pyrefly: ignore [missing-attribute]
         self._table.sortByColumn(COL_BITRATE, Qt.DescendingOrder)
 
         # Menu contextuel (clic droit)
+        # pyrefly: ignore [missing-attribute]
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_context_menu)
 
@@ -1475,6 +1506,7 @@ class BotRecherche(QFrame):
             filter_state=self._filter_state,
             parent=self,
         )
+        # pyrefly: ignore [missing-attribute]
         if modal.exec() == QDialog.Accepted:
             self._filter_state = dict(modal.result_state)
             self._apply_filters()
@@ -1499,9 +1531,12 @@ class BotRecherche(QFrame):
 
         self._filtres_compte = count
         if count > 0:
+            # pyrefly: ignore [missing-attribute]
             self._filtres_badge.setText(f" {count} ")
+            # pyrefly: ignore [missing-attribute]
             self._filtres_badge.setVisible(True)
         else:
+            # pyrefly: ignore [missing-attribute]
             self._filtres_badge.setVisible(False)
 
     def _row_matches_filters(self, data: dict) -> bool:
@@ -1562,6 +1597,7 @@ class BotRecherche(QFrame):
                 self._table.setRowHidden(row, True)
                 continue
 
+            # pyrefly: ignore [missing-attribute]
             data = item.data(Qt.UserRole + 1)
             if data is None:
                 self._table.setRowHidden(row, True)
@@ -1614,6 +1650,7 @@ class BotRecherche(QFrame):
         item = self._table.item(row, COL_FICHIER)
         if item is None:
             return None
+        # pyrefly: ignore [missing-attribute]
         return item.data(Qt.UserRole + 1)
 
     def _on_context_menu(self, pos) -> None:
@@ -1771,15 +1808,21 @@ class BotRecherche(QFrame):
         self._table.insertRow(row)
         self._table.setRowHeight(row, 36)
 
+        # pyrefly: ignore [missing-attribute]
         bitrate = _get_attr(file_data.attributes, _ATTR_BITRATE) or 0
+        # pyrefly: ignore [missing-attribute]
         duration = _get_attr(file_data.attributes, _ATTR_DURATION) or 0
+        # pyrefly: ignore [missing-attribute]
         filename = file_data.filename.split("\\")[-1].split("/")[-1]
+        # pyrefly: ignore [missing-attribute]
         ext = file_data.extension.upper()
 
         # Données brutes pour le re-filtrage
         row_data = {
+            # pyrefly: ignore [missing-attribute]
             "extension": file_data.extension.lower(),
             "filename": filename,
+            # pyrefly: ignore [missing-attribute]
             "filesize": file_data.filesize,
             "bitrate": bitrate,
             "duration": duration,
@@ -1796,12 +1839,16 @@ class BotRecherche(QFrame):
 
         # ── Colonne 1 : Fichier (stocke les données brutes pour filtrage) ──
         fichier_item = TableItem(filename, filename.lower())
+        # pyrefly: ignore [missing-attribute]
         fichier_item.setToolTip(file_data.filename)
+        # pyrefly: ignore [missing-attribute]
         fichier_item.setData(Qt.UserRole + 1, row_data)
         self._table.setItem(row, COL_FICHIER, fichier_item)
 
         # ── Colonne 2 : Taille ──
+        # pyrefly: ignore [missing-attribute]
         size_str = _format_size(file_data.filesize)
+        # pyrefly: ignore [missing-attribute]
         size_item = TableItem(size_str, file_data.filesize)
         size_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._table.setItem(row, COL_TAILLE, size_item)
@@ -1887,6 +1934,7 @@ class BotRecherche(QFrame):
         """
         # Nettoyer les widgets existants
         for widget in self._suggestions_widgets:
+            # pyrefly: ignore [missing-attribute]
             self._suggestions_row.layout().removeWidget(widget)
             widget.deleteLater()
         self._suggestions_widgets.clear()
@@ -1915,13 +1963,16 @@ class BotRecherche(QFrame):
                 """
             )
             btn.clicked.connect(lambda checked, e=entry: self._on_suggestion_clicked(e))
+            # pyrefly: ignore [missing-attribute]
             self._suggestions_row.layout().addWidget(btn)
             self._suggestions_widgets.append(btn)
 
         # Bouton Historique complet (toujours visible)
+        # pyrefly: ignore [missing-attribute]
         self._suggestions_row.layout().addWidget(self._history_btn)
 
         # Ajouter un stretch pour pousser à gauche
+        # pyrefly: ignore [missing-attribute]
         self._suggestions_row.layout().addStretch(1)
         self._suggestions_row.setVisible(bool(recent))
 

@@ -82,6 +82,7 @@ class _ToastCard(QFrame):
             }}
         """)
 
+        # pyrefly: ignore [bad-argument-type]
         self.setGraphicsEffect(None)
         self._opacity = 1.0
 
@@ -103,13 +104,16 @@ class ToastNotification(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("ToastNotification")
+        # pyrefly: ignore [missing-attribute]
         self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        # pyrefly: ignore [missing-attribute]
         self.setAttribute(Qt.WA_StyledBackground, True)
 
         # Layout vertical (les toasts s'empilent du haut vers le bas)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, _TOAST_MARGIN, _TOAST_MARGIN, 0)
         self._layout.setSpacing(_TOAST_SPACING)
+        # pyrefly: ignore [missing-attribute]
         self._layout.setAlignment(Qt.AlignTop | Qt.AlignRight)
 
         self._toasts: list[_ToastCard] = []

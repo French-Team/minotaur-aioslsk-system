@@ -53,10 +53,21 @@ logger = logging.getLogger(__name__)
 
 
 # ── Alias de navigation ───────────────────────────────────────────────
-# Permet au footer d'envoyer des noms "utilisateur" qui diffèrent des
-# clés internes des pages (ex: "Accueil" → "accueil", "Téléchargement" → "telechargements").
+# Permet au footer d'envoyer des noms "dieux grecs" qui diffèrent des
+# clés internes des pages (les noms fonctionnels français).
 _PAGE_ALIASES: dict[str, str] = {
-    "Téléchargement": "telechargements",
+    "Zeus":       "Accueil",
+    "Athéna":     "Recherche",
+    "Hadès":      "telechargements",
+    "Aphrodite":  "Wishlist",
+    "Déméter":    "Bibliothèque",
+    "Héphaistos": "Optimiseur",
+    "Artémis":    "Surveillance",
+    "Apollon":    "Planificateur",
+    "Poséidon":   "Ordonnanceur",
+    "Arès":       "Clients Actifs",
+    "Héra":       "Assistant",
+    "Dionysos":   "Aide",
 }
 
 
@@ -65,6 +76,7 @@ class CenterZone(QFrame):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
         self.setObjectName("centerZone")
 
@@ -191,38 +203,38 @@ class CenterZone(QFrame):
         self.show_page("connexion")
 
     def _update_surveillance_badge(self, count: int) -> None:
-        """Met à jour le badge de comptage sur le bouton Surveillance du footer."""
+        """Met à jour le badge de comptage sur le bouton Artémis du footer."""
         parent = self.parent()
         while parent is not None:
             if hasattr(parent, "footer"):
-                parent.footer.set_badge("Surveillance", count)
+                parent.footer.set_badge("Artémis", count)
                 break
             parent = parent.parent()
 
     def _update_planificateur_badge(self, count: int) -> None:
-        """Met à jour le badge de comptage sur le bouton Planificateur du footer."""
+        """Met à jour le badge de comptage sur le bouton Apollon du footer."""
         parent = self.parent()
         while parent is not None:
             if hasattr(parent, "footer"):
-                parent.footer.set_badge("Planificateur", count)
+                parent.footer.set_badge("Apollon", count)
                 break
             parent = parent.parent()
 
     def _update_telechargement_badge(self, count: int) -> None:
-        """Met à jour le badge de comptage sur le bouton Téléchargement du footer."""
+        """Met à jour le badge de comptage sur le bouton Hadès du footer."""
         parent = self.parent()
         while parent is not None:
             if hasattr(parent, "footer"):
-                parent.footer.set_badge("Téléchargement", count)
+                parent.footer.set_badge("Hadès", count)
                 break
             parent = parent.parent()
 
     def _update_clients_actifs_badge(self, count: int) -> None:
-        """Met à jour le badge de comptage sur le bouton Clients Actifs du footer."""
+        """Met à jour le badge de comptage sur le bouton Arès du footer."""
         parent = self.parent()
         while parent is not None:
             if hasattr(parent, "footer"):
-                parent.footer.set_badge("Clients Actifs", count)
+                parent.footer.set_badge("Arès", count)
                 break
             parent = parent.parent()
 
@@ -929,7 +941,6 @@ class CenterZone(QFrame):
         if page is not None and hasattr(page, "setup"):
             self._clients_actifs_service = ClientsActifsService(soulseek_service)
             page.setup(self._clients_actifs_service)
-            self._clients_actifs_service.demarrer()
 
             # Injecter aussi dans BotTelechargement
             page_tel = self.telechargements_page
@@ -942,7 +953,6 @@ class CenterZone(QFrame):
         if page is not None and hasattr(page, "setup"):
             if self._clients_actifs_service is None:
                 self._clients_actifs_service = ClientsActifsService(soulseek_service)
-                self._clients_actifs_service.demarrer()
             page.setup(self._clients_actifs_service)
 
         # ── Résultats de recherche (log) ─────────────────────────

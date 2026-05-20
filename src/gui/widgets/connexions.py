@@ -44,11 +44,13 @@ class ConnexionHeaderWidget(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("connexionHeader")
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.StyledPanel)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         # Largeur = contenu, pas d'étalement
         policy = self.sizePolicy()
+        # pyrefly: ignore [missing-attribute]
         policy.setHorizontalPolicy(QSizePolicy.Maximum)
         self.setSizePolicy(policy)
 
@@ -113,8 +115,11 @@ class ConnexionHeaderWidget(QFrame):
             rounded.fill(Qt.GlobalColor.transparent)
             painter = QPainter(rounded)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            # pyrefly: ignore [bad-assignment]
             path = QPainterPath()
+            # pyrefly: ignore [missing-attribute]
             path.addEllipse(0, 0, 36, 36)
+            # pyrefly: ignore [bad-argument-type]
             painter.setClipPath(path)
             x = (36 - scaled.width()) // 2
             y = (36 - scaled.height()) // 2
@@ -146,6 +151,7 @@ class ConnexionPage(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("connexionPage")
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
 
         # ── Layout principal ──
@@ -184,6 +190,7 @@ class ConnexionPage(QFrame):
 
         # ── Séparateur ──
         sep1 = QFrame()
+        # pyrefly: ignore [missing-attribute]
         sep1.setFrameShape(QFrame.HLine)
         sep1.setStyleSheet("color: {COLORS['BG_BTN']};")
         lay.addWidget(sep1)
@@ -235,6 +242,7 @@ class ConnexionPage(QFrame):
 
         # ── Séparateur + section nouveau compte ──
         self._sep2 = QFrame()
+        # pyrefly: ignore [missing-attribute]
         self._sep2.setFrameShape(QFrame.HLine)
         self._sep2.setStyleSheet("color: {COLORS['BG_BTN']};")
         lay.addWidget(self._sep2)

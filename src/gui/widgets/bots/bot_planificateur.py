@@ -375,9 +375,13 @@ class ActionModal(QDialog):
         # Vider l'ancien contenu
         while self._dynamic_layout.count() > 0:
             item = self._dynamic_layout.takeAt(0)
+            # pyrefly: ignore [missing-attribute]
             if item.widget():
+                # pyrefly: ignore [missing-attribute]
                 item.widget().deleteLater()
+            # pyrefly: ignore [missing-attribute]
             elif item.layout():
+                # pyrefly: ignore [missing-attribute]
                 self._clear_layout(item.layout())
 
         self._dynamic_widgets.clear()
@@ -529,6 +533,7 @@ class BotPlanificateur(QFrame):
         self._filter_recherche = ""
 
         self.setObjectName("botPlanificateur")
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
 
         # Layout principal

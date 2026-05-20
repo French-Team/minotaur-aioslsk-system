@@ -152,6 +152,7 @@ def mock_service() -> MagicMock:
 # ── Tests d'initialisation ──
 
 
+@pytest.mark.qt_heavy
 class TestInitialisation:
     """Vérifie que BotOrdonnanceur s'initialise correctement."""
 
@@ -201,6 +202,7 @@ class TestInitialisation:
 # ── Tests de navigation ──
 
 
+@pytest.mark.qt_heavy
 class TestNavigation:
     """Navigation entre les étapes 0-3."""
 
@@ -274,6 +276,7 @@ class TestNavigation:
 # ── Tests _AnalyseWorker ──
 
 
+@pytest.mark.qt_heavy
 class TestAnalyseWorker:
     """Test du worker d'analyse en QThread."""
 
@@ -346,6 +349,7 @@ class TestAnalyseWorker:
 # ── Tests _OrdonnanceurWorker ──
 
 
+@pytest.mark.qt_heavy
 class TestOrdonnanceurWorker:
     """Test du worker d'exécution en QThread."""
 
@@ -446,6 +450,7 @@ class TestOrdonnanceurWorker:
 # ── Tests de l'aperçu (étape 2) ──
 
 
+@pytest.mark.qt_heavy
 class TestApercu:
     """Construction de l'aperçu des modifications."""
 
@@ -501,6 +506,7 @@ class TestApercu:
 # ── Tests du rapport (étape 4) ──
 
 
+@pytest.mark.qt_heavy
 class TestRapport:
     """Construction du rapport final (étape 4)."""
 
@@ -562,6 +568,7 @@ class TestRapport:
 # ── Tests de l'exécution (étape 3) ──
 
 
+@pytest.mark.qt_heavy
 class TestExecution:
     """Exécution des opérations."""
 
@@ -613,6 +620,7 @@ class TestExecution:
 # ── Tests du cycle complet ──
 
 
+@pytest.mark.qt_heavy
 class TestCycleComplet:
     """Test du cycle complet : analyse → aperçu → exécution → rapport."""
 
@@ -697,6 +705,7 @@ class TestCycleComplet:
 # ── Tests de _taille_lisible ──
 
 
+@pytest.mark.qt_heavy
 class TestTailleLisible:
     """Tests static method _taille_lisible."""
 

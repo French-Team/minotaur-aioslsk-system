@@ -179,7 +179,11 @@ class _AsyncEventLoopThread(QThread):
         """Point d'entrée du thread — lance la boucle asyncio."""
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self._ready_event.set()  # la boucle est prête
+        # Planifier la notification APRÈS que run_forever() ait démarré
+        # et que le self-pipe de la boucle soit créé. Sans cela, un appel
+        # à call_soon_threadsafe() AVANT run_forever() lèverait une erreur
+        # car le self-pipe n'existe pas encore.
+        self._loop.call_soon(self._ready_event.set)
         try:
             self._loop.run_forever()
         finally:
@@ -239,6 +243,12 @@ class ConnexionManager(QObject):
 
         # Ticket de la dernière recherche en cours (None si aucune)
         self._current_search_ticket: int | None = None
+
+        # Flag anti-connexions concurrentes
+        self._connecting: bool = False
+
+        # Annulation demandée par l'utilisateur pendant une connexion en cours
+        self._cancel_requested: bool = False
 
         # Transférer les signaux du service
         self._service.search_result_received.connect(self.search_result_received.emit)
@@ -326,6 +336,28 @@ class ConnexionManager(QObject):
         self.status_changed.emit(f"Recherche dans #{room} : {query}")
         self._async_thread.run_coro(self._do_search_room(room, query))
 
+    def join_room(self, room: str) -> None:
+        """Rejoint un salon (room) Soulseek.
+
+        Appel non-bloquant depuis le thread UI.
+        """
+        if not self.is_connected:
+            self.error_occurred.emit("Pas connecté à Soulseek")
+            return
+        self.status_changed.emit(f"Rejoint le salon #{room}...")
+        self._async_thread.run_coro(self._do_join_room(room))
+
+    def leave_room(self, room: str) -> None:
+        """Quitte un salon (room) Soulseek.
+
+        Appel non-bloquant depuis le thread UI.
+        """
+        if not self.is_connected:
+            self.error_occurred.emit("Pas connecté à Soulseek")
+            return
+        self.status_changed.emit(f"Quitte le salon #{room}...")
+        self._async_thread.run_coro(self._do_leave_room(room))
+
     def stop_search(self) -> None:
         """Annule la recherche en cours.
 
@@ -360,6 +392,14 @@ class ConnexionManager(QObject):
 
         Appel non-bloquant depuis le thread UI.
         """
+        if self._connecting:
+            logger.warning("Connexion déjà en cours — ignoré")
+            self.error_occurred.emit("Connexion déjà en cours...")
+            return
+        if self._service.is_connected:
+            self.status_changed.emit("Déjà connecté")
+            return
+        self._connecting = True
         self.status_changed.emit("Connexion en cours…")
         self._async_thread.run_coro(self._do_login(username, password))
 
@@ -377,6 +417,10 @@ class ConnexionManager(QObject):
         if username and password:
             logger.info("Reconnexion auto détectée pour : %s", username)
             self.status_changed.emit("Reconnexion automatique…")
+            if self._connecting:
+                logger.warning("auto_login: connexion déjà en cours — ignoré")
+                return
+            self._connecting = True
             self._async_thread.run_coro(self._do_login(username, password))
         else:
             logger.debug("Aucun credentials stockés — pas de reconnexion auto")
@@ -386,12 +430,24 @@ class ConnexionManager(QObject):
 
         Soulseek crée automatiquement le compte si le nom n'existe pas.
         """
+        if self._connecting:
+            logger.warning("Génération de compte déjà en cours — ignoré")
+            self.error_occurred.emit("Connexion déjà en cours...")
+            return
+        self._connecting = True
         self.generating.emit(True)
         self.status_changed.emit("Génération d'un nouveau compte…")
         self._async_thread.run_coro(self._do_generate())
 
+    # pyrefly: ignore [bad-override]
     def disconnect(self) -> None:
         """Déconnecte du serveur Soulseek."""
+        if self._connecting:
+            logger.info("Annulation de la connexion en cours demandée par l'utilisateur")
+            self._connecting = False
+            self._cancel_requested = True
+            self.status_changed.emit("Annulation de la connexion…")
+            return
         self.status_changed.emit("Déconnexion…")
         self._async_thread.run_coro(self._do_disconnect())
 
@@ -410,19 +466,48 @@ class ConnexionManager(QObject):
     # ── Coroutines internes (exécutées dans le thread asyncio) ──
 
     async def _do_login(self, username: str, password: str) -> None:
-        """Tente de se connecter avec les identifiants fournis."""
+        """Tente de se connecter avec les identifiants fournis.
+
+        Utilise un timeout de 30s (comme _do_generate) pour éviter de
+        bloquer la boucle asyncio si le serveur ne répond pas.
+        """
         try:
-            msg = await self._service.connect(username, password)
+            msg = await asyncio.wait_for(
+                self._service.connect(username, password),
+                timeout=30.0,
+            )
+
+            # Vérifier si l'utilisateur a demandé l'annulation pendant la connexion
+            if self._cancel_requested:
+                self._cancel_requested = False
+                logger.info("Connexion annulée par l'utilisateur après login réussi — déconnexion")
+                await self._service.disconnect()
+                self.status_changed.emit("Connexion annulée")
+                return
+
             logger.info("Connexion réussie: %s", username)
             # Sauvegarder les credentials pour reconnexion auto
             app_config.set("reseau.nom_utilisateur", username)
             app_config.set("reseau.mot_de_passe", password)
             self.connected.emit(username)
             self.status_changed.emit(msg)
+
+            # Récupérer la liste des salons publics au démarrage sans bloquer le login
+            try:
+                from aioslsk.commands import GetRoomListCommand
+                asyncio.create_task(self._service.client.execute(GetRoomListCommand()))
+                logger.info("Liste des salons demandée au serveur")
+            except Exception as re:
+                logger.warning("Impossible de récupérer la liste des salons : %s", re)
+        except asyncio.TimeoutError:
+            logger.error("Délai de connexion dépassé (30s) — serveur injoignable")
+            self.error_occurred.emit("⏱️ Délai de connexion dépassé. Le serveur Soulseek est peut-être injoignable.")
         except Exception as e:
             message, _ = traduire(e)
             logger.error(afficher(e))
             self.error_occurred.emit(message)
+        finally:
+            self._connecting = False
 
     async def _do_generate(self) -> None:
         """Génère un compte et se connecte."""
@@ -440,7 +525,15 @@ class ConnexionManager(QObject):
             self.connected.emit(username)
             self.generating.emit(False)
             self.status_changed.emit(f"✅ Nouveau compte créé — {username}")
-        except TimeoutError:
+            
+            # Récupérer la liste des salons publics au démarrage sans bloquer le login
+            try:
+                from aioslsk.commands import GetRoomListCommand
+                asyncio.create_task(self._service.client.execute(GetRoomListCommand()))
+                logger.info("Liste des salons demandée au serveur")
+            except Exception as re:
+                logger.warning("Impossible de récupérer la liste des salons : %s", re)
+        except asyncio.TimeoutError:
             logger.error("Délai de connexion dépassé (30s) — serveur injoignable")
             self.error_occurred.emit("⏱️ Délai de connexion dépassé. Le serveur Soulseek est peut-être injoignable.")
             self.generating.emit(False)
@@ -449,6 +542,8 @@ class ConnexionManager(QObject):
             logger.error(afficher(e))
             self.error_occurred.emit(message)
             self.generating.emit(False)
+        finally:
+            self._connecting = False
 
     async def _do_search(self, query: str) -> None:
         """Exécute une recherche dans le thread asyncio."""
@@ -495,6 +590,36 @@ class ConnexionManager(QObject):
             logger.error(afficher(e))
             self.error_occurred.emit(f"Erreur de recherche dans le salon : {message}")
 
+    async def _do_join_room(self, room: str) -> None:
+        """Exécute la commande de rejoindre un salon."""
+        try:
+            client = self._service.client
+            if client is None:
+                self.error_occurred.emit("Client non initialisé")
+                return
+            from aioslsk.commands import JoinRoomCommand
+            await client.execute(JoinRoomCommand(room))
+            logger.info("Salon #%s rejoint avec succès", room)
+        except Exception as e:
+            message, _ = traduire(e)
+            logger.error("Erreur lors de la tentative de rejoindre #%s: %s", room, message)
+            self.error_occurred.emit(f"Impossible de rejoindre #{room} : {message}")
+
+    async def _do_leave_room(self, room: str) -> None:
+        """Exécute la commande de quitter un salon."""
+        try:
+            client = self._service.client
+            if client is None:
+                self.error_occurred.emit("Client non initialisé")
+                return
+            from aioslsk.commands import LeaveRoomCommand
+            await client.execute(LeaveRoomCommand(room))
+            logger.info("Salon #%s quitté avec succès", room)
+        except Exception as e:
+            message, _ = traduire(e)
+            logger.error("Erreur lors de la tentative de quitter #%s: %s", room, message)
+            self.error_occurred.emit(f"Impossible de quitter #{room} : {message}")
+
     async def _do_stop_search(self) -> None:
         """Annule la recherche en cours dans le thread asyncio."""
         ticket = self._current_search_ticket
@@ -514,8 +639,13 @@ class ConnexionManager(QObject):
     async def _do_disconnect(self) -> None:
         """Déconnecte du serveur."""
         try:
-            msg = await self._service.disconnect()
+            msg = await asyncio.wait_for(
+                self._service.disconnect(),
+                timeout=10.0,
+            )
             self.disconnected.emit()
             self.status_changed.emit(msg)
+        except asyncio.TimeoutError:
+            logger.warning("Délai de déconnexion dépassé (10s)")
         except Exception as e:
             logger.warning("Erreur lors de la déconnexion: %s", e)

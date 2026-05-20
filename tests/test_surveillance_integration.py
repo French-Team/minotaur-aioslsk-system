@@ -64,6 +64,7 @@ def surveillance(bus, qapp):
 # ── Tests ────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestSignalRouting:
     """Vérifie que les événements émis via EventBus arrivent bien dans le widget."""
 
@@ -116,6 +117,7 @@ class TestSignalRouting:
         EventBus._instance = None
 
 
+@pytest.mark.qt_heavy
 class TestStatsIntegration:
     """Vérifie que les compteurs de statistiques sont mis à jour."""
 
@@ -146,6 +148,7 @@ class TestStatsIntegration:
         assert surveillance._stats_total == 6
 
 
+@pytest.mark.qt_heavy
 class TestPauseResume:
     """Vérifie le comportement pause/reprise du flux."""
 
@@ -170,6 +173,7 @@ class TestPauseResume:
         assert surveillance._feed_cards[0]._event.title == "Reçu"
 
 
+@pytest.mark.qt_heavy
 class TestCategoryFiltering:
     """Vérifie que les filtres affectent la visibilité des cartes."""
 
@@ -219,6 +223,7 @@ class TestCategoryFiltering:
         assert surveillance._feed_cards[1].matches_filter("", toutes)
 
 
+@pytest.mark.qt_heavy
 class TestDbPersistence:
     """Vérifie la persistance des événements en base SQLite."""
 

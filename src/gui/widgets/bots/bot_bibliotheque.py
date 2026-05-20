@@ -413,7 +413,11 @@ class BotBibliotheque(QFrame):
             # Auto-scan au démarrage si configuré
             if app_config.get("general.scan_on_start", True):
                 # Décaler le scan pour laisser l'UI finir de se construire
-                QTimer.singleShot(1500, self._on_rescan)
+                self._auto_scan_timer = QTimer(self)
+                self._auto_scan_timer.setSingleShot(True)
+                self._auto_scan_timer.setInterval(1500)
+                self._auto_scan_timer.timeout.connect(self._on_rescan)
+                self._auto_scan_timer.start()
 
     # ── Construction UI ──────────────────────────────────────────────
 
@@ -557,6 +561,7 @@ class BotBibliotheque(QFrame):
 
     def showEvent(self, event: QEvent) -> None:
         """Rafraîchit l'état de connexion quand la page devient visible."""
+        # pyrefly: ignore [bad-argument-type]
         super().showEvent(event)
         self._update_connection_state()
 
@@ -866,6 +871,7 @@ class BotBibliotheque(QFrame):
         # Message de résumé
         dur_ms = _LAST_SCAN["duration_ms"]
         if dur_ms:
+            # pyrefly: ignore [unsupported-operation]
             dur_msg = f" ⏱️ {dur_ms / 1000:.1f}s"
         else:
             dur_msg = ""
@@ -912,6 +918,7 @@ class BotBibliotheque(QFrame):
             return
         row = item.row()
         # Récupérer les données du fichier (stockées dans UserRole de la colonne 0)
+        # pyrefly: ignore [missing-attribute]
         file_data: dict | None = self._table_widget.item(row, 0).data(Qt.ItemDataRole.UserRole)
         if file_data is None:
             return
@@ -1075,6 +1082,7 @@ class BotBibliotheque(QFrame):
         if errors:
             parts.append(f"⚠️{errors}")
         if dur_ms:
+            # pyrefly: ignore [unsupported-operation]
             parts.append(f"{dur_ms / 1000:.1f}s")
 
         return " ⋅ ".join(parts)

@@ -1,0 +1,267 @@
+Total parsed errors: 225
+
+--- Errors by type ---
+missing-attribute: 184
+bad-argument-type: 26
+bad-override: 5
+not-a-type: 3
+unsupported-operation: 2
+bad-assignment: 2
+unknown-name: 1
+no-matching-overload: 1
+bad-return: 1
+
+--- Errors by file ---
+src\gui\widgets\bots\bot_recherche.py: 52 errors
+  Line 148 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 151 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 152 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 273 [missing-attribute]: Class `Qt` has no class attribute `Horizontal`
+  Line 276 [missing-attribute]: Class `QSlider` has no class attribute `TicksBelow`
+  Line 352 [missing-attribute]: Class `QDialogButtonBox` has no class attribute `Cancel`
+  Line 352 [missing-attribute]: Class `QDialogButtonBox` has no class attribute `Apply`
+  Line 355 [missing-attribute]: Class `QDialogButtonBox` has no class attribute `Apply`
+  Line 370 [missing-attribute]: Class `QDialogButtonBox` has no class attribute `Cancel`
+  Line 485 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 586 [missing-attribute]: Object of class `NoneType` has no attribute `addWidget`
+  Line 604 [missing-attribute]: Object of class `NoneType` has no attribute `count`
+  Line 605 [missing-attribute]: Object of class `NoneType` has no attribute `takeAt`
+  Line 617 [missing-attribute]: Object of class `NoneType` has no attribute `addWidget`
+  Line 618 [missing-attribute]: Object of class `NoneType` has no attribute `addStretch`
+  Line 622 [missing-attribute]: Object of class `NoneType` has no attribute `addStretch`
+  Line 699 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 1118 [missing-attribute]: Object of class `NoneType` has no attribute `setSpacing`
+  Line 1152 [missing-attribute]: Class `QTableWidget` has no class attribute `SelectRows`   Did you mean `selectRow`?
+  Line 1153 [missing-attribute]: Class `QTableWidget` has no class attribute `SingleSelection`
+  Line 1154 [missing-attribute]: Class `QTableWidget` has no class attribute `NoEditTriggers`   Did you mean `EditTrigger`?
+  Line 1194 [missing-attribute]: Class `QHeaderView` has no class attribute `Stretch`
+  Line 1195 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1196 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1197 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1198 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1199 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1200 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1201 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1202 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1214 [missing-attribute]: Class `Qt` has no class attribute `DescendingOrder`
+  Line 1217 [missing-attribute]: Class `Qt` has no class attribute `CustomContextMenu`
+  Line 1478 [missing-attribute]: Class `QDialog` has no class attribute `Accepted`   Did you mean `accepted`?
+  Line 1502 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 1503 [missing-attribute]: Object of class `NoneType` has no attribute `setVisible`
+  Line 1505 [missing-attribute]: Object of class `NoneType` has no attribute `setVisible`
+  Line 1565 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 1617 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 1774 [missing-attribute]: Object of class `object` has no attribute `attributes`
+  Line 1775 [missing-attribute]: Object of class `object` has no attribute `attributes`
+  Line 1776 [missing-attribute]: Object of class `object` has no attribute `filename`
+  Line 1777 [missing-attribute]: Object of class `object` has no attribute `extension`
+  Line 1781 [missing-attribute]: Object of class `object` has no attribute `extension`
+  Line 1783 [missing-attribute]: Object of class `object` has no attribute `filesize`
+  Line 1799 [missing-attribute]: Object of class `object` has no attribute `filename`
+  Line 1800 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 1804 [missing-attribute]: Object of class `object` has no attribute `filesize`
+  Line 1805 [missing-attribute]: Object of class `object` has no attribute `filesize`
+  Line 1890 [missing-attribute]: Object of class `NoneType` has no attribute `removeWidget`
+  Line 1918 [missing-attribute]: Object of class `NoneType` has no attribute `addWidget`
+  Line 1922 [missing-attribute]: Object of class `NoneType` has no attribute `addWidget`
+  Line 1925 [missing-attribute]: Object of class `NoneType` has no attribute `addStretch` Object of class `QLayout` has no attribute `addStretch`
+src\gui\widgets\bots\bot_ordonnanceur.py: 48 errors
+  Line 391 [missing-attribute]: Class `QFrame` has no class attribute `HLine`
+  Line 399 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 401 [missing-attribute]: Class `QSizePolicy` has no class attribute `Expanding`
+  Line 401 [missing-attribute]: Class `QSizePolicy` has no class attribute `Expanding`
+  Line 440 [missing-attribute]: Class `QFrame` has no class attribute `HLine`
+  Line 443 [missing-attribute]: Class `QSizePolicy` has no class attribute `Expanding`
+  Line 443 [missing-attribute]: Class `QSizePolicy` has no class attribute `Fixed`
+  Line 484 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+  Line 511 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 515 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 516 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 518 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 519 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 521 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 522 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 524 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 525 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 586 [missing-attribute]: Class `QSizePolicy` has no class attribute `Expanding`
+  Line 586 [missing-attribute]: Class `QSizePolicy` has no class attribute `Preferred`
+  Line 628 [missing-attribute]: Object of class `dict` has no attribute `fichiers`
+  Line 924 [missing-attribute]: Class `Qt` has no class attribute `PointingHandCursor`
+  Line 948 [bad-argument-type]: Argument `Unknown | None` is not assignable to parameter `*args` with type `PathLike[str] | str` in function `pathlib.Path.__new__`   Protocol `PathLike` requires attribute `__fspath__`
+  Line 952 [bad-argument-type]: Argument `Unknown | None` is not assignable to parameter `*args` with type `PathLike[str] | str` in function `pathlib.Path.__new__`   Protocol `PathLike` requires attribute `__fspath__`
+  Line 952 [bad-argument-type]: Argument `Unknown | None` is not assignable to parameter `*args` with type `PathLike[str] | str` in function `pathlib.Path.__new__`   Protocol `PathLike` requires attribute `__fspath__`
+  Line 1101 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1102 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1117 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1119 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1121 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1123 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1126 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1128 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1131 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1133 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1137 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1142 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1144 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1149 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1154 [bad-argument-type]: Argument `str` is not assignable to parameter `object` with type `LiteralString` in function `list.append`
+  Line 1175 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 1186 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 1214 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 1215 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 1219 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 1220 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 1254 [bad-assignment]: `object` is not assignable to attribute `_analyse` with type `dict[Unknown, Unknown] | None`
+  Line 1264 [missing-attribute]: Object of class `NoneType` has no attribute `setEnabled`
+  Line 1265 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+src\gui\devtool\qss_inspector.py: 29 errors
+  Line 317 [missing-attribute]: Object of class `QCoreApplication` has no attribute `styleSheet`
+  Line 319 [bad-argument-type]: Argument `tuple[Unknown, QCoreApplication]` is not assignable to parameter `object` with type `tuple[str, QWidget]` in function `list.append`
+  Line 338 [missing-attribute]: Class `Qt` has no class attribute `ItemIsSelectable`
+  Line 350 [missing-attribute]: Class `Qt` has no class attribute `ItemIsSelectable`
+  Line 381 [missing-attribute]: Class `QHeaderView` has no class attribute `Stretch`
+  Line 382 [missing-attribute]: Class `QHeaderView` has no class attribute `ResizeToContents`
+  Line 388 [not-a-type]: Expected a type form, got instance of `(obj: object, /) -> TypeIs[(...) -> object]`
+  Line 392 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 396 [not-a-type]: Expected a type form, got instance of `(obj: object, /) -> TypeIs[(...) -> object]`
+  Line 410 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 494 [not-a-type]: Expected a type form, got instance of `(obj: object, /) -> TypeIs[(...) -> object]`
+  Line 505 [missing-attribute]: Class `QEvent` has no class attribute `MouseButtonPress`
+  Line 506 [missing-attribute]: Object of class `QEvent` has no attribute `globalPosition`
+  Line 531 [missing-attribute]: Class `Qt` has no class attribute `LeftDockWidgetArea`
+  Line 531 [missing-attribute]: Class `Qt` has no class attribute `RightDockWidgetArea`
+  Line 531 [missing-attribute]: Class `Qt` has no class attribute `BottomDockWidgetArea`
+  Line 534 [missing-attribute]: Class `QDockWidget` has no class attribute `DockWidgetClosable`
+  Line 534 [missing-attribute]: Class `QDockWidget` has no class attribute `DockWidgetMovable`
+  Line 534 [missing-attribute]: Class `QDockWidget` has no class attribute `DockWidgetFloatable`
+  Line 585 [missing-attribute]: Class `Qt` has no class attribute `Vertical`
+  Line 660 [bad-override]: Class member `QssInspector.eventFilter` overrides parent class `QDockWidget` in an inconsistent manner   `QssInspector.eventFilter` has type `(self: QssInspector, obj: QWidget, event: QEvent) -> bool`, which is not assignable to `(self: QssInspector, watched: QObject, event: QEvent, /) -> bool`, the type of `QDockWidget.eventFilter`   Signature mismatch:   expected: def eventFilter(self: QssInspector, watched: QObject, event: QEvent, /) -> bool: ...                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ parameters   found:    def eventFilter(self: QssInspector, obj: QWidget, event: QEvent) -> bool: ...                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ parameters
+  Line 662 [missing-attribute]: Class `QEvent` has no class attribute `MouseButtonPress`
+  Line 773 [missing-attribute]: Class `Qt` has no class attribute `FindChildrenRecursively`
+  Line 778 [missing-attribute]: Object of class `QCoreApplication` has no attribute `styleSheet`
+  Line 814 [missing-attribute]: Object of class `QCoreApplication` has no attribute `styleSheet`
+  Line 815 [missing-attribute]: Object of class `QCoreApplication` has no attribute `styleSheet`
+  Line 840 [bad-argument-type]: Argument `tuple[str, list[str], list[str]]` is not assignable to parameter `object` with type `tuple[str, str, list[str]]` in function `list.append`
+  Line 910 [missing-attribute]: Class `Qt` has no class attribute `FindChildrenRecursively`
+  Line 927 [missing-attribute]: Class `Qt` has no class attribute `CrossCursor`
+src\gui\widgets\bots\bot_surveillance.py: 17 errors
+  Line 319 [bad-override]: Class member `_EventCard.event` overrides parent class `QFrame` in an inconsistent manner   `_EventCard.event` is a property, but `QFrame.event` is not
+  Line 409 [missing-attribute]: Class `QFrame` has no class attribute `HLine`
+  Line 579 [missing-attribute]: Class `Qt` has no class attribute `ScrollBarAlwaysOff`
+  Line 580 [missing-attribute]: Class `Qt` has no class attribute `ScrollBarAsNeeded`
+  Line 581 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 626 [missing-attribute]: Object of class `NoneType` has no attribute `verticalScrollBar`
+  Line 719 [missing-attribute]: Object of class `NoneType` has no attribute `removeWidget`
+  Line 862 [missing-attribute]: Class `QAbstractItemView` has no class attribute `SelectRows`
+  Line 868 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 870 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 872 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 874 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 876 [missing-attribute]: Class `QHeaderView` has no class attribute `Stretch`
+  Line 877 [missing-attribute]: Class `QHeaderView` has no class attribute `Fixed`
+  Line 1126 [missing-attribute]: Class `QMessageBox` has no class attribute `Yes`
+  Line 1126 [missing-attribute]: Class `QMessageBox` has no class attribute `No`
+  Line 1128 [missing-attribute]: Class `QMessageBox` has no class attribute `Yes`
+src\gui\widgets\bots\bot_aide.py: 15 errors
+  Line 263 [missing-attribute]: Class `Qt` has no class attribute `Horizontal`
+  Line 300 [missing-attribute]: Class `Qt` has no class attribute `CustomContextMenu`
+  Line 620 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 621 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 627 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 628 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 659 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 660 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 731 [missing-attribute]: Class `Qt` has no class attribute `PointingHandCursor`
+  Line 744 [missing-attribute]: Class `Qt` has no class attribute `PointingHandCursor`
+  Line 788 [bad-argument-type]: Argument `None` is not assignable to parameter `effect` with type `QGraphicsEffect` in function `PySide6.QtWidgets.QWidget.setGraphicsEffect`
+  Line 852 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 853 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 891 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 892 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+src\gui\widgets\connexions.py: 8 errors
+  Line 47 [missing-attribute]: Class `QFrame` has no class attribute `StyledPanel`
+  Line 52 [missing-attribute]: Class `QSizePolicy` has no class attribute `Maximum`
+  Line 116 [bad-assignment]: `QPainterPath` is not assignable to variable `path` with type `str`
+  Line 117 [missing-attribute]: Object of class `str` has no attribute `addEllipse`
+  Line 118 [bad-argument-type]: Argument `str` is not assignable to parameter `path` with type `QPainterPath` in function `PySide6.QtGui.QPainter.setClipPath`
+  Line 149 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 187 [missing-attribute]: Class `QFrame` has no class attribute `HLine`
+  Line 238 [missing-attribute]: Class `QFrame` has no class attribute `HLine`
+src\gui\widgets\bots\bot_telechargement.py: 6 errors
+  Line 68 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 381 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 389 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+  Line 406 [unknown-name]: Could not find name `SoulseekService`
+  Line 518 [missing-attribute]: Object of class `NoneType` has no attribute `text`
+  Line 905 [missing-attribute]: Class `Qt` has no class attribute `UserRole`
+src\gui\widgets\bots\bot_planificateur.py: 5 errors
+  Line 378 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+  Line 379 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+  Line 380 [missing-attribute]: Object of class `NoneType` has no attribute `layout`
+  Line 381 [missing-attribute]: Object of class `NoneType` has no attribute `layout`
+  Line 532 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\widgets\toast_notification.py: 5 errors
+  Line 85 [bad-argument-type]: Argument `None` is not assignable to parameter `effect` with type `QGraphicsEffect` in function `PySide6.QtWidgets.QWidget.setGraphicsEffect`
+  Line 106 [missing-attribute]: Class `Qt` has no class attribute `WA_TransparentForMouseEvents`
+  Line 107 [missing-attribute]: Class `Qt` has no class attribute `WA_StyledBackground`
+  Line 113 [missing-attribute]: Class `Qt` has no class attribute `AlignTop`
+  Line 113 [missing-attribute]: Class `Qt` has no class attribute `AlignRight`
+src\gui\widgets\bots\bot_bibliotheque.py: 4 errors
+  Line 564 [bad-argument-type]: Argument `QEvent` is not assignable to parameter `event` with type `QShowEvent` in function `PySide6.QtWidgets.QWidget.showEvent`
+  Line 873 [unsupported-operation]: `/` is not supported between `str` and `Literal[1000]`   Argument `str` is not assignable to parameter `value` with type `int` in function `int.__rtruediv__`
+  Line 919 [missing-attribute]: Object of class `NoneType` has no attribute `data`
+  Line 1082 [unsupported-operation]: `/` is not supported between `str` and `Literal[1000]`   Argument `str` is not assignable to parameter `value` with type `int` in function `int.__rtruediv__`
+src\gui\widgets\bots\bot_optimiseur.py: 4 errors
+  Line 235 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 466 [missing-attribute]: Object of class `QWidget` has no attribute `page`
+  Line 520 [missing-attribute]: Object of class `NoneType` has no attribute `show_page` Object of class `QWidget` has no attribute `show_page`
+  Line 542 [missing-attribute]: Object of class `NoneType` has no attribute `show_page` Object of class `QWidget` has no attribute `show_page`
+src\gui\widgets\bots\bot_wishlist.py: 4 errors
+  Line 627 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+  Line 628 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+  Line 646 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+  Line 647 [missing-attribute]: Object of class `NoneType` has no attribute `widget`
+src\services\soulseek_client.py: 4 errors
+  Line 213 [bad-override]: Class member `SoulseekService.connect` overrides parent class `QObject` in an inconsistent manner   `SoulseekService.connect` has type `(self: SoulseekService, username: str, password: str) -> Coroutine[Unknown, Unknown, str]`, which is not assignable to `Overload[   (sender: QObject, signal: QMetaMethod, receiver: QObject, method: QMetaMethod, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection   (sender: QObject, signal: str, receiver: QObject, member: str, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection   (sender: QObject, signal: str, context: QObject, functor: (...) -> Any, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection   (sender: QObject, signal: str, functor: (...) -> Any, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection   (self: SoulseekService, sender: QObject, signal: str, member: str, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection   (self: SoulseekService, signal: str, receiver: QObject, method: str, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection   (self: SoulseekService, signal: str, functor: (...) -> Any, /, type: Qt.ConnectionType = ...) -> QMetaObject.Connection ]`, the type of `QObject.connect`
+  Line 379 [bad-argument-type]: Argument `(evt: Unknown) -> tuple[None, Unknown]` is not assignable to parameter `listener` with type `((Unknown) -> Coroutine[Any, Any, Any]) | ((Unknown) -> None)` in function `aioslsk.events.EventBus.register`
+  Line 392 [bad-argument-type]: Argument `(evt: Unknown) -> tuple[None, Unknown]` is not assignable to parameter `listener` with type `((Unknown) -> Coroutine[Any, Any, Any]) | ((Unknown) -> None)` in function `aioslsk.events.EventBus.register`
+  Line 457 [bad-override]: Class member `SoulseekService.disconnect` overrides parent class `QObject` in an inconsistent manner   `SoulseekService.disconnect` has type `(self: SoulseekService) -> Coroutine[Unknown, Unknown, str]`, which is not assignable to `Overload[   (connection: QMetaObject.Connection, /) -> bool   (sender: QObject, signal: QMetaMethod, receiver: QObject, member: QMetaMethod, /) -> bool   (sender: QObject, signal: str, receiver: QObject, member: str, /) -> bool   (sender: QObject, signal: str, functor: (...) -> Any, /) -> bool   (self: SoulseekService, receiver: QObject, /, member: str | None = ...) -> bool   (self: SoulseekService, signal: str, receiver: QObject, member: str, /) -> bool   (self: SoulseekService, signal: str, functor: (...) -> Any, /) -> bool ]`, the type of `QObject.disconnect`
+src\gui\widgets\home.py: 3 errors
+  Line 81 [no-matching-overload]: No matching overload found for function `PySide6.QtWidgets.QLabel.__init__` called with arguments: (list[Unknown] | str | Unknown)   Possible overloads:   (text: str, /, parent: QWidget | None = ..., f: Qt.WindowType = ..., *, textFormat: Qt.TextFormat | None = ..., pixmap: QPixmap | None = ..., scaledContents: bool | None = ..., alignment: Qt.AlignmentFlag | None = ..., wordWrap: bool | None = ..., margin: int | None = ..., indent: int | None = ..., openExternalLinks: bool | None = ..., textInteractionFlags: Qt.TextInteractionFlag | None = ..., hasSelectedText: bool | None = ..., selectedText: str | None = ...) -> None [closest match]   (parent: QWidget | None = ..., f: Qt.WindowType = ..., *, text: str | None = ..., textFormat: Qt.TextFormat | None = ..., pixmap: QPixmap | None = ..., scaledContents: bool | None = ..., alignment: Qt.AlignmentFlag | None = ..., wordWrap: bool | None = ..., margin: int | None = ..., indent: int | None = ..., openExternalLinks: bool | None = ..., textInteractionFlags: Qt.TextInteractionFlag | None = ..., hasSelectedText: bool | None = ..., selectedText: str | None = ...) -> None
+  Line 88 [missing-attribute]: Object of class `str` has no attribute `get`
+  Line 95 [missing-attribute]: Object of class `str` has no attribute `get`
+src\services\clients_actifs_service.py: 3 errors
+  Line 213 [missing-attribute]: Object of class `UserStatusUpdateEvent` has no attribute `username`
+  Line 214 [missing-attribute]: Object of class `UserStatusUpdateEvent` has no attribute `status`
+  Line 231 [missing-attribute]: Object of class `UserInfoUpdateEvent` has no attribute `username`
+src\gui\layout\footer.py: 2 errors
+  Line 34 [missing-attribute]: Class `Qt` has no class attribute `AlignCenter`
+  Line 89 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\widgets\bots\bot_clients_actifs.py: 2 errors
+  Line 375 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+  Line 378 [missing-attribute]: Object of class `NoneType` has no attribute `setText`
+src\gui\widgets\config.py: 2 errors
+  Line 62 [missing-attribute]: Class `QFrame` has no class attribute `HLine`
+  Line 845 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\widgets\header\clients_actifs_header.py: 2 errors
+  Line 49 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 204 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\widgets\telechargements.py: 2 errors
+  Line 59 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+  Line 247 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\layout\center.py: 1 errors
+  Line 68 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\layout\header.py: 1 errors
+  Line 27 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\layout\left.py: 1 errors
+  Line 93 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\layout\right.py: 1 errors
+  Line 60 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\widgets\clock.py: 1 errors
+  Line 24 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\gui\widgets\progression.py: 1 errors
+  Line 44 [missing-attribute]: Class `QFrame` has no class attribute `NoFrame`
+src\services\aide_db.py: 1 errors
+  Line 330 [bad-return]: Returned type `int | None` is not assignable to declared return type `int`
+src\services\connexion_manager.py: 1 errors
+  Line 393 [bad-override]: Class member `ConnexionManager.disconnect` overrides parent class `QObject` in an inconsistent manner   `ConnexionManager.disconnect` has type `(self: ConnexionManager) -> None`, which is not assignable to `Overload[   (connection: QMetaObject.Connection, /) -> bool   (sender: QObject, signal: QMetaMethod, receiver: QObject, member: QMetaMethod, /) -> bool   (sender: QObject, signal: str, receiver: QObject, member: str, /) -> bool   (sender: QObject, signal: str, functor: (...) -> Any, /) -> bool   (self: ConnexionManager, receiver: QObject, /, member: str | None = ...) -> bool   (self: ConnexionManager, signal: str, receiver: QObject, member: str, /) -> bool   (self: ConnexionManager, signal: str, functor: (...) -> Any, /) -> bool ]`, the type of `QObject.disconnect`

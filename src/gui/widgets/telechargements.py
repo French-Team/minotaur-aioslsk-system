@@ -56,6 +56,7 @@ class TelechargementsHeaderWidget(QFrame):
         super().__init__(parent)
         self.setObjectName("telechargementsHeader")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
 
         layout = QVBoxLayout(self)
@@ -244,6 +245,7 @@ class TelechargementsPage(QFrame):
         scroll = QScrollArea()
         scroll.setObjectName("downloadScroll")
         scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         scroll.setFrameShape(QFrame.NoFrame)
 
         self._list_container = QWidget()

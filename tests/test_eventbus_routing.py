@@ -8,12 +8,28 @@ Couvre :
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QObject, Signal
 
 from src.services.event_bus import _DB_PATH, EventBus, SurveillanceEvent
+
+
+@pytest.fixture
+def bus(monkeypatch):
+    """Fixture: EventBus vierge isolé en mémoire."""
+    monkeypatch.setattr("src.services.event_bus._DB_PATH", ":memory:")
+    old = EventBus._instance
+    if old is not None:
+        old.shutdown()
+    EventBus._instance = None
+    bus = EventBus()
+    yield bus
+    bus.shutdown()
+    EventBus._instance = old
+
 
 # ═══════════════════════════════════════════════════════════════════
 # SurveillanceEvent — validation
@@ -31,27 +47,29 @@ class TestSurveillanceEvent:
         assert evt.timestamp != ""  # auto-généré
         assert evt.id == 0
 
-    def test_valid_severities(self):
+    @pytest.mark.parametrize("sev", SurveillanceEvent.SEVERITIES)
+    def test_valid_severities(self, sev):
         """Toutes les sévérités valides sont acceptées."""
-        for sev in SurveillanceEvent.SEVERITIES:
-            evt = SurveillanceEvent(severity=sev, category="bot")
-            assert evt.severity == sev
+        evt = SurveillanceEvent(severity=sev, category="bot")
+        assert evt.severity == sev
 
-    def test_invalid_severity_raises(self):
+    @pytest.mark.parametrize("invalid_severity", ["INVALID", "", "INFOO"])
+    def test_invalid_severity_raises(self, invalid_severity):
         """Une sévérité invalide lève une ValueError."""
         with pytest.raises(ValueError, match="Sévérité"):
-            SurveillanceEvent(severity="INVALID", category="bot")
+            SurveillanceEvent(severity=invalid_severity, category="bot")
 
-    def test_all_valid_categories(self):
+    @pytest.mark.parametrize("cat", SurveillanceEvent.CATEGORIES)
+    def test_all_valid_categories(self, cat):
         """Toutes les catégories déclarées sont acceptées."""
-        for cat in SurveillanceEvent.CATEGORIES:
-            evt = SurveillanceEvent(category=cat)
-            assert evt.category == cat
+        evt = SurveillanceEvent(category=cat)
+        assert evt.category == cat
 
-    def test_invalid_category_raises(self):
+    @pytest.mark.parametrize("invalid_category", ["invalide", "", "categorie_inconnue"])
+    def test_invalid_category_raises(self, invalid_category):
         """Une catégorie invalide lève une ValueError."""
         with pytest.raises(ValueError, match="Catégorie"):
-            SurveillanceEvent(category="categorie_inconnue")
+            SurveillanceEvent(category=invalid_category)
 
     def test_custom_timestamp_preserved(self):
         """Un timestamp fourni manuellement n'est pas écrasé."""
@@ -63,6 +81,46 @@ class TestSurveillanceEvent:
         details = {"key": "value", "count": 42}
         evt = SurveillanceEvent(category="bot", details=details)
         assert evt.details == details
+
+
+class TestContrainteSQL:
+    """Teste la contrainte CHECK SQLite au niveau base de données."""
+
+    @pytest.mark.parametrize("sql_category, sql_severity", [
+        pytest.param("invalide", "INFO", id="categorie_invalide"),
+        pytest.param("", "INFO", id="categorie_vide"),
+        pytest.param("bot", "CRITIQUE", id="severite_invalide"),
+        pytest.param("bot", "", id="severite_vide"),
+        pytest.param("bot", "INFOO", id="severite_proche"),
+    ])
+    def test_insert_invalide_leve_integrity_error(self, bus: EventBus, sql_category: str, sql_severity: str) -> None:
+        """Une insertion SQL avec une catégorie/sévérité hors CHECK lève IntegrityError."""
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+            bus._db.execute(
+                "INSERT INTO events (timestamp, severity, category, title, message, source) "
+                "VALUES (datetime('now'), ?, ?, 'Test', 'Message', 'test')",
+                (sql_severity, sql_category),
+            )
+            bus._db.commit()
+
+    @pytest.mark.parametrize("sql_category, sql_severity", [
+        pytest.param("bibliotheque", "INFO", id="categorie_bibliotheque"),
+        pytest.param("bot", "ERROR", id="severite_error"),
+        pytest.param("recherche", "WARN", id="categorie_recherche_warn"),
+    ])
+    def test_insert_valide_reussit(self, bus: EventBus, sql_category: str, sql_severity: str) -> None:
+        """Une insertion SQL avec des valeurs valides réussit."""
+        bus._db.execute(
+            "INSERT INTO events (timestamp, severity, category, title, message, source) "
+            "VALUES (datetime('now'), ?, ?, 'Test', 'Message', 'test')",
+            (sql_severity, sql_category),
+        )
+        bus._db.commit()
+        count = bus._db.execute(
+            "SELECT COUNT(*) FROM events WHERE category=? AND severity=?",
+            (sql_category, sql_severity),
+        ).fetchone()[0]
+        assert count >= 1
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -100,20 +158,6 @@ class TestEventBusSingleton:
 class TestEventBusEmission:
     """L'émission d'événements via emit_event()."""
 
-    @pytest.fixture
-    def bus(self, monkeypatch):
-        """Fixture: EventBus vierge."""
-        # Désactiver la persistance SQLite pour les tests
-        monkeypatch.setattr("src.services.event_bus._DB_PATH", ":memory:")
-        old = EventBus._instance
-        if old is not None:
-            old.shutdown()
-        EventBus._instance = None
-        bus = EventBus()
-        yield bus
-        bus.shutdown()
-        EventBus._instance = old
-
     def test_emit_returns_event(self, bus):
         """emit_event retourne un SurveillanceEvent avec un id."""
         evt = bus.emit_event(category="bot", severity="INFO", title="Test")
@@ -135,19 +179,31 @@ class TestEventBusEmission:
         assert len(received) == 1
         assert received[0].title == "Signal test"
 
-    def test_emit_all_categories(self, bus):
+    @pytest.mark.parametrize("cat", SurveillanceEvent.CATEGORIES)
+    def test_emit_all_categories(self, bus, cat):
         """Toutes les catégories valides peuvent être émises."""
-        for cat in SurveillanceEvent.CATEGORIES:
-            evt = bus.emit_event(category=cat, title=f"Test {cat}")
-            assert evt is not None
-            assert evt.category == cat
+        evt = bus.emit_event(category=cat, title=f"Test {cat}")
+        assert evt is not None
+        assert evt.category == cat
 
-    def test_emit_all_severities(self, bus):
+    @pytest.mark.parametrize("sev", SurveillanceEvent.SEVERITIES)
+    def test_emit_all_severities(self, bus, sev):
         """Toutes les sévérités valides peuvent être émises."""
-        for sev in SurveillanceEvent.SEVERITIES:
-            evt = bus.emit_event(category="bot", severity=sev, title=f"Test {sev}")
-            assert evt is not None
-            assert evt.severity == sev
+        evt = bus.emit_event(category="bot", severity=sev, title=f"Test {sev}")
+        assert evt is not None
+        assert evt.severity == sev
+
+    @pytest.mark.parametrize("invalid_category", ["invalide", ""])
+    def test_emit_categorie_invalide_leve_value_error(self, bus, invalid_category):
+        """emit_event avec une catégorie invalide lève ValueError (validation Python)."""
+        with pytest.raises(ValueError, match="Catégorie"):
+            bus.emit_event(category=invalid_category, title="Test")
+
+    @pytest.mark.parametrize("invalid_severity", ["INVALID", "", "INFOO"])
+    def test_emit_severite_invalide_leve_value_error(self, bus, invalid_severity):
+        """emit_event avec une sévérité invalide lève ValueError (validation Python)."""
+        with pytest.raises(ValueError, match="Sévérité"):
+            bus.emit_event(severity=invalid_severity, category="bot", title="Test")
 
     def test_emit_with_source_and_details(self, bus):
         """Les champs source et details sont conservés."""
@@ -204,18 +260,6 @@ class TestEventBusQuery:
     """Requêtes d'événements via query() et get_recent()."""
 
     @pytest.fixture
-    def bus(self, monkeypatch):
-        monkeypatch.setattr("src.services.event_bus._DB_PATH", ":memory:")
-        old = EventBus._instance
-        if old is not None:
-            old.shutdown()
-        EventBus._instance = None
-        bus = EventBus()
-        yield bus
-        bus.shutdown()
-        EventBus._instance = old
-
-    @pytest.fixture
     def bus_with_events(self, bus):
         """EventBus avec plusieurs événements de test."""
         bus.emit_event(category="recherche", severity="INFO", title="Recherche lancée")
@@ -260,6 +304,11 @@ class TestEventBusQuery:
         events = bus_with_events.query(limit=3)
         assert len(events) == 3
 
+    def test_query_limit_zero(self, bus_with_events):
+        """query() avec limit=0 ne retourne aucun événement."""
+        events = bus_with_events.query(limit=0)
+        assert len(events) == 0
+
     def test_query_limit_and_category(self, bus_with_events):
         """query() avec limite et filtre catégorie."""
         events = bus_with_events.query(category="recherche", limit=1)
@@ -297,6 +346,11 @@ class TestEventBusQuery:
         assert len(remaining) == 3
         remaining_ids = {e.id for e in remaining}
         assert all(i not in remaining_ids for i in ids)
+
+    def test_delete_events_liste_vide(self, bus):
+        """delete_events() avec une liste vide ne supprime rien et retourne 0."""
+        assert bus.delete_events([]) == 0
+        assert len(bus.query()) == 0
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -348,18 +402,6 @@ class TestBotCategoriesIntegration:
 
 class TestEventBusPurge:
     """Purge automatique des événements."""
-
-    @pytest.fixture
-    def bus(self, monkeypatch):
-        monkeypatch.setattr("src.services.event_bus._DB_PATH", ":memory:")
-        old = EventBus._instance
-        if old is not None:
-            old.shutdown()
-        EventBus._instance = None
-        bus = EventBus()
-        yield bus
-        bus.shutdown()
-        EventBus._instance = old
 
     def test_purge_old_removes_old_events(self, bus, monkeypatch):
         """purge_old() supprime les événements plus vieux que retention_days."""
@@ -435,17 +477,6 @@ class TestEventBusPersistence:
 
 class TestEventBusShutdown:
     """Vérifie que shutdown() ferme proprement la connexion SQLite."""
-
-    @pytest.fixture
-    def bus(self, monkeypatch):
-        monkeypatch.setattr("src.services.event_bus._DB_PATH", ":memory:")
-        old = EventBus._instance
-        if old is not None:
-            old.shutdown()
-        EventBus._instance = None
-        bus = EventBus()
-        yield bus
-        EventBus._instance = old
 
     def test_shutdown_appelle_wal_checkpoint_et_close(self, bus):
         """shutdown() exécute WAL checkpoint puis ferme la connexion."""

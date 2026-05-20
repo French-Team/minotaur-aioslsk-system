@@ -388,6 +388,7 @@ class BotOrdonnanceur(QFrame):
 
         # ── Séparateur ─────────────────────────────────────────────
         sep = QFrame()
+        # pyrefly: ignore [missing-attribute]
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet(f"color: {COLORS['BORDER']};")
         sep.setFixedHeight(1)
@@ -396,8 +397,10 @@ class BotOrdonnanceur(QFrame):
         # ── Zone de contenu (change selon l'étape) ────────────────
         self._content_scroll = QScrollArea()
         self._content_scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         self._content_scroll.setFrameShape(QFrame.NoFrame)
         self._content_scroll.setStyleSheet("background: transparent;")
+        # pyrefly: ignore [missing-attribute]
         self._content_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self._content_scroll, stretch=1)
 
@@ -437,9 +440,11 @@ class BotOrdonnanceur(QFrame):
             if i < len(_STEPS) - 1:
                 # Trait de liaison
                 line = QFrame()
+                # pyrefly: ignore [missing-attribute]
                 line.setFrameShape(QFrame.HLine)
                 line.setFixedHeight(1)
                 line.setStyleSheet(f"color: {COLORS['BORDER']};")
+                # pyrefly: ignore [missing-attribute]
                 line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                 step_bar.addWidget(line)
 
@@ -481,6 +486,7 @@ class BotOrdonnanceur(QFrame):
         """Supprime tous les widgets de la zone de contenu."""
         while self._content_layout.count():
             item = self._content_layout.takeAt(0)
+            # pyrefly: ignore [missing-attribute]
             w = item.widget()
             if w is not None:
                 w.deleteLater()
@@ -508,20 +514,29 @@ class BotOrdonnanceur(QFrame):
             self._build_step4_rapport()
 
         # Boutons de navigation
+        # pyrefly: ignore [missing-attribute]
         self._back_btn.setEnabled(step > 0)
 
         if step == 0:
             has_selection = len(self._selected_ops) > 0
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setText("Analyser →")
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setEnabled(has_selection)
         elif step == 1:
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setText("🚀 Lancer l'organisation")
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setEnabled(True)
         elif step == 2:
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setEnabled(False)
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setText("En cours…")
         elif step == 3:
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setText("✓ Recommencer")
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setEnabled(True)
 
     def _build_step1_choix(self) -> None:
@@ -583,6 +598,7 @@ class BotOrdonnanceur(QFrame):
             " padding: 6px 10px;"
             f" background: {COLORS['BG_SURFACE']}; border-radius: 4px;"
         )
+        # pyrefly: ignore [missing-attribute]
         self._folder_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         picker_row.addWidget(self._folder_label)
 
@@ -625,6 +641,7 @@ class BotOrdonnanceur(QFrame):
         self._content_layout.addSpacing(8)
 
         # Résumé des fichiers analysés
+        # pyrefly: ignore [missing-attribute]
         nb_fichiers = len(self._analyse.fichiers) if self._analyse else 0
         resum = QLabel(f"📊 {nb_fichiers} fichiers analysés dans {self._dossier or '?'}")
         resum.setStyleSheet(f"color: {COLORS['ACCENT']}; font-size: 14px; font-weight: 600;")
@@ -921,6 +938,7 @@ class BotOrdonnanceur(QFrame):
                     f"QPushButton:hover {{ background: {COLORS['BG_HOVER']};"
                     f" color: {COLORS['TEXT_PRIMARY']}; }}"
                 )
+                # pyrefly: ignore [missing-attribute]
                 toggle_btn.setCursor(Qt.PointingHandCursor)
                 card_layout.addWidget(toggle_btn)
 
@@ -945,10 +963,12 @@ class BotOrdonnanceur(QFrame):
                     if op_key == "renommage":
                         ancien = d.get("ancien", "")
                         nouveau = d.get("nouveau", d.get("erreur", "?"))
+                        # pyrefly: ignore [bad-argument-type]
                         line = f"{emoji} {Path(ancien).name} → {Path(nouveau).name}"
                     elif op_key == "classement":
                         source = d.get("source", d.get("ancien", ""))
                         dest = d.get("destination", d.get("nouveau", d.get("erreur", "?")))
+                        # pyrefly: ignore [bad-argument-type]
                         line = f"{emoji} {Path(source).name} → {Path(dest).name}"
                     elif op_key == "deduplication":
                         fichier = d.get("fichier", d.get("ancien", d.get("erreur", "?")))
@@ -1098,7 +1118,9 @@ class BotOrdonnanceur(QFrame):
         lines.append("RAPPORT D'EXECUTION - ORDONNANCEUR")
         mode = "SIMULATION" if simulation else "APPLICATION"
         status = "SUCCES" if succes else "ECHEC PARTIEL"
+        # pyrefly: ignore [bad-argument-type]
         lines.append(f"Mode : {mode} | Statut : {status}")
+        # pyrefly: ignore [bad-argument-type]
         lines.append(f"Dossier : {self._dossier or '?'}")
         lines.append("=" * 50)
         lines.append("")
@@ -1114,43 +1136,56 @@ class BotOrdonnanceur(QFrame):
             if op_key not in operations:
                 continue
             stats = operations[op_key]
+            # pyrefly: ignore [bad-argument-type]
             lines.append(f"[{op_label}]")
             if stats.get("tente", 0):
+                # pyrefly: ignore [bad-argument-type]
                 lines.append(f"  Tente : {stats['tente']}")
             if stats.get("reussi", 0):
+                # pyrefly: ignore [bad-argument-type]
                 lines.append(f"  Reussi : {stats['reussi']}")
             if stats.get("echoue", 0):
+                # pyrefly: ignore [bad-argument-type]
                 lines.append(f"  Echoue : {stats['echoue']}")
             if op_key == "deduplication":
                 if stats.get("supprime", 0):
+                    # pyrefly: ignore [bad-argument-type]
                     lines.append(f"  Supprimes : {stats['supprime']}")
                 if stats.get("renomme_gardes", 0):
+                    # pyrefly: ignore [bad-argument-type]
                     lines.append(f"  Gardes renommes : {stats['renomme_gardes']}")
             elif op_key == "nettoyage":
                 if stats.get("supprime", 0):
+                    # pyrefly: ignore [bad-argument-type]
                     lines.append(f"  Supprimes : {stats['supprime']}")
                 if stats.get("taille_lisible", None):
+                    # pyrefly: ignore [bad-argument-type]
                     lines.append(f"  Liberes : {stats['taille_lisible']}")
             # Details fichiers
             op_details = [d for d in details if isinstance(d, dict) and d.get("operation") == op_key]
             if op_details:
+                # pyrefly: ignore [bad-argument-type]
                 lines.append(f"  Fichiers ({len(op_details)}) :")
                 for d in op_details[:20]:
                     d_type = d.get("type", "?")
                     prefix = "[OK]" if d_type == "reussi" else ("[SIM]" if d_type == "simulation" else "[ERR]")
                     fichier = d.get("fichier", d.get("source", d.get("ancien", d.get("chemin", "?"))))
+                    # pyrefly: ignore [bad-argument-type]
                     lines.append(f"    {prefix} {fichier}")
                 if len(op_details) > 20:
+                    # pyrefly: ignore [bad-argument-type]
                     lines.append(f"    ... et {len(op_details) - 20} autre(s)")
             lines.append("")
 
         if erreurs:
             lines.append("-" * 30)
+            # pyrefly: ignore [bad-argument-type]
             lines.append(f"ERREURS ({len(erreurs)}) :")
             for err in erreurs:
                 err_op = err.get("operation", "?")
                 err_f = err.get("fichier", "")
                 err_msg = err.get("erreur", "?")
+                # pyrefly: ignore [bad-argument-type]
                 lines.append(f"  [{err_op}] {err_f} : {err_msg}")
             lines.append("")
 
@@ -1172,6 +1207,7 @@ class BotOrdonnanceur(QFrame):
         dossier = QFileDialog.getExistingDirectory(self, "Choisir le dossier à organiser")
         if dossier:
             self._dossier = Path(dossier)
+            # pyrefly: ignore [missing-attribute]
             self._folder_label.setText(str(self._dossier))
 
     def _on_op_toggle(self, op_key: str, checked: int) -> None:
@@ -1183,6 +1219,7 @@ class BotOrdonnanceur(QFrame):
 
         # Activer/désactiver le bouton Analyser
         has_selection = len(self._selected_ops) > 0
+        # pyrefly: ignore [missing-attribute]
         self._next_btn.setEnabled(has_selection and self._dossier is not None)
 
     def _on_next(self) -> None:
@@ -1211,12 +1248,16 @@ class BotOrdonnanceur(QFrame):
     def _run_analysis(self) -> None:
         """Lance l'analyse du dossier dans un thread séparé."""
         if not self._dossier or not self._dossier.exists():
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setEnabled(True)
+            # pyrefly: ignore [missing-attribute]
             self._next_btn.setText("Analyser →")
             return
 
         # Désactiver les boutons pendant l'analyse
+        # pyrefly: ignore [missing-attribute]
         self._next_btn.setEnabled(False)
+        # pyrefly: ignore [missing-attribute]
         self._next_btn.setText("Analyse en cours…")
 
         # Nettoyer un thread précédent
@@ -1251,6 +1292,7 @@ class BotOrdonnanceur(QFrame):
         # Si l'utilisateur a navigué ailleurs, ignorer
         if self._step != 0 or self._analyse_thread is None:
             return
+        # pyrefly: ignore [bad-assignment]
         self._analyse = analyse
         self._apercu = apercu
         self._analyse_thread = None
@@ -1261,7 +1303,9 @@ class BotOrdonnanceur(QFrame):
         """Callback en cas d'erreur d'analyse."""
         self._analyse_thread = None
         self._analyse_worker = None
+        # pyrefly: ignore [missing-attribute]
         self._next_btn.setEnabled(True)
+        # pyrefly: ignore [missing-attribute]
         self._next_btn.setText("Analyser →")
         err_label = QLabel(f"❌ Erreur d'analyse : {error_msg}")
         err_label.setWordWrap(True)

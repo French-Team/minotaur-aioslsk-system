@@ -314,8 +314,10 @@ class _PropertyPanel(QWidget):
         # Stylesheet global QApplication
         qapp = QApplication.instance()
         if qapp is not None:
+            # pyrefly: ignore [missing-attribute]
             global_ss = qapp.styleSheet()
             if global_ss and hash(global_ss) not in seen:
+                # pyrefly: ignore [bad-argument-type]
                 style_chains.append((global_ss, qapp))
                 seen.add(hash(global_ss))
 
@@ -335,6 +337,7 @@ class _PropertyPanel(QWidget):
 
         # En-tête : quel widget est inspecté
         header_item = QListWidgetItem(f"▸ {_widget_label(widget)}")
+        # pyrefly: ignore [missing-attribute]
         header_item.setFlags(header_item.flags() & ~Qt.ItemIsSelectable)
         header_item.setForeground(QColor("#89b4fa"))  # bleu clair
         self._validation_list.addItem(header_item)
@@ -347,6 +350,7 @@ class _PropertyPanel(QWidget):
                 label = _widget_label(src)
                 # En-tête de provenance
                 head = QListWidgetItem(f"── {label} ──")
+                # pyrefly: ignore [missing-attribute]
                 head.setFlags(head.flags() & ~Qt.ItemIsSelectable)
                 head.setForeground(QColor("#a6adc8"))  # gris
                 self._validation_list.addItem(head)
@@ -378,21 +382,26 @@ class _WidgetTree(QTreeWidget):
         super().__init__(parent)
         self.setHeaderLabels(["Widget", "Classe"])
         self.header().setStretchLastSection(False)
+        # pyrefly: ignore [missing-attribute]
         self.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        # pyrefly: ignore [missing-attribute]
         self.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.setAnimated(True)
         self.setIndentation(16)
         self.setAlternatingRowColors(True)
         self.itemClicked.connect(self._on_item_clicked)
 
+        # pyrefly: ignore [not-a-type]
         self._on_select: Optional[callable] = None
 
     def _on_item_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
         """Notifie le parent qu'un widget a été sélectionné."""
+        # pyrefly: ignore [missing-attribute]
         widget_id = item.data(0, Qt.UserRole)
         if widget_id is not None and self._on_select:
             self._on_select(widget_id)
 
+    # pyrefly: ignore [not-a-type]
     def on_select(self, callback: callable) -> None:
         self._on_select = callback
 
@@ -407,6 +416,7 @@ class _WidgetTree(QTreeWidget):
         item = QTreeWidgetItem()
         item.setText(0, _widget_label(widget))
         item.setText(1, widget.__class__.__name__)
+        # pyrefly: ignore [missing-attribute]
         item.setData(0, Qt.UserRole, id(widget))
 
         # Icône de type (simulée par du texte)
@@ -491,6 +501,7 @@ class _WidgetTree(QTreeWidget):
 class _PickFilter:
     """Filtre d'événements qui capture les clics pour le mode inspection."""
 
+    # pyrefly: ignore [not-a-type]
     def __init__(self, on_pick: callable) -> None:
         self._on_pick = on_pick
         self._active = False
@@ -502,7 +513,9 @@ class _PickFilter:
         """Intercepte les clics souris pour identifier le widget cliqué."""
         if not self._active:
             return False
+        # pyrefly: ignore [missing-attribute]
         if event.type() == QEvent.MouseButtonPress:
+            # pyrefly: ignore [missing-attribute]
             w = QApplication.widgetAt(event.globalPosition().toPoint())
             if w is not None and w is not obj:
                 self._on_pick(w)
@@ -528,9 +541,11 @@ class QssInspector(QDockWidget):
 
         # Configuration du dock
         self.setObjectName("_qss_inspector")
+        # pyrefly: ignore [missing-attribute]
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
         self.setMinimumWidth(420)
         self.setFeatures(
+            # pyrefly: ignore [missing-attribute]
             QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable
         )
 
@@ -582,6 +597,7 @@ class QssInspector(QDockWidget):
         main_layout.addWidget(self._search_bar)
 
         # ── Splitter arbre + propriétés ───────────────────────────────────
+        # pyrefly: ignore [missing-attribute]
         splitter = QSplitter(Qt.Vertical)
 
         self._widget_tree = _WidgetTree()
@@ -657,8 +673,10 @@ class QssInspector(QDockWidget):
             "}"
         )
 
+    # pyrefly: ignore [bad-override]
     def eventFilter(self, obj: QWidget, event: QEvent) -> bool:
         """Intercepte les événements pour le mode pick."""
+        # pyrefly: ignore [missing-attribute]
         if event.type() == QEvent.MouseButtonPress and self._pick_filter._active:
             return self._pick_filter.event_filter(obj, event)
         return super().eventFilter(obj, event)
@@ -770,11 +788,13 @@ class QssInspector(QDockWidget):
         ss_impact: dict[int, list[str]] = {}  # hash -> [labels des widgets impactés]
 
         all_widgets = [self._main_window]
+        # pyrefly: ignore [missing-attribute]
         all_widgets.extend(self._main_window.findChildren(QWidget, options=Qt.FindChildrenRecursively))
 
         # Stylesheet QApplication (collecté une fois)
         qapp = QApplication.instance()
         if qapp is not None:
+            # pyrefly: ignore [missing-attribute]
             global_ss = qapp.styleSheet()
             if global_ss:
                 h = hash(global_ss)
@@ -811,7 +831,9 @@ class QssInspector(QDockWidget):
                 cur = cur.parentWidget()
 
             # Global (déjà enregistré)
+            # pyrefly: ignore [missing-attribute]
             if qapp is not None and qapp.styleSheet():
+                # pyrefly: ignore [missing-attribute]
                 h = hash(qapp.styleSheet())
                 if h not in seen:
                     if h not in ss_impact:
@@ -837,6 +859,7 @@ class QssInspector(QDockWidget):
 
             if all_errs:
                 impacted = ss_impact.get(h, [])
+                # pyrefly: ignore [bad-argument-type]
                 error_groups.append((src_label, impacted, all_errs))
 
         # ── Affiche les résultats ─────────────────────────────────────
@@ -907,6 +930,7 @@ class QssInspector(QDockWidget):
     def _select_by_id(self, widget_id: int) -> None:
         """Sélectionne un widget par son id() Python."""
         # Cherche le widget dans les enfants du main_window
+        # pyrefly: ignore [missing-attribute]
         for w in self._main_window.findChildren(QWidget, options=Qt.FindChildrenRecursively):
             if id(w) == widget_id:
                 self._select_widget(w)
@@ -924,6 +948,7 @@ class QssInspector(QDockWidget):
         """Active / désactive le mode inspection visuelle."""
         self._pick_filter.set_active(active)
         if active:
+            # pyrefly: ignore [missing-attribute]
             QApplication.setOverrideCursor(Qt.CrossCursor)
             logger.info("Mode inspection activé — cliquez sur un widget")
         else:

@@ -2,8 +2,8 @@
   "messages": [
     {
       "type": "bot",
-      "icon": "🖐️",
-      "text": "Salut ! Je suis le bot <b>Accueil</b>, ton assistant personnel sur Soulseek.<br><br>Je suis là pour t'aider à utiliser l'appli, trouver des fichiers, gérer tes téléchargements, et te guider vers le bon bot selon tes besoins.<br><br>Que veux-tu faire ?",
+      "icon": "👑",
+      "text": "Salut ! Je suis <b>Zeus</b>, le roi de l'Olympe et ton assistant personnel sur Soulseek.<br><br>Je suis là pour t'aider à utiliser l'appli, trouver des fichiers, gérer tes téléchargements, et te guider vers le bon dieu selon tes besoins.<br><br>Que veux-tu faire ?",
       "suggestions": [
         {
           "label": "🔍 Chercher un fichier",
@@ -22,7 +22,7 @@
           "action": "restore_history"
         }
       ],
-      "timestamp": "2026-05-17T14:39:36.443346"
+      "timestamp": "2026-05-19T22:43:50.577648"
     }
   ]
 }

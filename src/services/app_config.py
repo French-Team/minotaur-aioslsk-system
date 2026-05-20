@@ -39,7 +39,7 @@ _DEFAULTS: dict[str, Any] = {
     "reseau.reconnexion_auto": False,
     "reseau.reconnexion_timeout": 10,
     "reseau.hote_serveur": "server.slsknet.org",  # Hôte du serveur Soulseek
-    "reseau.port_serveur": 2416,  # Port du serveur Soulseek
+    "reseau.port_serveur": 2242,  # Port du serveur Soulseek (standard: 2242)
     "reseau.mode_erreur_ecoute": "clear",  # Mode d'erreur d'écoute (clear|any|all)
     "reseau.duree_bail_upnp": 21600,  # Durée de bail UPnP (secondes)
     "reseau.intervalle_upnp": 600,  # Intervalle de vérification UPnP (secondes)

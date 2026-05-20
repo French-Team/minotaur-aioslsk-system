@@ -15,7 +15,7 @@ from aioslsk.events import (
     UserStatusUpdateEvent,
 )
 from aioslsk.user.model import UserStatus
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, QTimer
 
 if TYPE_CHECKING:
     from aioslsk.client import SoulSeekClient
@@ -69,6 +69,15 @@ class ClientsActifsService(QObject):
         self._soulseek = soulseek_service
         self._clients: dict[str, ClientInfo] = {}
         self._running = False
+        self._ping_task = None
+        self._async_loop = None  # boucle asyncio du ConnexionManager (injectée au démarrage)
+
+        # Minuteur pour synchroniser périodiquement les membres des salons rejoints
+        self._sync_timer = QTimer(self)
+        self._sync_timer.setInterval(30000)  # Toutes les 30 secondes
+        self._sync_timer.timeout.connect(self._synchroniser)
+
+        # Le cycle de vie est piloté de manière centralisée et séquentielle par le contrôleur (MainWindow)
 
     # ── Propriétés ──────────────────────────────────────────────
 
@@ -79,11 +88,17 @@ class ClientsActifsService(QObject):
 
     # ── Cycle de vie ────────────────────────────────────────────
 
-    def demarrer(self) -> None:
-        """Démarre le service : synchronisation initiale + abonnement événements."""
+    def demarrer(self, async_loop=None) -> None:
+        """Démarre le service : synchronisation initiale + abonnement événements.
+
+        Args:
+            async_loop: La boucle asyncio du ConnexionManager (thread réseau applicatif).
+                        Si fournie, une tâche de ping légère sera lancée dessus.
+        """
         if self._running:
             return
         self._running = True
+        self._async_loop = async_loop
 
         client = self._client
         if client is None:
@@ -93,7 +108,7 @@ class ClientsActifsService(QObject):
         # 1. Synchronisation initiale — tracker les users déjà connus
         self._synchroniser()
 
-        # 2. Abonnement aux événements
+        # 2. Abonnement aux événements aioslsk
         try:
             client.events.register(
                 UserStatusUpdateEvent,
@@ -106,10 +121,33 @@ class ClientsActifsService(QObject):
         except Exception:
             logger.exception("ClientsActifsService: erreur lors de l'enregistrement des événements")
 
+        # 3. Démarrer le minuteur de synchronisation Qt (thread UI — sans réseau)
+        self._sync_timer.start()
+
+        # 4. Lancer le ping léger sur la boucle APPLICATIVE (pas la boucle interne aioslsk)
+        #    On n'exécute aucune commande réseau lourde ici — uniquement GetUserStatus
+        #    pour les utilisateurs déjà suivis par aioslsk.
+        if async_loop is not None:
+            try:
+                import asyncio
+                self._ping_task = asyncio.run_coroutine_threadsafe(
+                    self._do_ping_loop(), async_loop
+                )
+                logger.info("ClientsActifsService: tâche de ping démarrée")
+            except Exception:
+                logger.exception("ClientsActifsService: impossible de lancer le ping_task")
+        else:
+            logger.info("ClientsActifsService: pas de boucle async fournie — ping désactivé")
+
     def arreter(self) -> None:
         """Arrête le service."""
         self._running = False
+        self._sync_timer.stop()
+        if self._ping_task is not None:
+            self._ping_task.cancel()
+            self._ping_task = None
         self._clients.clear()
+        logger.info("ClientsActifsService arrêté")
 
     def rafraichir(self) -> None:
         """Re-synchronisation manuelle (ex: reconnexion)."""
@@ -210,8 +248,8 @@ class ClientsActifsService(QObject):
 
     def _on_user_status_update(self, evt: UserStatusUpdateEvent) -> None:
         """Un client a changé de statut (ONLINE/AWAY/OFFLINE)."""
-        username = evt.username
-        nouveau = evt.status
+        username = str(getattr(evt, "username"))
+        nouveau = getattr(evt, "status")
         ancien = UserStatus.UNKNOWN
 
         if username in self._clients:
@@ -228,7 +266,7 @@ class ClientsActifsService(QObject):
 
     def _on_user_info_update(self, evt: UserInfoUpdateEvent) -> None:
         """Les informations d'un client ont changé."""
-        username = evt.username
+        username = str(getattr(evt, "username"))
         if username not in self._clients:
             return
 
@@ -257,3 +295,54 @@ class ClientsActifsService(QObject):
 
         self.client_info_change.emit(username)
         logger.debug("Info mise à jour pour %s", username)
+
+    def _on_connection_changed(self, connected: bool) -> None:
+        """Déclenche le démarrage ou l'arrêt automatique selon l'état de la connexion."""
+        if connected:
+            self.demarrer()
+        else:
+            self.arreter()
+
+    async def _do_ping_loop(self) -> None:
+        """Boucle asyncio légère : rafraîchit le statut des utilisateurs déjà suivis.
+
+        S'exécute sur la boucle applicative du ConnexionManager.
+        N'effectue AUCUN auto-join autonome — rejoindre des salons est
+        une action explicite déclenchée par l'utilisateur via l'interface.
+        """
+        import asyncio
+        from aioslsk.commands import GetUserStatusCommand
+
+        logger.info("ClientsActifsService: boucle de ping démarrée (intervalle=120s)")
+
+        while self._running:
+            # Attendre avant le premier ping (laisser la connexion se stabiliser)
+            await asyncio.sleep(120.0)
+
+            if not self._running:
+                break
+
+            client = self._client
+            if client is None:
+                break
+
+            # Rafraîchir uniquement les utilisateurs déjà trackés par aioslsk
+            current_clients = list(self._clients.keys())
+            if not current_clients:
+                continue
+
+            logger.debug(
+                "ClientsActifsService: ping de %d utilisateurs trackés",
+                len(current_clients),
+            )
+            for username in current_clients:
+                if not self._running:
+                    break
+                try:
+                    # pyrefly: ignore [bad-argument-type]
+                    await client.execute(GetUserStatusCommand(username))
+                except Exception:
+                    pass
+                await asyncio.sleep(0.2)  # Délai entre chaque requête
+
+        logger.info("ClientsActifsService: boucle de ping terminée")

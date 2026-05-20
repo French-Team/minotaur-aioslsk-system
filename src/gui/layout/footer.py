@@ -31,6 +31,7 @@ class _FooterNavButton(QPushButton):
         self._badge = QLabel("", self)
         self._badge.setObjectName("footerNavBadge")
         self._badge.setFixedSize(18, 18)
+        # pyrefly: ignore [missing-attribute]
         self._badge.setAlignment(Qt.AlignCenter)
         self._badge.setVisible(False)
         self._badge.setStyleSheet(f"""
@@ -64,18 +65,18 @@ class _FooterNavButton(QPushButton):
 
 
 _BOT_NAMES: list[str] = [
-    "Accueil",
-    "Recherche",
-    "Téléchargement",
-    "Wishlist",
-    "Bibliothèque",
-    "Optimiseur",
-    "Surveillance",
-    "Planificateur",
-    "Ordonnanceur",
-    "Clients Actifs",
-    "Assistant",
-    "Aide",
+    "Zeus",       # Accueil
+    "Athéna",     # Recherche
+    "Hadès",      # Téléchargement
+    "Aphrodite",  # Wishlist
+    "Déméter",    # Bibliothèque
+    "Héphaistos", # Optimiseur
+    "Artémis",    # Surveillance
+    "Apollon",    # Planificateur
+    "Poséidon",   # Ordonnanceur
+    "Arès",       # Clients Actifs
+    "Héra",       # Assistant
+    "Dionysos",   # Aide
 ]
 
 
@@ -86,6 +87,7 @@ class FooterZone(QFrame):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
         self.setObjectName("footerZone")
 

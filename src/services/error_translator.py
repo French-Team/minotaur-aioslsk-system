@@ -29,6 +29,17 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
     Retourne (message, sévérité).
     """
     # --- Erreurs asyncio / réseau bas niveau ---
+    if isinstance(exception, aioslsk_exc.AioSlskException):
+        msg = str(exception)
+        if "expected login response" in msg.casefold():
+            return (
+                "🌐 Le serveur Soulseek a ignoré le handshake de connexion. "
+                "Cela se produit généralement lorsque votre adresse IP est temporairement limitée par le serveur "
+                "suite à des tentatives de connexion trop fréquentes (développement). "
+                "Conseil : activez un VPN, changez de connexion, ou patientez 2 minutes.",
+                Severite.WARNING,
+            )
+
     if isinstance(exception, asyncio.TimeoutError):
         return (
             "⏱ Timeout — un peer n'a pas répondu à temps, "
@@ -85,6 +96,13 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
             Severite.INFO,
         )
 
+    # --- Erreurs d'état interne (souvent = bug) ---
+    if isinstance(exception, aioslsk_exc.InvalidStateTransition):
+        return (
+            "❌ BUG INTERNE — transition d'état invalide dans aioslsk (signale ce bug au développeur)",
+            Severite.ERROR,
+        )
+
     if isinstance(exception, aioslsk_exc.TransferException):
         return (
             "⬇ Erreur de transfert — "
@@ -109,6 +127,19 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
             Severite.WARNING,
         )
 
+    # --- Erreurs de lecture / écriture ---
+    if isinstance(exception, aioslsk_exc.ConnectionReadError):
+        return (
+            "📖 Erreur de lecture sur une connexion P2P — le pair a fermé la connexion (normal)",
+            Severite.INFO,
+        )
+
+    if isinstance(exception, aioslsk_exc.ConnectionWriteError):
+        return (
+            "✏ Erreur d'écriture sur une connexion P2P — le pair n'est plus joignable (normal)",
+            Severite.INFO,
+        )
+
     # --- Erreurs réseau génériques ---
     if isinstance(exception, aioslsk_exc.NetworkError):
         return (
@@ -121,13 +152,6 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
         return (
             "🔄 Session invalide — la session a expiré ou a été réinitialisée, reconnecte-toi",
             Severite.WARNING,
-        )
-
-    # --- Erreurs d'état interne (souvent = bug) ---
-    if isinstance(exception, aioslsk_exc.InvalidStateTransition):
-        return (
-            "❌ BUG INTERNE — transition d'état invalide dans aioslsk (signale ce bug au développeur)",
-            Severite.ERROR,
         )
 
     # --- Erreurs de sérialisation (bug probable) ---
@@ -161,19 +185,6 @@ def traduire(exception: Exception) -> tuple[str, Severite]:
     if isinstance(exception, aioslsk_exc.RequestPlaceFailedError):
         return (
             "📋 Échec de placement de requête — le serveur n'a pas pu placer ta demande de recherche, réessaie",
-            Severite.INFO,
-        )
-
-    # --- Erreurs de lecture / écriture ---
-    if isinstance(exception, aioslsk_exc.ConnectionReadError):
-        return (
-            "📖 Erreur de lecture sur une connexion P2P — le pair a fermé la connexion (normal)",
-            Severite.INFO,
-        )
-
-    if isinstance(exception, aioslsk_exc.ConnectionWriteError):
-        return (
-            "✏ Erreur d'écriture sur une connexion P2P — le pair n'est plus joignable (normal)",
             Severite.INFO,
         )
 

@@ -52,6 +52,7 @@ def bot(qapp: Any, mock_settings: None) -> Generator[BotRecherche, None, None]:
 # ── Tests d'instanciation ────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestBotRechercheInit:
     """Vérifie que l'instanciation de BotRecherche fonctionne."""
 
@@ -104,6 +105,7 @@ class TestBotRechercheInit:
         assert isinstance(layout, QHBoxLayout)
 
 
+@pytest.mark.qt_heavy
 class TestBotRechercheSuggestionsRow:
     """Vérifie le comportement du widget _suggestions_row."""
 
@@ -141,6 +143,7 @@ class TestBotRechercheSuggestionsRow:
         btn.deleteLater()
 
 
+@pytest.mark.qt_heavy
 class TestBotRechercheRebuildSuggestions:
     """Vérifie que _rebuild_suggestions ne plante pas."""
 

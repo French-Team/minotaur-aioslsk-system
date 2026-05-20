@@ -53,6 +53,7 @@ def center(qapp: QApplication) -> Generator[CenterZone, None, None]:
 # ── Tests d'instanciation ──────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestInstanciation:
     """Vérifie que CenterZone s'initialise avec la page Bibliothèque."""
 
@@ -84,6 +85,7 @@ class TestInstanciation:
 # ── Tests de la page Bibliothèque ──────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestPageBibliotheque:
     """Vérifie l'intégration de la page Bibliothèque dans CenterZone."""
 
@@ -138,6 +140,7 @@ class TestPageBibliotheque:
 # ── Tests de navigation ────────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestNavigationBots:
     """Vérifie la navigation entre pages de bots."""
 
@@ -166,6 +169,7 @@ class TestNavigationBots:
 # ── Tests du signal page_changed ───────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestSignalPageChanged:
     """Vérifie le câblage du signal page_changed de BotBibliotheque."""
 
@@ -210,6 +214,7 @@ class TestSignalPageChanged:
 # ── Tests de structure interne ─────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestStructureInterne:
     """Vérifie l'architecture interne en lien avec Bibliothèque."""
 

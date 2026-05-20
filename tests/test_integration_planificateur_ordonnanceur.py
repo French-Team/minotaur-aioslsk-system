@@ -425,6 +425,7 @@ class TestExecuterActionPlanificateur:
 # rechargement du module avec la DB isolée (via _isolate_db autouse).
 
 
+@pytest.mark.qt_heavy
 class TestPlanificateurWorker:
     """Teste _PlanificateurWorker (signal + run) sans thread réel."""
 
@@ -508,6 +509,7 @@ class TestPlanificateurWorker:
         assert "Erreur" in message or "Erreur" in message
 
 
+@pytest.mark.qt_heavy
 class TestPlanificateurReceiver:
     """Teste _PlanificateurReceiver (callback dans le main thread).
 
@@ -646,6 +648,7 @@ class TestPlanificateurReceiver:
         self._teardown(planif_svc)
 
 
+@pytest.mark.qt_heavy
 class TestConnecteurPlanificateur:
     """Teste les fonctions du connecteur module-level.
 
@@ -710,6 +713,7 @@ class TestConnecteurPlanificateur:
         _on_action_planifiee(1, "renommage", "en_cours")
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationPlanificateurOrdonnanceur:
     """Tests d'intégration complets : Planificateur → Ordonnanceur.
 

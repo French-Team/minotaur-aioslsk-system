@@ -117,3 +117,12 @@ def tmp_app_config(monkeypatch: MonkeyPatch) -> Generator[Path, None, None]:
     # Nettoyage
     if config_path.exists():
         config_path.unlink()
+
+
+@pytest.fixture
+def tmp_bot_assistant_db(tmp_path: Path) -> str:
+    """Crée un chemin temporaire pour bot_assistant.db."""
+    db_dir = tmp_path / "data"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    db_path = db_dir / "bot_assistant.db"
+    return str(db_path)

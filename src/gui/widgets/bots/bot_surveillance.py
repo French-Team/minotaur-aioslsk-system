@@ -316,6 +316,7 @@ class _EventCard(QFrame):
         return self._event_id
 
     @property
+    # pyrefly: ignore [bad-override]
     def event(self) -> object:
         """Retourne l'objet SurveillanceEvent complet."""
         return self._event
@@ -406,6 +407,7 @@ class BotSurveillance(QFrame):
 
         # ── Séparateur ──
         sep = QFrame()
+        # pyrefly: ignore [missing-attribute]
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet(f"background: {COLORS['BORDER']}; max-height: 1px;")
         layout.addWidget(sep)
@@ -576,8 +578,11 @@ class BotSurveillance(QFrame):
         self._feed_scroll = QScrollArea()
         self._feed_scroll.setObjectName("feedScroll")
         self._feed_scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         self._feed_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # pyrefly: ignore [missing-attribute]
         self._feed_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        # pyrefly: ignore [missing-attribute]
         self._feed_scroll.setFrameShape(QFrame.NoFrame)
         self._feed_scroll.setMinimumHeight(200)
         self._feed_scroll.setStyleSheet(f"""
@@ -623,6 +628,7 @@ class BotSurveillance(QFrame):
 
     def _on_scroll_changed(self, value: int) -> None:
         """Détecte si l'utilisateur a remonté manuellement le scroll."""
+        # pyrefly: ignore [missing-attribute]
         scrollbar = self._feed_scroll.verticalScrollBar()
         at_bottom = value >= scrollbar.maximum() - 20
         self._auto_scroll = at_bottom
@@ -716,6 +722,7 @@ class BotSurveillance(QFrame):
     def _clear_feed(self) -> None:
         """Vide le flux affiché (pas la base SQLite)."""
         for card in self._feed_cards:
+            # pyrefly: ignore [missing-attribute]
             self._feed_layout.removeWidget(card)
             card.deleteLater()
         self._feed_cards.clear()
@@ -859,21 +866,28 @@ class HistoryModal(QDialog):
         self._table.setObjectName("historyTable")
         self._table.setColumnCount(6)
         self._table.setHorizontalHeaderLabels(["", "Sévérité", "Date", "Catégorie", "Titre", "Source"])
+        # pyrefly: ignore [missing-attribute]
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setShowGrid(False)
 
         header = self._table.horizontalHeader()
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(0, QHeaderView.Fixed)
         header.resizeSection(0, 40)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(1, QHeaderView.Fixed)
         header.resizeSection(1, 80)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(2, QHeaderView.Fixed)
         header.resizeSection(2, 160)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(3, QHeaderView.Fixed)
         header.resizeSection(3, 100)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(4, QHeaderView.Stretch)
+        # pyrefly: ignore [missing-attribute]
         header.setSectionResizeMode(5, QHeaderView.Fixed)
         header.resizeSection(5, 120)
 
@@ -1123,8 +1137,10 @@ class HistoryModal(QDialog):
             self,
             "Confirmer",
             f"Supprimer {len(ids)} événement{'s' if len(ids) > 1 else ''} ?",
+            # pyrefly: ignore [missing-attribute]
             QMessageBox.Yes | QMessageBox.No,
         )
+        # pyrefly: ignore [missing-attribute]
         if reply != QMessageBox.Yes:
             return
 

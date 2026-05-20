@@ -73,6 +73,7 @@ def surv(qapp, bus):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestStartup:
     """Vérifie l'état initial avec un flux vide."""
 
@@ -116,6 +117,7 @@ class TestStartup:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestPerformance:
     """Vérifie le comportement sous charge (200+ événements)."""
 
@@ -180,6 +182,7 @@ class TestPerformance:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestEventBusQuery:
     """Vérifie le filtrage des événements via EventBus.query()."""
 
@@ -255,6 +258,7 @@ class TestEventBusQuery:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestExport:
     """Vérifie le formatage des données pour export CSV et JSON."""
 

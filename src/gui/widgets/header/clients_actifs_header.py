@@ -46,6 +46,7 @@ class ClientsHeaderWidget(QFrame):
         super().__init__(parent)
         self.setObjectName("clientsHeader")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
 
         layout = QVBoxLayout(self)
@@ -201,6 +202,7 @@ class ClientsActifsHeader(QFrame):
         scroll = QScrollArea()
         scroll.setObjectName("clientsScroll")
         scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         scroll.setFrameShape(QFrame.NoFrame)
 
         self._list_container = QWidget()

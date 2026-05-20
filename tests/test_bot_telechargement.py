@@ -181,6 +181,7 @@ def bot_with_downloads(bot_with_service: BotTelechargement) -> BotTelechargement
 # ── Tests d'instanciation ────────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestBotTelechargementInit:
     """Vérifie que l'instanciation de BotTelechargement fonctionne."""
 
@@ -205,6 +206,7 @@ class TestBotTelechargementInit:
         assert hasattr(bot, "unseen_count_changed")
 
 
+@pytest.mark.qt_heavy
 class TestSetup:
     """Vérifie le câblage à SoulseekService."""
 
@@ -231,6 +233,7 @@ class TestSetup:
 # ── Tests de gestion des téléchargements ─────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestDownloadManagement:
     """CRUD sur les téléchargements."""
 
@@ -312,6 +315,7 @@ class TestDownloadManagement:
 # ── Tests du câblage Soulseek ─────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestSoulseekControl:
     """Vérifie que les actions appellent les bonnes méthodes Soulseek."""
 
@@ -458,6 +462,7 @@ class TestSoulseekControl:
 # ── Tests des événements de transfert ─────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestTransferEvents:
     """Vérifie le traitement des événements Soulseek."""
 
@@ -503,6 +508,7 @@ class TestTransferEvents:
         bot_with_downloads._on_transfer_removed(event)  # ne doit pas lever
 
 
+@pytest.mark.qt_heavy
 class TestEmptyBot:
     """Vérifie que les actions batch ne plantent pas sur un bot vide."""
 
@@ -534,6 +540,7 @@ class TestEmptyBot:
 # ── Tests du menu contextuel ──────────────────────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestContextMenu:
     """Vérifie que le menu contextuel est adapté au statut."""
 
@@ -585,6 +592,7 @@ class TestContextMenu:
 # ── Tests de non-régression SoulseekService ──────────────────────
 
 
+@pytest.mark.qt_heavy
 class TestSoulseekServiceMethods:
     """Vérifie que les méthodes du mock correspondent à l'API réelle."""
 

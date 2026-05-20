@@ -47,6 +47,7 @@ def actifs_header(qapp: QApplication) -> ClientsActifsHeader:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestClientsHeaderWidget:
     """Bouton cliquable affiché dans la bannière principale."""
 
@@ -113,6 +114,7 @@ class TestClientsHeaderWidget:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestClientRow:
     """Ligne d'affichage d'un client Soulseek."""
 
@@ -266,6 +268,7 @@ class TestClientRow:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestClientsActifsHeader:
     """Page listant tous les clients actifs/joignables."""
 

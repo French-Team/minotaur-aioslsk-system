@@ -18,6 +18,14 @@ from fastapi.testclient import TestClient
 from src.main import app
 
 
+# Ignorer les RuntimeWarning "coroutine was never awaited" provenant
+# du lifespan FastAPI (shutdown) ou de ConnexionManager initialisé
+# indirectement par les imports. Ces warnings sont inoffensifs en test.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:coroutine 'ConnexionManager._do_disconnect' was never awaited:RuntimeWarning"
+)
+
+
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     """Fixture TestClient FastAPI avec gestion propre du lifespan."""
@@ -87,6 +95,52 @@ class TestPageAccueil:
         assert "<nav" in html
         assert "<main" in html
         assert "<footer" in html
+
+
+# ── Tests de l'Assistant dans la sidebar (Étape 6) ────────────────────
+
+
+class TestAssistantSidebar:
+    """Teste la présence du bouton Assistant dans la sidebar et la navigation."""
+
+    def test_sidebar_contient_assistant(self, client: TestClient) -> None:
+        """Le mot 'Assistant' apparaît dans le HTML de la sidebar."""
+        resp = client.get("/")
+        html = resp.text
+        assert "Assistant" in html
+
+    def test_assistant_icon_present(self, client: TestClient) -> None:
+        """L'icône ✦ (Assistant) est présente dans la sidebar."""
+        resp = client.get("/")
+        html = resp.text
+        assert "✦" in html
+
+    def test_assistant_nav_item_structure(self, client: TestClient) -> None:
+        """La structure HTML du nav-item Assistant est correcte."""
+        resp = client.get("/")
+        html = resp.text
+        # Vérifier la structure complète : nav-item avec icône et texte
+        assert '<div class="nav-item">' in html
+        assert '<span class="icon">✦</span>' in html
+        assert "Assistant" in html
+
+    def test_assistant_apres_telechargements(self, client: TestClient) -> None:
+        """Assistant apparaît après Téléchargements dans l'ordre de la sidebar."""
+        resp = client.get("/")
+        html = resp.text
+        # Vérifier l'ordre : Téléchargements puis Assistant
+        idx_telechargements = html.index("Téléchargements")
+        idx_assistant = html.index("Assistant")
+        assert idx_telechargements < idx_assistant
+
+    def test_sidebar_contient_tous_elements(self, client: TestClient) -> None:
+        """La sidebar contient les 4 éléments de navigation."""
+        resp = client.get("/")
+        html = resp.text
+        assert "Recherche" in html
+        assert "Téléchargements" in html
+        assert "Assistant" in html
+        assert "Connexion" in html
 
 
 # ── Tests de l'API Health ────────────────────────────────────────────
@@ -285,3 +339,46 @@ class TestStructureReponses:
         assert isinstance(data["service"], str)
         assert isinstance(data["version"], str)
         assert isinstance(data["status"], str)
+
+
+# ── Tests de navigation interactive (JavaScript + sections) ───────────────
+
+
+class TestNavigationInteractive:
+    """Teste que la navigation JavaScript de la sidebar est fonctionnelle (structure HTML)."""
+
+    def test_main_content_a_sections(self, client: TestClient) -> None:
+        """Le main contient les 5 sections de contenu avec leurs IDs."""
+        resp = client.get("/")
+        html = resp.text
+        assert 'id="section-recherche"' in html
+        assert 'id="section-telechargements"' in html
+        assert 'id="section-assistant"' in html
+        assert 'id="section-connexion"' in html
+        assert 'id="section-accueil"' in html
+
+    def test_sections_sont_masquees_par_defaut(self, client: TestClient) -> None:
+        """Les sections autres que l'accueil sont masquées (display:none)."""
+        resp = client.get("/")
+        html = resp.text
+        # Chaque section doit porter display:none (attribut style)
+        assert html.count('style="display:none"') >= 4
+        # La section accueil est visible par défaut avec display:flex
+        assert 'id="section-accueil"' in html
+
+    def test_page_contient_script_navigation(self, client: TestClient) -> None:
+        """La page contient le script de navigation avec showSection."""
+        resp = client.get("/")
+        html = resp.text
+        assert '<script>' in html
+        assert 'function showSection' in html
+        assert 'addEventListener' in html
+        assert 'sectionIds' in html
+
+    def test_section_assistant_contient_titre_ia(self, client: TestClient) -> None:
+        """La section Assistant contient le titre 'Assistant IA'."""
+        resp = client.get("/")
+        html = resp.text
+        assert 'id="section-assistant"' in html
+        assert 'Assistant IA' in html
+        assert 'intelligent' in html

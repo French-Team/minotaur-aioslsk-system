@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
-from src.gui.devtool import QssInspector
+from src.gui.devtool import QssInspector, ServiceInspector, SysinternalsDockWidget, WorkflowInspector
 from src.gui.layout.entry import LayoutEntry
 from src.gui.theme import DARK_THEME
 from src.gui.widgets.toast_notification import ToastNotification
@@ -228,6 +228,21 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._qss_inspector)
         self._qss_inspector.hide()
 
+        # Service & Connection Inspector (DevTool) - Ctrl+Shift+S pour afficher
+        self._service_inspector = ServiceInspector(self)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._service_inspector)
+        self._service_inspector.hide()
+
+        # Sysinternals Suite (DevTool) - Ctrl+Shift+Y pour afficher
+        self._sysinternals_dock = SysinternalsDockWidget(self)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._sysinternals_dock)
+        self._sysinternals_dock.hide()
+
+        # Workflow & Loop Inspector (DevTool) - Ctrl+Shift+W pour afficher
+        self._workflow_inspector = WorkflowInspector(self)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._workflow_inspector)
+        self._workflow_inspector.hide()
+
         # ── Barre de menu ──
         self._build_menu()
 
@@ -258,6 +273,12 @@ class MainWindow(QMainWindow):
         logger.info("Fermeture de l'application…")
         if self._qss_inspector:
             self._qss_inspector.close()
+        if self._service_inspector:
+            self._service_inspector.close()
+        if self._sysinternals_dock:
+            self._sysinternals_dock.close()
+        if self._workflow_inspector:
+            self._workflow_inspector.close()
         self._connexion_manager.shutdown()
         super().closeEvent(event)
 
@@ -268,6 +289,13 @@ class MainWindow(QMainWindow):
     def _connect_connexion_manager(self) -> None:
         """Crée et connecte le gestionnaire de connexion Soulseek."""
         self._connexion_manager = ConnexionManager(self)
+
+        # ── Rooms → RightZone (Panneau de droite) ──────────────────
+        from src.services.soulseek_client import soulseek_service
+        from src.services.room_service import RoomService
+        self._room_service = RoomService(soulseek_service, self)
+        # Séquence de démarrage différée : démarré uniquement après validation du login
+        self._layout.right.setup(self._room_service, self._connexion_manager)
 
         # Raccourcis vers les widgets UI
         connexion_header = self._layout.header.connexion_widget
@@ -298,12 +326,48 @@ class MainWindow(QMainWindow):
             connexion_header.set_username(username)
             connexion_header.set_photo(cfg_get("general.photo_profil"))
 
+            # Séquence de démarrage séquentielle et contrôlée après validation du login
+            logger.info("Connexion réussie ! Lancement séquentiel des services...")
+            
+            # Étape 1 : Lancement de RoomService
+            try:
+                self._room_service.demarrer()
+                logger.info("RoomService démarré séquentiellement avec contrôle.")
+            except Exception as e:
+                logger.exception("Échec lors du démarrage séquentiel de RoomService: %s", e)
+
+            # Étape 2 : Lancement de ClientsActifsService
+            clients_service = getattr(self._layout.center, "_clients_actifs_service", None)
+            if clients_service is not None:
+                try:
+                    clients_service.demarrer()
+                    logger.info("ClientsActifsService démarré séquentiellement avec contrôle.")
+                except Exception as e:
+                    logger.exception("Échec lors du démarrage séquentiel de ClientsActifsService: %s", e)
+
         self._connexion_manager.connected.connect(_on_connected)
 
         def _on_disconnected() -> None:
             header.setVisible(False)
             footer.setVisible(False)
             setattr(left, "home_button_visible", False)
+
+            # Arrêt séquentiel et contrôlé des services
+            logger.info("Déconnexion : arrêt séquentiel de tous les services actifs...")
+            
+            try:
+                self._room_service.arreter()
+                logger.info("RoomService arrêté avec succès.")
+            except Exception as e:
+                logger.exception("Erreur lors de l'arrêt de RoomService: %s", e)
+
+            clients_service = getattr(self._layout.center, "_clients_actifs_service", None)
+            if clients_service is not None:
+                try:
+                    clients_service.arreter()
+                    logger.info("ClientsActifsService arrêté avec succès.")
+                except Exception as e:
+                    logger.exception("Erreur lors de l'arrêt de ClientsActifsService: %s", e)
 
         self._connexion_manager.disconnected.connect(_on_disconnected)
 
@@ -370,13 +434,32 @@ class MainWindow(QMainWindow):
         quit_action.triggered.connect(app.quit)
         file_menu.addAction(quit_action)
 
-        # Menu Outils — QSS Inspector
+        # Menu Outils — QSS & Service Inspectors
         tools_menu = menubar.addMenu("&Outils")
+        
         inspect_action = QAction("QSS Inspector", self)
         inspect_action.setShortcut("Ctrl+Shift+I")
         inspect_action.setCheckable(True)
         inspect_action.toggled.connect(self._toggle_inspector)
         tools_menu.addAction(inspect_action)
+
+        service_inspect_action = QAction("Service & Connection Inspector", self)
+        service_inspect_action.setShortcut("Ctrl+Shift+S")
+        service_inspect_action.setCheckable(True)
+        service_inspect_action.toggled.connect(self._toggle_service_inspector)
+        tools_menu.addAction(service_inspect_action)
+
+        sysinternals_action = QAction("Sysinternals Suite", self)
+        sysinternals_action.setShortcut("Ctrl+Shift+Y")
+        sysinternals_action.setCheckable(True)
+        sysinternals_action.toggled.connect(self._toggle_sysinternals)
+        tools_menu.addAction(sysinternals_action)
+
+        workflow_action = QAction("Workflow & Loop Inspector", self)
+        workflow_action.setShortcut("Ctrl+Shift+W")
+        workflow_action.setCheckable(True)
+        workflow_action.toggled.connect(self._toggle_workflow_inspector)
+        tools_menu.addAction(workflow_action)
 
         help_menu = menubar.addMenu("&Aide")
         about_action = QAction("À &propos", self)
@@ -405,6 +488,31 @@ class MainWindow(QMainWindow):
             self._qss_inspector.raise_()
         else:
             self._qss_inspector.hide()
+
+    def _toggle_service_inspector(self, visible: bool) -> None:
+        """Affiche ou cache le Service & Connection Inspector."""
+        if visible:
+            self._service_inspector.refresh_stats()
+            self._service_inspector.show()
+            self._service_inspector.raise_()
+        else:
+            self._service_inspector.hide()
+
+    def _toggle_sysinternals(self, visible: bool) -> None:
+        """Affiche ou cache le Sysinternals Suite dock."""
+        if visible:
+            self._sysinternals_dock.show()
+            self._sysinternals_dock.raise_()
+        else:
+            self._sysinternals_dock.hide()
+
+    def _toggle_workflow_inspector(self, visible: bool) -> None:
+        """Affiche ou cache le Workflow & Loop Inspector."""
+        if visible:
+            self._workflow_inspector.show()
+            self._workflow_inspector.raise_()
+        else:
+            self._workflow_inspector.hide()
 
     @property
     def qss_warnings(self) -> list[str]:

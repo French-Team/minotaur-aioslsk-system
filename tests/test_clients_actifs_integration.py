@@ -202,6 +202,7 @@ def center(qapp: QApplication, mock_soulseek: MagicMock) -> Generator[CenterZone
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationServiceHeader:
     """Vérifie que le service est injecté dans les bons widgets."""
 
@@ -244,6 +245,7 @@ class TestIntegrationServiceHeader:
         assert isinstance(page._clients_actifs_service, ClientsActifsService)
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationSynchronisation:
     """Vérifie que la synchronisation remplit le tableau BotClientsActifs."""
 
@@ -297,6 +299,7 @@ class TestIntegrationSynchronisation:
         # alice(ONLINE) = 1 connecté
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationEvenements:
     """Vérifie que les événements mockés traversent service → UI."""
 
@@ -426,6 +429,7 @@ class TestIntegrationEvenements:
             assert f"user_{i}" in items
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationTelechargement:
     """Vérifie que BotTelechargement reçoit le service et affiche les statuts."""
 
@@ -517,6 +521,7 @@ class TestIntegrationTelechargement:
         assert "🟡" in user_text_away
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationRecherche:
     """Vérifie que BotRecherche peut cibler les clients actifs."""
 
@@ -549,6 +554,7 @@ class TestIntegrationRecherche:
         assert page._clients_actifs_cb.isChecked() is False
 
 
+@pytest.mark.qt_heavy
 class TestIntegrationServiceDirect:
     """Tests directs service ↔ UI sans passer par CenterZone."""
 

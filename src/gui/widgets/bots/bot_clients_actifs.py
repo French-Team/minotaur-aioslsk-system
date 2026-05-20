@@ -372,9 +372,11 @@ class BotClientsActifs(QFrame):
                 self._table.setItem(row, 6, _NumericItem(client.file_attente, file_att))
 
                 # Pays
+                # pyrefly: ignore [missing-attribute]
                 self._table.item(row, 2).setText(client.pays if client.pays else "—")
 
                 # Description
+                # pyrefly: ignore [missing-attribute]
                 self._table.item(row, 7).setText(client.description or "")
 
                 self._table.setSortingEnabled(True)

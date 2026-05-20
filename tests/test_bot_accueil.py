@@ -71,6 +71,7 @@ def bot(qapp: QApplication, tmp_history_file: Path) -> BotAccueil:
 #          _on_user_input (branche else).
 
 
+@pytest.mark.qt_heavy
 class TestMatchIntent:
     """Teste la logique pure de matching d'intention."""
 
@@ -166,6 +167,7 @@ class TestMatchIntent:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestOnSuggestion:
     """Teste le routage des actions de suggestion via spy pattern."""
 
@@ -269,6 +271,7 @@ class TestOnSuggestion:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestAddMessage:
     """Teste que add_message() ajoute correctement les entrées à _messages."""
 
@@ -322,6 +325,7 @@ class TestAddMessage:
 #        dans _on_user_input).
 
 
+@pytest.mark.qt_heavy
 class TestAddUserMessage:
     def test_add_user_message_appends(self, bot: BotAccueil) -> None:
         """Ajoute un message utilisateur à _messages."""
@@ -370,6 +374,7 @@ class TestAddUserMessage:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestHistory:
     """Teste la persistance de l'historique des messages."""
 
@@ -476,6 +481,7 @@ class TestHistory:
 #        le callback immédiatement.
 
 
+@pytest.mark.qt_heavy
 class TestNavigateTo:
     def test_navigate_to_adds_message(self, bot: BotAccueil) -> None:
         """navigate_to() ajoute un message de redirection."""
@@ -515,6 +521,7 @@ class TestNavigateTo:
 #        On teste la partie synchrone uniquement.
 
 
+@pytest.mark.qt_heavy
 class TestExecuteActions:
     def test_empty_actions_does_nothing(self, bot: BotAccueil) -> None:
         """Actions vides → rien ne se passe."""

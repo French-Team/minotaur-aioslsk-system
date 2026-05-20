@@ -35,9 +35,9 @@ KNOWLEDGE: dict[str, dict] = {
             "recherches",
         ],
         "icon": "🔍",
-        "response": "Bien sûr ! Le bot <b>Recherche</b> est spécialisé "
+        "response": "Bien sûr ! <b>Athéna</b>, la déesse de la sagesse, est spécialisée "
         "dans la recherche de fichiers sur Soulseek. "
-        "Je t'envoie vers lui !",
+        "Je t'envoie vers elle !",
         "actions": [
             {"type": "navigate", "bot": "Recherche"},
         ],
@@ -61,7 +61,7 @@ KNOWLEDGE: dict[str, dict] = {
             "mes téléchargements",
         ],
         "icon": "📥",
-        "response": "Pas de souci ! Le bot <b>Téléchargement</b> s'occupe "
+        "response": "Pas de souci ! <b>Hadès</b>, le dieu des enfers, s'occupe "
         "de gérer, suivre et prioriser tes téléchargements. "
         "Je te l'envoie !",
         "actions": [
@@ -91,8 +91,8 @@ KNOWLEDGE: dict[str, dict] = {
         ],
         "icon": "❓",
         "response": "Tu as besoin d'explications ou d'aide ? "
-        "Le bot <b>Aide</b> connaît tout sur l'application "
-        "et ses 12 bots. Je te redirige vers lui !",
+        "<b>Dionysos</b>, le dieu de la libération, connaît tout sur l'application "
+        "et ses 12 dieux. Je te redirige vers lui !",
         "actions": [
             {"type": "navigate", "bot": "Aide"},
         ],
@@ -127,12 +127,12 @@ KNOWLEDGE: dict[str, dict] = {
             "dossiers partagés",
         ],
         "icon": "📚",
-        "response": "Le bot <b>Bibliothèque</b> est ton explorateur "
+        "response": "<b>Déméter</b>, la déesse de l'abondance, est ton explorateur "
         "de fichiers partagés !<br><br>"
         "🔹 <b>Scan</b> — analyse tes dossiers partagés "
         "avec progression en direct<br>"
         "🔹 <b>Arborescence</b> — navigue par dossier "
-        "dans l'arbre à gauche<br>"
+        "dans l'arbre à gauche<br>\n"
         "🔹 <b>Tableau</b> — tous les fichiers avec "
         "nom, taille, durée, débit, dossier<br>"
         "🔹 <b>Recherche</b> — filtre par mot-clé "
@@ -141,7 +141,7 @@ KNOWLEDGE: dict[str, dict] = {
         "de colonne pour trier<br>"
         "🔹 <b>Menu contextuel</b> — infos, lecture, "
         "suppression au clic droit<br><br>"
-        "Je t'envoie vers lui !",
+        "Je t'envoie vers elle !",
         "actions": [
             {"type": "navigate", "bot": "Bibliothèque"},
         ],
@@ -167,7 +167,7 @@ KNOWLEDGE: dict[str, dict] = {
             "messages",
         ],
         "icon": "👤",
-        "response": "Le bot <b>Utilisateurs</b> gère tes contacts, "
+        "response": "Le panneau <b>Utilisateurs</b> gère tes contacts, "
         "ta liste d'amis et la messagerie. "
         "Je t'envoie vers lui !",
         "actions": [
@@ -188,9 +188,9 @@ KNOWLEDGE: dict[str, dict] = {
             "recherche auto",
         ],
         "icon": "📋",
-        "response": "Le bot <b>Wishlist</b> s'occupe des souhaits "
+        "response": "<b>Aphrodite</b>, la déesse du désir, s'occupe des souhaits "
         "automatiques et des recherches planifiées. "
-        "Je te redirige vers lui !",
+        "Je te redirige vers elle !",
         "actions": [
             {"type": "navigate", "bot": "Wishlist"},
         ],
@@ -213,9 +213,9 @@ KNOWLEDGE: dict[str, dict] = {
             "live",
         ],
         "icon": "👁️",
-        "response": "Le bot <b>Surveillance</b> te tient informé "
+        "response": "<b>Artémis</b>, la déesse chasseresse, te tient informé "
         "avec des notifications et alertes en direct. "
-        "Je t'envoie vers lui !",
+        "Je t'envoie vers elle !",
         "actions": [
             {"type": "navigate", "bot": "Surveillance"},
         ],
@@ -239,7 +239,7 @@ KNOWLEDGE: dict[str, dict] = {
             "rappels",
         ],
         "icon": "📅",
-        "response": "Le bot <b>Planificateur</b> gère les actions "
+        "response": "<b>Apollon</b>, le dieu de l'ordre, gère les actions "
         "planifiées et automatisées. "
         "Je te redirige vers lui !",
         "actions": [
@@ -265,7 +265,7 @@ KNOWLEDGE: dict[str, dict] = {
             "dédoublonner",
         ],
         "icon": "🧹",
-        "response": "Le bot <b>Ordonnanceur</b> t'aide à organiser, "
+        "response": "<b>Poséidon</b>, le dieu des océans, t'aide à organiser, "
         "classer et nettoyer tes fichiers téléchargés. "
         "Je t'envoie vers lui !",
         "actions": [
@@ -291,7 +291,7 @@ KNOWLEDGE: dict[str, dict] = {
             "déconnecté",
         ],
         "icon": "👥",
-        "response": "Le bot <b>Clients Actifs</b> te permet de suivre "
+        "response": "<b>Arès</b>, le dieu de la guerre, te permet de suivre "
         "le statut de tes contacts en temps réel : qui est "
         "en ligne, qui est joignable, leurs slots et files "
         "d'attente. Je te redirige vers lui !",
@@ -318,7 +318,7 @@ KNOWLEDGE: dict[str, dict] = {
             "configurer",
         ],
         "icon": "⚙️",
-        "response": "Le bot <b>Assistant</b> t'aide à configurer et paramétrer l'application. Je t'envoie vers lui !",
+        "response": "<b>Héra</b>, la reine de l'Olympe, t'aide à configurer et paramétrer l'application. Je t'envoie vers elle !",
         "actions": [
             {"type": "navigate", "bot": "Assistant"},
         ],
@@ -389,17 +389,18 @@ KNOWLEDGE: dict[str, dict] = {
             "douze bots",
         ],
         "icon": "🖐️",
-        "response": "Je suis le bot <b>Accueil</b>, ton assistant "
-        "personnel sur Soulseek !<br><br>"
-        "Je fais partie de <b>l'Armée des 12 Bots</b>, "
-        "une équipe de bots conçus pour t'offrir "
+        "response": "Je suis <b>Zeus</b>, le roi de l'Olympe, "
+        "ton assistant personnel sur Soulseek !<br><br>"
+        "Je fais partie du <b>Panthéon des 12 Dieux</b>, "
+        "une équipe de divinités conçues pour t'offrir "
         "une expérience complète sur Soulseek.<br><br>"
-        "Les autres bots sont : <b>Recherche</b>, "
-        "<b>Téléchargement</b>, <b>Bibliothèque</b>, "
-        "<b>Utilisateurs</b>, <b>Wishlist</b>, "
-        "<b>Surveillance</b>, <b>Planificateur</b>, "
-        "<b>Ordonnanceur</b>, <b>Clients Actifs</b>, "
-        "<b>Assistant</b>, et <b>Aide</b>.",
+        "Les autres dieux sont : <b>Athéna</b> (Recherche), "
+        "<b>Hadès</b> (Téléchargement), <b>Déméter</b> (Bibliothèque), "
+        "<b>Aphrodite</b> (Wishlist), "
+        "<b>Artémis</b> (Surveillance), <b>Apollon</b> (Planificateur), "
+        "<b>Poséidon</b> (Ordonnanceur), <b>Arès</b> (Clients Actifs), "
+        "<b>Héphaistos</b> (Optimiseur), "
+        "<b>Héra</b> (Assistant), et <b>Dionysos</b> (Aide).",
         "suggestions": [
             {"label": "🎯 Voir les 12 bots", "action": "about"},
             {"label": "🔍 Chercher", "action": "chercher"},
@@ -445,9 +446,9 @@ KNOWLEDGE: dict[str, dict] = {
         "icon": "✨",
         "response": "Tout va bien de mon côté ! 😊<br><br>"
         "Si tu veux voir ce qui se passe en ce moment, "
-        "tu peux jeter un œil aux bots "
-        "<b>Surveillance</b> (alertes en direct) "
-        "ou <b>Clients Actifs</b> (suivi des clients).",
+        "tu peux jeter un œil à "
+        "<b>Artémis</b> (alertes en direct) "
+        "ou <b>Arès</b> (suivi des clients).",
         "suggestions": [
             {"label": "👁️ Surveillance", "action": "surveillance"},
             {"label": "👥 Clients Actifs", "action": "clients-actifs"},

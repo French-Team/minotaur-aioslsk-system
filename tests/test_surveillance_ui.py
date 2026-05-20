@@ -52,6 +52,7 @@ def bus():
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestFooterBadge:
     """Vérifie le badge de comptage sur _FooterNavButton et FooterZone.
 
@@ -155,6 +156,7 @@ class TestFooterBadge:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestUnseenCounter:
     """Vérifie le compteur d'événements non lus de BotSurveillance."""
 
@@ -244,6 +246,7 @@ class TestUnseenCounter:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestToastNotification:
     """Vérifie le fonctionnement des notifications toast.
 

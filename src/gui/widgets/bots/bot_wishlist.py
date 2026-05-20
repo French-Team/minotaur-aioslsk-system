@@ -624,7 +624,9 @@ class BotWishlist(QFrame):
         # Vider les stats existantes
         while self._stats_layout.count():
             item = self._stats_layout.takeAt(0)
+            # pyrefly: ignore [missing-attribute]
             if item.widget():
+                # pyrefly: ignore [missing-attribute]
                 item.widget().deleteLater()
 
         total = len(self._wishlist)
@@ -643,7 +645,9 @@ class BotWishlist(QFrame):
         # Vider la liste (sauf le stretch)
         while self._list_layout.count() > 1:
             item = self._list_layout.takeAt(0)
+            # pyrefly: ignore [missing-attribute]
             if item.widget():
+                # pyrefly: ignore [missing-attribute]
                 item.widget().deleteLater()
 
         # Filtrer

@@ -147,7 +147,7 @@
       font-size: 13px;
       font-weight: 500;
       color: var(--text-secondary);
-      cursor: default;
+      cursor: pointer;
       transition: background .15s, color .15s;
     }
 
@@ -247,18 +247,41 @@
           Téléchargements
         </div>
         <div class="nav-item">
+          <span class="icon">✦</span>
+          Assistant
+        </div>
+        <div class="nav-item">
           <span class="icon">⚙</span>
           Connexion
         </div>
       </nav>
 
       <!-- Main content -->
-      <main class="main empty">
-        <div class="empty-state">
-          <div class="empty-state-icon">◻</div>
-          <div class="empty-state-title">Contenu à venir</div>
-          <div class="empty-state-desc">
-            Connectez-vous au serveur Soulseek pour commencer à utiliser l'interface.
+      <main class="main" id="main-content">
+        <!-- Sections de contenu par vue, masquées par défaut (display:none) -->
+        <div class="section" id="section-recherche" style="display:none">
+          <h2>Recherche</h2>
+          <p>Interface de recherche de fichiers sur le réseau Soulseek.</p>
+        </div>
+        <div class="section" id="section-telechargements" style="display:none">
+          <h2>Téléchargements</h2>
+          <p>Gestion des téléchargements actifs et terminés.</p>
+        </div>
+        <div class="section" id="section-assistant" style="display:none">
+          <h2>Assistant IA</h2>
+          <p>Assistant intelligent pour vous aider dans vos recherches et téléchargements.</p>
+        </div>
+        <div class="section" id="section-connexion" style="display:none">
+          <h2>Connexion</h2>
+          <p>Connectez-vous au serveur Soulseek.</p>
+        </div>
+        <div class="section" id="section-accueil" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1">
+          <div class="empty-state">
+            <div class="empty-state-icon">◻</div>
+            <div class="empty-state-title">Contenu à venir</div>
+            <div class="empty-state-desc">
+              Connectez-vous au serveur Soulseek pour commencer à utiliser l'interface.
+            </div>
           </div>
         </div>
       </main>
@@ -270,5 +293,52 @@
       <span>Serveur hors ligne</span>
     </footer>
   </div>
+
+  <script>
+    (function() {
+      const sections = {
+        'section-recherche': document.getElementById('section-recherche'),
+        'section-telechargements': document.getElementById('section-telechargements'),
+        'section-assistant': document.getElementById('section-assistant'),
+        'section-connexion': document.getElementById('section-connexion'),
+        'section-accueil': document.getElementById('section-accueil'),
+      };
+
+      const navItems = document.querySelectorAll('.nav-item');
+
+      function showSection(sectionId) {
+        // Masquer toutes les sections
+        Object.values(sections).forEach(function(el) {
+          if (el) el.style.display = 'none';
+        });
+        // Afficher la section cible
+        var target = sections[sectionId] || sections['section-accueil'];
+        if (target) target.style.display = 'flex';
+
+        // Mettre à jour la classe active sur la sidebar
+        navItems.forEach(function(item, idx) {
+          item.classList.remove('active');
+        });
+        var activeIndex = ['section-recherche', 'section-telechargements', 'section-assistant', 'section-connexion'].indexOf(sectionId);
+        if (activeIndex >= 0 && navItems[activeIndex]) {
+          navItems[activeIndex].classList.add('active');
+        }
+      }
+
+      // Attacher les gestionnaires de clic aux nav-items
+      var sectionIds = ['section-recherche', 'section-telechargements', 'section-assistant', 'section-connexion'];
+      navItems.forEach(function(item, idx) {
+        item.addEventListener('click', function() {
+          if (idx < sectionIds.length) {
+            showSection(sectionIds[idx]);
+          }
+        });
+
+      });
+
+      // Section par défaut : accueil (empty-state visible)
+      showSection('section-accueil');
+    })();
+  </script>
 </body>
 </html>

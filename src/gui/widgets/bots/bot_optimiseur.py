@@ -232,6 +232,7 @@ class BotOptimiseur(QFrame):
 
         self._diff_scroll = QScrollArea()
         self._diff_scroll.setWidgetResizable(True)
+        # pyrefly: ignore [missing-attribute]
         self._diff_scroll.setFrameShape(QFrame.NoFrame)
         self._diff_scroll.setStyleSheet(f"QScrollArea {{ background: transparent; }}")
 
@@ -463,6 +464,7 @@ class BotOptimiseur(QFrame):
                 self._log(f"⚠ Catégorie inconnue : {cat_key}")
                 continue
 
+            # pyrefly: ignore [missing-attribute]
             page = self._center_zone.page(page_name)
             if page is None or not isinstance(page, ConfigPage):
                 self._log(f"⚠ Page non trouvée : {page_name}")
@@ -517,6 +519,7 @@ class BotOptimiseur(QFrame):
         page_name, page, params = self._sequence[self._step]
 
         # Naviguer vers la page
+        # pyrefly: ignore [missing-attribute]
         self._center_zone.show_page(page_name)
 
         # Appliquer les paramètres de cette page
@@ -539,6 +542,7 @@ class BotOptimiseur(QFrame):
         """Termine l'application : retour Optimiseur + dashboard + overlay."""
         self._applying = False
         # Revenir à l'Optimiseur
+        # pyrefly: ignore [missing-attribute]
         self._center_zone.show_page("Optimiseur")
 
         n_modifs = len(self._diffs_globaux)

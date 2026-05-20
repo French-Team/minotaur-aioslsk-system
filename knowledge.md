@@ -17,7 +17,7 @@ Application GUI PySide6 pour le client Soulseek (aioslsk).
 | `src/gui/widgets/bots/` | Widgets bots (clients actifs, téléchargement, surveillance, etc.) |
 | `src/services/` | Backend services |
 | `src/gui/theme_fragments/colors.py` | Palette de couleurs centralisée + fonction `rgba()` |
-| `.aioslsk-logbook.md` | Carnet de bord du projet |
+| `.in_out/.OUT-live_progression.md` | Carnet de bord du projet |
 
 ## ⚠️ RÈGLE ABSOLUE — Couleurs Qt
 

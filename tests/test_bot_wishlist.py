@@ -47,6 +47,7 @@ def bot(qapp: QApplication, tmp_app_config: Path) -> BotWishlist:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestInit:
     def test_empty_on_fresh_start(self, bot: BotWishlist) -> None:
         """Un BotWishlist sans wishlist dans app_config doit avoir _wishlist vide."""
@@ -117,6 +118,7 @@ class TestInit:
 #        Utiliser toggle_wish() pour désactiver ensuite.
 
 
+@pytest.mark.qt_heavy
 class TestAddWish:
     def test_add_first_wish(self, bot: BotWishlist) -> None:
         """Ajoute un premier souhait."""
@@ -170,6 +172,7 @@ class TestAddWish:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestRemoveWish:
     def test_remove_existing(self, bot: BotWishlist) -> None:
         """Supprime un souhait existant."""
@@ -219,6 +222,7 @@ class TestRemoveWish:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestToggleWish:
     def test_toggle_enable_to_disable(self, bot: BotWishlist) -> None:
         """Désactiver un souhait actif."""
@@ -261,6 +265,7 @@ class TestToggleWish:
 #        et sera nettoyée comme métadonnée orpheline par refresh().
 
 
+@pytest.mark.qt_heavy
 class TestUpdateWishQuery:
     def test_rename_existing(self, bot: BotWishlist) -> None:
         """Renommer un souhait existant."""
@@ -341,6 +346,7 @@ class TestUpdateWishQuery:
 #        définis par _apply_filter() et _on_search().
 
 
+@pytest.mark.qt_heavy
 class TestGetFilteredWishlist:
     def test_filter_all(self, bot: BotWishlist) -> None:
         """Filtre 'all' retourne tous les souhaits."""
@@ -438,6 +444,7 @@ class TestGetFilteredWishlist:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestRefresh:
     def test_refresh_reloads_from_app_config(self, bot: BotWishlist) -> None:
         """refresh() recharge depuis app_config."""
@@ -467,6 +474,7 @@ class TestRefresh:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestPersistence:
     def test_enabled_state_saved_and_loaded(self, qapp: QApplication, tmp_app_config: Path) -> None:
         """L'état enabled survit à un cycle save/load."""
@@ -509,6 +517,7 @@ class TestPersistence:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestSearchNow:
     def test_search_now_updates_timestamp(self, bot: BotWishlist) -> None:
         """search_now() met à jour le timestamp last_search."""
@@ -533,6 +542,7 @@ class TestSearchNow:
 # ═════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.qt_heavy
 class TestToggleAll:
     def test_toggle_all_disables_all_when_all_active(self, bot: BotWishlist) -> None:
         """Quand tous les souhaits sont actifs, Tout basculer les désactive tous."""

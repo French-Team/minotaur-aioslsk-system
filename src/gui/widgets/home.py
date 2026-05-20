@@ -78,50 +78,59 @@ class HomePage(QWidget):
             desc_data = {"title": "Profil", "categories": []}
 
         # Titre général
-        title_lbl = QLabel(desc_data.get("title", ""))
+        title_lbl = QLabel(str(desc_data.get("title", "")))
         title_lbl.setStyleSheet("color: #e4e4ec; font-size: 15px; font-weight: 700;")
         title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dl.addWidget(title_lbl)
 
         # Catégories
-        for cat in desc_data.get("categories", []):
-            cat_title = cat.get("title", "")
-            if cat_title:
-                ct = QLabel(cat_title)
-                ct.setStyleSheet("color: #a0a0b0; font-size: 11px; font-weight: 600;  letter-spacing: 0.5px;")
-                ct.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                dl.addWidget(ct)
+        categories = desc_data.get("categories", [])
+        if isinstance(categories, list):
+            for cat in categories:
+                if not isinstance(cat, dict):
+                    continue
 
-            cols = cat.get("columns", [])
-            if cols:
-                cols_row = QHBoxLayout()
-                cols_row.setSpacing(32)
-                cols_row.setContentsMargins(0, 0, 0, 0)
+                cat_title = cat.get("title", "")
+                if cat_title and isinstance(cat_title, str):
+                    ct = QLabel(cat_title)
+                    ct.setStyleSheet("color: #a0a0b0; font-size: 11px; font-weight: 600;  letter-spacing: 0.5px;")
+                    ct.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    dl.addWidget(ct)
 
-                for col in cols:
-                    col_vbox = QVBoxLayout()
-                    col_vbox.setSpacing(4)
-                    col_vbox.setContentsMargins(0, 0, 0, 0)
+                cols = cat.get("columns", [])
+                if isinstance(cols, list):
+                    cols_row = QHBoxLayout()
+                    cols_row.setSpacing(32)
+                    cols_row.setContentsMargins(0, 0, 0, 0)
 
-                    for item in col:
-                        label = item.get("label", "")
-                        value = item.get("value", "—")
-                        safe_label = html.escape(label)
-                        safe_value = html.escape(value)
-                        item_html = (
-                            "<span style='color:#8a8a9a;font-size:12px;'>"
-                            f"{safe_label} :</span> "
-                            "<span style='color:#e4e4ec;font-size:12px;"
-                            f"font-weight:600;'>{safe_value}</span>"
-                        )
-                        iw = QLabel(item_html)
-                        iw.setTextFormat(Qt.TextFormat.RichText)
-                        iw.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                        col_vbox.addWidget(iw)
+                    for col in cols:
+                        if not isinstance(col, list):
+                            continue
+                        col_vbox = QVBoxLayout()
+                        col_vbox.setSpacing(4)
+                        col_vbox.setContentsMargins(0, 0, 0, 0)
 
-                    cols_row.addLayout(col_vbox)
+                        for item in col:
+                            if not isinstance(item, dict):
+                                continue
+                            label = str(item.get("label", ""))
+                            value = str(item.get("value", "—"))
+                            safe_label = html.escape(label)
+                            safe_value = html.escape(value)
+                            item_html = (
+                                "<span style='color:#8a8a9a;font-size:12px;'>"
+                                f"{safe_label} :</span> "
+                                "<span style='color:#e4e4ec;font-size:12px;"
+                                f"font-weight:600;'>{safe_value}</span>"
+                            )
+                            iw = QLabel(item_html)
+                            iw.setTextFormat(Qt.TextFormat.RichText)
+                            iw.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                            col_vbox.addWidget(iw)
 
-                dl.addLayout(cols_row)
+                        cols_row.addLayout(col_vbox)
+
+                    dl.addLayout(cols_row)
 
         dl.addStretch(1)
 
