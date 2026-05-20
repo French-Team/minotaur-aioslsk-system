@@ -45,6 +45,7 @@ _SOURCE_MAP: dict[str, tuple[str, str]] = {
     "soulseek_service": ("Soulseek", "📡"),
     "soulseek_client": ("Soulseek", "📡"),
     "room_service": ("Room Service", "💬"),
+    "boucle_rooms": ("Rooms", "💬"),
     "clients_actifs_service": ("Clients Actifs", "👥"),
     "event_bus": ("Event Bus", "📨"),
     "bot_accueil": ("Zeus", "🏠"),
@@ -63,7 +64,7 @@ _SOURCE_MAP: dict[str, tuple[str, str]] = {
 
 # ── Ordre d'affichage des entités dans la matrice ──────────────────────────
 _MATRIX_ORDER: list[str] = [
-    "Connexion", "Soulseek", "Room Service", "Clients Actifs", "Event Bus",
+    "Connexion", "Soulseek", "Room Service", "Rooms", "Clients Actifs", "Event Bus",
     "Zeus", "Déméter", "Héphaistos", "Poséidon", "Apollon",
     "Athéna", "Artémis", "Hadès", "Aphrodite", "Arès", "Héra", "Dionysos",
 ]
@@ -422,6 +423,11 @@ class WorkflowInspector(QDockWidget):
             if cas is not None:
                 bots["Clients Actifs"] = cas
 
+            # BoucleRooms — boucle pure (QObject, pas de widget)
+            br = getattr(center, "boucle_rooms", None) or getattr(center, "_boucle_rooms", None)
+            if br is not None:
+                bots["Rooms"] = br
+
         # ── 4. Bots Qt depuis center._pages ──
         if center is not None:
             pages = getattr(center, "_pages", {})
@@ -626,26 +632,57 @@ class WorkflowInspector(QDockWidget):
         return "📦"
 
     def _get_bot_status(self, instance: QObject) -> tuple[str, str]:
-        """Retourne (statut_texte, couleur) selon le type de l'instance.
+        """Retourne (statut_texte, couleur) selon l'état de l'interrupteur.
 
         Catégories :
-        - Bots Qt (QFrame) → toujours ACTIVE
+        - Bots Qt avec interrupteur (demarrer/arreter) → vérifie _actif/est_actif
+        - Bots Qt sans interrupteur (Aide, Accueil, Ordonnanceur) → ⚪ UNKNOWN
         - EventBus → toujours ACTIVE
-        - Services → flag _running
+        - Services → flag _running ou is_connected
         - ConnexionManager → _running + thread
+        - BoucleRooms (QObject avec interrupteur) → vérifie _actif/est_actif
         """
-        # ── Catégorie 1 : Bots Qt ──
+        # ── Helper : vérifie si une instance a un interrupteur ──
+        def _a_interrupteur(obj: QObject) -> bool:
+            return (
+                hasattr(obj, "demarrer")
+                and callable(getattr(obj, "demarrer", None))
+                and hasattr(obj, "arreter")
+                and callable(getattr(obj, "arreter", None))
+            )
+
+        # ── Helper : statut depuis _actif/est_actif ──
+        def _statut_interrupteur(obj: QObject) -> tuple[str, str] | None:
+            if hasattr(obj, "est_actif"):
+                try:
+                    if obj.est_actif:
+                        return "🟢 ACTIVE", "#a6e3a1"
+                    return "🔴 STOPPED", "#f38ba8"
+                except Exception:
+                    pass
+            actif = getattr(obj, "_actif", None)
+            if actif is True:
+                return "🟢 ACTIVE", "#a6e3a1"
+            if actif is False:
+                return "🔴 STOPPED", "#f38ba8"
+            return None  # état indéterminé
+
+        # ── Catégorie 1 : Bots Qt (QFrame) ──
         if isinstance(instance, QFrame):
-            return "🟢 ACTIVE", "#a6e3a1"
+            if _a_interrupteur(instance):
+                statut = _statut_interrupteur(instance)
+                if statut is not None:
+                    return statut
+                # Interrupteur présent mais état inconnu → présumé actif
+                return "🟢 ACTIVE", "#a6e3a1"
+            # Pas d'interrupteur → bot statique (Aide, Accueil, Ordonnanceur)
+            return "⚪ UNKNOWN", "#6c7086"
 
         # ── Catégorie 2 : EventBus ──
         if isinstance(instance, EventBus):
             return "🟢 ACTIVE", "#a6e3a1"
 
         # ── Catégorie 3 : is_connected (ConnexionManager, SoulseekService) ──
-        # Vérifié en premier car plus précis que le simple thread :
-        # ConnexionManager a un thread toujours actif mais peut être
-        # déconnecté du réseau. is_connected reflète l'état réseau réel.
         if hasattr(instance, "is_connected"):
             if instance.is_connected:
                 return "🟢 ACTIVE", "#a6e3a1"
@@ -659,9 +696,6 @@ class WorkflowInspector(QDockWidget):
             return "🔴 STOPPED", "#f38ba8"
 
         # ── Catégorie 5 : ConnexionManager (thread asyncio — fallback) ──
-        # _AsyncEventLoopThread hérite de QThread (pas threading.Thread).
-        # QThread utilise isRunning(), pas is_alive().
-        # Note : si l'instance a is_connected, catégorie 3 a déjà pris la main.
         if hasattr(instance, "_async_thread"):
             thread = getattr(instance, "_async_thread", None)
             if thread is not None:
@@ -674,9 +708,16 @@ class WorkflowInspector(QDockWidget):
                     return "🟢 ACTIVE", "#a6e3a1"
             return "🔴 STOPPED", "#f38ba8"
 
-        # ── Fallback ──
-        if isinstance(instance, QObject):
+        # ── Catégorie 6 : Objets non-QFrame avec interrupteur (BoucleRooms) ──
+        if _a_interrupteur(instance):
+            statut = _statut_interrupteur(instance)
+            if statut is not None:
+                return statut
             return "🟢 ACTIVE", "#a6e3a1"
+
+        # ── Fallback : QObject sans interrupteur → UNKNOWN ──
+        if isinstance(instance, QObject):
+            return "⚪ UNKNOWN", "#6c7086"
 
         return "⚪ UNKNOWN", "#6c7086"
 

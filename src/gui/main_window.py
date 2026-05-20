@@ -263,6 +263,9 @@ class MainWindow(QMainWindow):
         self._toast.raise_()
         self._connect_toast_events()
 
+        # ── Loop started signal from BotAccueil ──
+        self._connect_loop_started_signal()
+
         # ── Gestionnaire de connexion Soulseek ──
         self._connect_connexion_manager()
 
@@ -345,6 +348,11 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     logger.exception("Échec lors du démarrage séquentiel de ClientsActifsService: %s", e)
 
+            # Étape 3 : Démarrer BoucleRooms immédiatement
+            # Le message est ajouté dans _lancer_boucle_rooms_apres_connexion
+            # avant le show_page("Zeus") (handler _on_connected_nav exécuté après)
+            self._lancer_boucle_rooms_apres_connexion()
+
         self._connexion_manager.connected.connect(_on_connected)
 
         def _on_disconnected() -> None:
@@ -412,6 +420,35 @@ class MainWindow(QMainWindow):
     def _connect_toast_events(self) -> None:
         """Connecte les événements ERROR/WARN de l'EventBus aux toasts."""
         EventBus().event_emitted.connect(self._on_toast_event)
+
+    def _connect_loop_started_signal(self) -> None:
+        """Connecte le signal loop_started de BotAccueil aux toasts."""
+        center = self._layout.center
+        accueil = getattr(center, "_bot_accueil", None)
+        if accueil is not None and hasattr(accueil, "loop_started"):
+            accueil.loop_started.connect(lambda bot_name: self._toast.show_toast(
+                "SUCCESS",
+                "Boucle démarrée",
+                f"✅ Boucle <b>{bot_name}</b> est désormais active",
+            ))
+
+    def _lancer_boucle_rooms_apres_connexion(self) -> None:
+        """Lance BoucleRooms immédiatement après connexion via BotAccueil.
+
+        Appelée directement depuis _on_connected dans
+        _connect_connexion_manager(). Ajoute un message dans l'Accueil
+        puis démarre la boucle (toast via loop_started si succès).
+        """
+        center = self._layout.center
+        accueil = getattr(center, "_bot_accueil", None)
+        if accueil is not None and hasattr(accueil, "_do_start_loop"):
+            accueil.add_message(
+                "💬",
+                "Je lance la mise à jour des salons et je prépare la liste "
+                "des clients actifs…",
+                None,
+            )
+            accueil._do_start_loop("Rooms")
 
     def _on_toast_event(self, event: object) -> None:
         """Affiche une notification toast pour les événements ERROR et WARN."""

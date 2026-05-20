@@ -9,7 +9,12 @@ Voir `docs/specs/bot-surveillance-spec.md` pour le plan complet.
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -374,10 +379,48 @@ class BotSurveillance(QFrame):
         self._feed_layout: QVBoxLayout | None = None
         self._feed_scroll: QScrollArea | None = None
         self._auto_scroll = True
+        self._actif = False
+        self._loop_timer: QTimer = QTimer(self)
+        self._loop_timer.setInterval(60000)  # 60s entre chaque tick
+        self._loop_timer.timeout.connect(self._on_loop_tick)
         self._build_ui()
 
-        # Connexion à l'EventBus
-        EventBus().event_emitted.connect(self._on_event_received)
+        # Connexion à l'EventBus (activée au demarrer())
+        self._event_bus = EventBus()
+
+    # ── Interrupteur ───────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle Surveillance."""
+        if self._actif:
+            return
+        self._actif = True
+        self._loop_timer.start()
+        self._on_loop_tick()
+        logger.info("BotSurveillance démarré (cycle 60s)")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle Surveillance."""
+        if not self._actif:
+            return
+        self._actif = False
+        self._loop_timer.stop()
+        logger.info("BotSurveillance arrêté")
+
+    def _on_loop_tick(self) -> None:
+        """Tick périodique : nettoie les événements obsolètes du flux."""
+        if not self._actif:
+            return
+        # Limiter le nombre de cartes si le flux dépasse le max autorisé
+        if len(self._feed_cards) > self.MAX_FEED_ITEMS:
+            surplus = len(self._feed_cards) - self.MAX_FEED_ITEMS
+            for _ in range(surplus):
+                old_card = self._feed_cards.pop(0)
+                if self._feed_layout:
+                    self._feed_layout.removeWidget(old_card)
+                old_card.deleteLater()
+            logger.debug("BotSurveillance tick — nettoyage de %d événements", surplus)
+        logger.debug("BotSurveillance tick — %d événements dans le flux", len(self._feed_cards))
 
     # ── Construction UI ───────────────────────────────────────────────
 

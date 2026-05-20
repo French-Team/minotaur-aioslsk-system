@@ -160,7 +160,8 @@ class RightZone(QFrame):
         main_layout.addWidget(self._handle, 0)  # pas d'étirement
         main_layout.addWidget(self._content, 1)  # stretch = prend l'espace
 
-        # ── État initial ──
+        # ── État initial : déplié par défaut ──
+        self._collapsed = False
         self._apply_state()
 
     # ── API publique ─────────────────────────────────────────────

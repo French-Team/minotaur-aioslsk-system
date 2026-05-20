@@ -42,7 +42,7 @@ from src.gui.widgets.config import (
 )
 from src.gui.widgets.connexions import ConnexionPage
 from src.gui.widgets.header import ClientsActifsHeader
-from src.gui.widgets.home import HomePage
+from src.services.boucle_rooms import BoucleRooms
 from src.services.clients_actifs_service import ClientsActifsService
 from src.services.soulseek_client import soulseek_service
 
@@ -92,11 +92,12 @@ class CenterZone(QFrame):
         # Pages indexées par nom
         self._pages: dict[str, QWidget] = {}
 
+        # Boucle pure Rooms (arrière-plan, pas de widget)
+        self._boucle_rooms: BoucleRooms | None = None
+        self._rafraichir_connecte = False  # flag anti-doublon pour le bouton Rafraîchir
+
         # Page de connexion (affichée au démarrage)
         self._build_connexion_page()
-
-        # Page d'accueil (après connexion)
-        self._build_home_page()
 
         # Page clients actifs (header)
         self._build_clients_actifs_page()
@@ -149,6 +150,19 @@ class CenterZone(QFrame):
         # Affiche la page de connexion au démarrage
         self.show_page("connexion")
 
+    # ── BoucleRooms ──────────────────────────────────────────
+
+    def _init_boucle_rooms(self, manager: object) -> None:
+        """Initialise BoucleRooms avec le ConnexionManager.
+
+        Called par set_connexion_manager() pour brancher la boucle
+        Rooms en arrière-plan. La connexion du signal vers
+        ClientsActifsService est faite plus tard dans _connect_event_signals()
+        car _clients_actifs_service n'existe pas encore à ce moment.
+        """
+        self._cm = manager
+        self._boucle_rooms = BoucleRooms(manager)
+
     # ── API publique ─────────────────────────────────────────────
 
     @property
@@ -165,10 +179,112 @@ class CenterZone(QFrame):
         return None
 
     def set_connexion_manager(self, manager: object) -> None:
-        """Transmet le gestionnaire de connexion aux bots qui en ont besoin."""
+        """Configure le ConnexionManager, initialise BoucleRooms et transmet aux bots.
+
+        Cette méthode est appelée par MainWindow après la connexion
+        pour brancher les bots au ConnexionManager.
+        """
+        # Initialiser BoucleRooms
+        self._init_boucle_rooms(manager)
+
+        # Transmettre aux bots qui en ont besoin
         recherche = self._pages.get("Recherche")
         if isinstance(recherche, BotRecherche):
             recherche.set_connexion_manager(manager)
+
+        # Injecter ConnexionManager dans ClientsActifsService pour le ping par lots
+        actifs_service = self._clients_actifs_service
+        if actifs_service is not None and hasattr(actifs_service, "set_connexion_manager"):
+            actifs_service.set_connexion_manager(manager)
+
+        # Connecter le bouton Rafraîchir du widget Clients Actifs à BoucleRooms
+        # (flag anti-doublon pour éviter les connexions multiples en cas de reconnexion)
+        page_clients = self._pages.get("Clients Actifs")
+        if isinstance(page_clients, BotClientsActifs) and self._boucle_rooms is not None:
+            if not self._rafraichir_connecte:
+                page_clients.rafraichir_demande.connect(self._boucle_rooms.rafraichir)
+                self._rafraichir_connecte = True
+
+    def _start_loop(self, loop_name: str) -> bool:
+        """Active l'interrupteur d'une boucle par son nom.
+
+        Cette méthode est appelée par BotAccueil via set_loop_starter
+        pour démarrer les boucles des bots.
+
+        Paramètres
+        ----------
+        loop_name : str
+            Nom de la boucle à démarrer (ex: "Recherche", "Rooms", "Surveillance")
+
+        Retourne
+        --------
+        bool
+            True si la boucle a été démarrée, False sinon.
+        """
+        mapping: dict[str, object] = {
+            "Recherche": self._pages.get("Recherche"),
+            "Téléchargement": self._pages.get("telechargements"),
+            "Clients Actifs": self._pages.get("Clients Actifs"),
+            "Rooms": self._boucle_rooms,
+            "Surveillance": self._pages.get("Surveillance"),
+            "Bibliothèque": self._pages.get("Bibliothèque"),
+            "Wishlist": self._pages.get("Wishlist"),
+            "Planificateur": self._pages.get("Planificateur"),
+            "Optimiseur": self._pages.get("Optimiseur"),
+            "Ordonnanceur": self._pages.get("Ordonnanceur"),
+        }
+
+        loop = mapping.get(loop_name)
+        if loop is None:
+            logger.warning("Boucle %s inconnue", loop_name)
+            return False
+
+        if hasattr(loop, "demarrer"):
+            loop.demarrer()
+            logger.info("Boucle %s démarrée", loop_name)
+            return True
+
+        logger.warning("%s n'a pas de méthode demarrer()", loop_name)
+        return False
+
+    def _stop_loop(self, loop_name: str) -> bool:
+        """Désactive l'interrupteur d'une boucle par son nom.
+
+        Paramètres
+        ----------
+        loop_name : str
+            Nom de la boucle à arrêter.
+
+        Retourne
+        --------
+        bool
+            True si la boucle a été arrêtée, False sinon.
+        """
+        mapping: dict[str, object] = {
+            "Recherche": self._pages.get("Recherche"),
+            "Téléchargement": self._pages.get("telechargements"),
+            "Clients Actifs": self._pages.get("Clients Actifs"),
+            "Rooms": self._boucle_rooms,
+            "Surveillance": self._pages.get("Surveillance"),
+            "Bibliothèque": self._pages.get("Bibliothèque"),
+            "Wishlist": self._pages.get("Wishlist"),
+            "Planificateur": self._pages.get("Planificateur"),
+            "Optimiseur": self._pages.get("Optimiseur"),
+            "Ordonnanceur": self._pages.get("Ordonnanceur"),
+        }
+
+        loop = mapping.get(loop_name)
+        if loop is None:
+            logger.warning("Boucle %s inconnue", loop_name)
+            return False
+
+        if hasattr(loop, "arreter"):
+            loop.arreter()
+            logger.info("Boucle %s arrêtée", loop_name)
+            return True
+
+        logger.warning("%s n'a pas de méthode arreter()", loop_name)
+        return False
 
     def show_page(self, name: str) -> None:
         """Affiche la page demandée par son nom."""
@@ -193,13 +309,11 @@ class CenterZone(QFrame):
                 dl.reset_unseen_count()
 
     def show_home(self, username: str) -> None:
-        """Affiche la page d'accueil avec le nom de l'utilisateur connecté."""
-        self._home_page.set_greeting(username)
-        self.show_page("accueil")
+        """Affiche le hub Zeus (BotAccueil) après connexion."""
+        self.show_page("Zeus")
 
     def show_connexion(self) -> None:
         """Affiche la page de connexion."""
-        self._home_page.set_greeting_default()
         self.show_page("connexion")
 
     def _update_surveillance_badge(self, count: int) -> None:
@@ -243,6 +357,11 @@ class CenterZone(QFrame):
         return self._pages.get(name)
 
     @property
+    def boucle_rooms(self) -> BoucleRooms | None:
+        """La boucle pure Rooms (arrière-plan, pas de widget)."""
+        return self._boucle_rooms
+
+    @property
     def connexion_page(self) -> QWidget | None:
         """Page de connexion Soulseek."""
         return self._pages.get("connexion")
@@ -278,6 +397,9 @@ class CenterZone(QFrame):
         page.page_changed.connect(self.show_page)
         page.unseen_count_changed.connect(self._update_clients_actifs_badge)
 
+        # La connexion du bouton Rafraîchir à BoucleRooms sera faite
+        # dans set_connexion_manager() une fois BoucleRooms initialisé
+
     def _build_telechargements_page(self) -> None:
         """Page des téléchargements (Bot)."""
         page = BotTelechargement()
@@ -292,13 +414,6 @@ class CenterZone(QFrame):
         self._pages["connexion"] = page
         self._stack.addWidget(page)
 
-    def _build_home_page(self) -> None:
-        """Page d'accueil (affichée après connexion)."""
-        page = HomePage()
-        self._home_page = page
-        self._pages["accueil"] = page
-        self._stack.addWidget(page)
-
     def _build_accueil_page(self) -> None:
         """Page du bot Accueil — hub conversationnel avec chat simulé."""
         page = BotAccueil()
@@ -306,6 +421,10 @@ class CenterZone(QFrame):
         self._pages["Accueil"] = page
         self._stack.addWidget(page)
         page.page_changed.connect(self.show_page)
+
+        # Injecter le loop starter et stopper pour permettre à l'Accueil de démarrer/arrêter les boucles
+        page.set_loop_starter(self._start_loop)
+        page.set_loop_stopper(self._stop_loop)
 
     def _build_optimiseur_page(self) -> None:
         """Page du bot Optimiseur — tableau de bord d'optimisation centralisé."""
@@ -946,6 +1065,13 @@ class CenterZone(QFrame):
             page_tel = self.telechargements_page
             if page_tel is not None and hasattr(page_tel, "set_clients_actifs_service"):
                 page_tel.set_clients_actifs_service(self._clients_actifs_service)
+
+        # ── BoucleRooms → ClientsActifsService ───────────────────
+        # Connecter le signal de sortie après que _clients_actifs_service existe
+        if self._boucle_rooms is not None and hasattr(self, "_clients_actifs_service"):
+            self._boucle_rooms.membres_actualises.connect(
+                self._clients_actifs_service.ingest_membres_rooms
+            )
 
         # ── Recherche → injection clients actifs ──────────────────
 

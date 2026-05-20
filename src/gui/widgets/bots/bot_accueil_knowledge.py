@@ -11,6 +11,9 @@ Chaque entrée contient :
     {"type": "delay", "ms": 500} — attend N ms
     {"type": "message", "icon": "...", "text": "..."} — message supplémentaire
     {"type": "suggestions", "items": [...]} — suggestions personnalisées
+    {"type": "start_loop", "bot": "BotName"} — démarre la boucle d'un bot
+    {"type": "stop_loop", "bot": "BotName"} — arrête la boucle d'un bot
+    {"type": "start_loop_and_navigate", "bot": "BotName"} — start_loop + navigate combinés
 - suggestions : list[dict] — boutons de suggestion affichés après la réponse
     Chaque item : {"label": "...", "action": "..."}
 """
@@ -33,13 +36,18 @@ KNOWLEDGE: dict[str, dict] = {
             "files",
             "trouve",
             "recherches",
+            "mot clé",
+            "mot-clé",
+            "mot cle",
+            "cherche moi",
+            "recherche moi",
         ],
         "icon": "🔍",
         "response": "Bien sûr ! <b>Athéna</b>, la déesse de la sagesse, est spécialisée "
         "dans la recherche de fichiers sur Soulseek. "
         "Je t'envoie vers elle !",
         "actions": [
-            {"type": "navigate", "bot": "Recherche"},
+            {"type": "start_loop_and_navigate", "bot": "Recherche"},
         ],
         "suggestions": [
             {"label": "🔍 Oui, cherche !", "action": "chercher"},
@@ -59,13 +67,19 @@ KNOWLEDGE: dict[str, dict] = {
             "telecharge",
             "fichier en cours",
             "mes téléchargements",
+            "en cours de dl",
+            "queued",
+            "file d'attente",
+            "file attente",
+            "progression",
+            "avancement dl",
         ],
         "icon": "📥",
         "response": "Pas de souci ! <b>Hadès</b>, le dieu des enfers, s'occupe "
         "de gérer, suivre et prioriser tes téléchargements. "
         "Je te l'envoie !",
         "actions": [
-            {"type": "navigate", "bot": "Téléchargement"},
+            {"type": "start_loop_and_navigate", "bot": "Téléchargement"},
         ],
         "suggestions": [
             {"label": "📥 Voir mes DL", "action": "telechargement"},
@@ -88,6 +102,13 @@ KNOWLEDGE: dict[str, dict] = {
             "probleme",
             "bug",
             "souci",
+            "je comprends pas",
+            "comprends pas",
+            "tuto",
+            "tutoriel",
+            "manuel",
+            "doc",
+            "documentation",
         ],
         "icon": "❓",
         "response": "Tu as besoin d'explications ou d'aide ? "
@@ -125,6 +146,10 @@ KNOWLEDGE: dict[str, dict] = {
             "shared",
             "dossier partagé",
             "dossiers partagés",
+            "arborescence",
+            "mes fichiers",
+            "contenu local",
+            "mon dossier",
         ],
         "icon": "📚",
         "response": "<b>Déméter</b>, la déesse de l'abondance, est ton explorateur "
@@ -143,7 +168,7 @@ KNOWLEDGE: dict[str, dict] = {
         "suppression au clic droit<br><br>"
         "Je t'envoie vers elle !",
         "actions": [
-            {"type": "navigate", "bot": "Bibliothèque"},
+            {"type": "start_loop_and_navigate", "bot": "Bibliothèque"},
         ],
         "suggestions": [
             {"label": "📚 Explorer", "action": "bibliotheque"},
@@ -186,13 +211,22 @@ KNOWLEDGE: dict[str, dict] = {
             "liste de souhaits",
             "automatique",
             "recherche auto",
+            "souhaiterais",
+            "je voudrais",
+            "j'aimerais",
+            "aimerais trouver",
+            "item",
+            "items",
+            "wish list",
+            "désir",
+            "desir",
         ],
         "icon": "📋",
         "response": "<b>Aphrodite</b>, la déesse du désir, s'occupe des souhaits "
         "automatiques et des recherches planifiées. "
         "Je te redirige vers elle !",
         "actions": [
-            {"type": "navigate", "bot": "Wishlist"},
+            {"type": "start_loop_and_navigate", "bot": "Wishlist"},
         ],
         "suggestions": [
             {"label": "📋 Wishlist", "action": "wishlist"},
@@ -211,13 +245,28 @@ KNOWLEDGE: dict[str, dict] = {
             "notifier",
             "en direct",
             "live",
+            "événement",
+            "evenement",
+            "évènement",
+            "évènements",
+            "événements",
+            "evenements",
+            "watch",
+            "guette",
+            "surveillance en direct",
+            "feed",
+            "flux",
+            "activité",
+            "activite",
+            "realtime",
+            "temps réel",
         ],
         "icon": "👁️",
         "response": "<b>Artémis</b>, la déesse chasseresse, te tient informé "
         "avec des notifications et alertes en direct. "
         "Je t'envoie vers elle !",
         "actions": [
-            {"type": "navigate", "bot": "Surveillance"},
+            {"type": "start_loop_and_navigate", "bot": "Surveillance"},
         ],
         "suggestions": [
             {"label": "👁️ Alertes", "action": "surveillance"},
@@ -237,13 +286,21 @@ KNOWLEDGE: dict[str, dict] = {
             "automatisation",
             "rappel",
             "rappels",
+            "programme",
+            "programmation",
+            "ordonnancer",
+            "cron",
+            "horaires",
+            "horaire",
+            "récurrent",
+            "recurrent",
         ],
         "icon": "📅",
         "response": "<b>Apollon</b>, le dieu de l'ordre, gère les actions "
         "planifiées et automatisées. "
         "Je te redirige vers lui !",
         "actions": [
-            {"type": "navigate", "bot": "Planificateur"},
+            {"type": "start_loop_and_navigate", "bot": "Planificateur"},
         ],
         "suggestions": [
             {"label": "📅 Planifier", "action": "planificateur"},
@@ -263,6 +320,16 @@ KNOWLEDGE: dict[str, dict] = {
             "classer",
             "renommer",
             "dédoublonner",
+            "dédoublon",
+            "supprimer doublons",
+            "doublon",
+            "doublons",
+            "réorganiser",
+            "reorganiser",
+            "rename",
+            "move",
+            "déplacer",
+            "deplacer",
         ],
         "icon": "🧹",
         "response": "<b>Poséidon</b>, le dieu des océans, t'aide à organiser, "
@@ -289,6 +356,14 @@ KNOWLEDGE: dict[str, dict] = {
             "hors ligne",
             "connecté",
             "déconnecté",
+            "qui est en ligne",
+            "qui est connecté",
+            "qui est la",
+            "slot",
+            "slots",
+            "file d'attente",
+            "status",
+            "statut",
         ],
         "icon": "👥",
         "response": "<b>Arès</b>, le dieu de la guerre, te permet de suivre "
@@ -296,7 +371,7 @@ KNOWLEDGE: dict[str, dict] = {
         "en ligne, qui est joignable, leurs slots et files "
         "d'attente. Je te redirige vers lui !",
         "actions": [
-            {"type": "navigate", "bot": "Clients Actifs"},
+            {"type": "start_loop_and_navigate", "bot": "Clients Actifs"},
         ],
         "suggestions": [
             {"label": "👥 Voir les clients", "action": "clients-actifs"},
@@ -316,14 +391,308 @@ KNOWLEDGE: dict[str, dict] = {
             "préférences",
             "preferences",
             "configurer",
+            "options",
+            "compte",
+            "mot de passe",
+            "mdp",
+            "username",
+            "nom d'utilisateur",
+            "identifiants",
+            "theme",
+            "thème",
+            "apparence",
         ],
         "icon": "⚙️",
         "response": "<b>Héra</b>, la reine de l'Olympe, t'aide à configurer et paramétrer l'application. Je t'envoie vers elle !",
         "actions": [
-            {"type": "navigate", "bot": "Assistant"},
+            {"type": "start_loop_and_navigate", "bot": "Assistant"},
         ],
         "suggestions": [
             {"label": "⚙️ Configurer", "action": "assistant"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "rafraichir_clients_actifs": {
+        "keywords": [
+            "rafraîchir clients actifs",
+            "rafraichir clients actifs",
+            "rafraîchir les clients",
+            "rafraichir les clients",
+            "refresh clients",
+            "actualiser clients",
+            "mettre à jour les clients",
+            "mettre a jour les clients",
+            "re-scanner clients",
+            "rescan clients",
+            "réactualiser",
+            "reactualiser",
+            "refresh",
+            "rafraîchir",
+            "rafraichir",
+            "actualiser",
+            "mettre à jour",
+            "mettre a jour",
+            "re-scan",
+            "rescan",
+        ],
+        "icon": "🔄",
+        "response": "Je relance la détection des clients actifs et joignables !<br><br>"
+        "<b>Arès</b> va re-parcourir les salons publics, "
+        "pinger les membres et filtrer ceux qui sont "
+        "véritablement actifs (ONLINE).<br><br>"
+        "Un instant…",
+        "actions": [
+            {"type": "start_loop", "bot": "Rooms"},
+            {"type": "start_loop", "bot": "Clients Actifs"},
+            {"type": "navigate", "bot": "Clients Actifs"},
+        ],
+        "suggestions": [
+            {"label": "👥 Voir les clients", "action": "clients-actifs"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "optimiseur": {
+        "keywords": [
+            "optimiseur",
+            "optimiser",
+            "optimisation",
+            "performance",
+            "performances",
+            "vitesse",
+            "profils",
+            "profil",
+            "quick start",
+            "extrême",
+            "extreme",
+            "puissance max",
+            "optimize",
+            "optimization",
+        ],
+        "icon": "⚡",
+        "response": "<b>Héphaistos</b>, le dieu du feu et des forgerons, t'aide "
+        "à optimiser les performances de l'application. "
+        "Je t'envoie vers lui !",
+        "actions": [
+            {"type": "start_loop_and_navigate", "bot": "Optimiseur"},
+        ],
+        "suggestions": [
+            {"label": "⚡ Optimiser", "action": "optimiseur"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "salons": {
+        "keywords": [
+            "salon",
+            "salons",
+            "room",
+            "rooms",
+            "chat",
+            "discuter",
+            "discussion",
+            "conversation",
+            "tchat",
+            "salon de discussion",
+            "chat room",
+            "messagerie instantanée",
+            "talk",
+        ],
+        "icon": "💬",
+        "response": "<b>Hestia</b>, la déesse du foyer, gère les salons "
+        "de discussion Soulseek. Elle met à jour la liste "
+        "des membres pour le suivi des clients actifs.<br><br>"
+        "Je lance la boucle des salons en arrière-plan !",
+        "actions": [
+            {"type": "start_loop", "bot": "Rooms"},
+        ],
+        "suggestions": [
+            {"label": "👥 Clients Actifs", "action": "clients-actifs"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "statistiques": {
+        "keywords": [
+            "statistiques",
+            "stats",
+            "statistique",
+            "dashboard",
+            "tableau de bord",
+            "panorama",
+            "résumé",
+            "resume",
+            "synthèse",
+            "synthese",
+            "chiffres",
+            "compteur",
+            "stat",
+            "statistics",
+        ],
+        "icon": "📊",
+        "response": "Les statistiques sont dispersées entre plusieurs dieux :<br><br>"
+        "🔹 <b>Déméter</b> — stats de la bibliothèque<br>"
+        "🔹 <b>Hadès</b> — progression des téléchargements<br>"
+        "🔹 <b>Artémis</b> — événements et alertes<br>"
+        "🔹 <b>Arès</b> — clients en ligne<br><br>"
+        "Je t'envoie vers la <b>Bibliothèque</b> pour commencer !",
+        "actions": [
+            {"type": "start_loop_and_navigate", "bot": "Bibliothèque"},
+        ],
+        "suggestions": [
+            {"label": "📊 Voir les stats", "action": "statistiques"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    # ═══════════════════════════════════════════════════════════
+    # Commandes de boucles
+    # ═══════════════════════════════════════════════════════════
+    "arret": {
+        "keywords": [
+            "arrête",
+            "arrete",
+            "arrêter",
+            "arreter",
+            "stop",
+            "stoppe",
+            "stopper",
+            "coupe",
+            "couper",
+            "désactive",
+            "desactive",
+            "éteins",
+            "eteins",
+            "kill",
+            "termine",
+            "terminer",
+            "mets en pause",
+        ],
+        "icon": "⏹️",
+        "response": "Quelle boucle veux-tu arrêter ?<br><br>"
+        "Tu peux préciser par exemple :<br>"
+        "🔹 <b>arrête la recherche</b><br>"
+        "🔹 <b>stop la surveillance</b><br>"
+        "🔹 <b>arrête le planificateur</b><br><br>"
+        "Pour l'instant, tu peux me préciser la boucle "
+        "à arrêter directement dans le chat.<br>"
+        "Exemple : <i>arrête la surveillance</i>",
+        "suggestions": [
+            {"label": "🔍 Chercher", "action": "chercher"},
+            {"label": "📥 Téléchargements", "action": "telechargement"},
+            {"label": "❓ Aide", "action": "aide"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "relance": {
+        "keywords": [
+            "relance",
+            "relancer",
+            "redémarre",
+            "redemarre",
+            "redémarrer",
+            "restart",
+            "reboot",
+            "réactive",
+            "reactive",
+            "relance la boucle",
+            "réinitialise",
+            "reinitialise",
+            "recommence",
+        ],
+        "icon": "🔄",
+        "response": "Quelle boucle veux-tu relancer ?<br><br>"
+        "Tu peux préciser par exemple :<br>"
+        "🔹 <b>relance la recherche</b><br>"
+        "🔹 <b>relance la surveillance</b><br>"
+        "🔹 <b>relance le planificateur</b><br><br>"
+        "Pour l'instant, tu peux me préciser la boucle "
+        "à relancer directement dans le chat.<br>"
+        "Exemple : <i>relance la surveillance</i>",
+        "suggestions": [
+            {"label": "🔍 Chercher", "action": "chercher"},
+            {"label": "📥 Téléchargements", "action": "telechargement"},
+            {"label": "📅 Planificateur", "action": "planificateur"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "connexion": {
+        "keywords": [
+            "connexion",
+            "connecter",
+            "connexion",
+            "connecte",
+            "login",
+            "log in",
+            "sign in",
+            "authentification",
+            "authentifier",
+            "déconnexion",
+            "deconnexion",
+            "déconnecte",
+            "deconnecte",
+            "déconnecter",
+            "deconnecter",
+            "logout",
+            "sign out",
+            "se connecter",
+            "se déconnecter",
+            "identifiants",
+            "serveur",
+            "serveur soulseek",
+        ],
+        "icon": "🔌",
+        "response": "Tu veux gérer ta connexion à Soulseek ?<br><br>"
+        "Je peux t'emmener vers la page de connexion. "
+        "<b>Héra</b> peut aussi t'aider à configurer "
+        "tes identifiants dans les paramètres.",
+        "actions": [
+            {"type": "navigate", "bot": "connexion"},
+        ],
+        "suggestions": [
+            {"label": "🔌 Page connexion", "action": "connexion"},
+            {"label": "⚙️ Configurer", "action": "assistant"},
+            {"label": "🏠 Accueil", "action": "welcome"},
+        ],
+    },
+    "etat": {
+        "keywords": [
+            "état",
+            "etat",
+            "état des boucles",
+            "etat des boucles",
+            "qu'est-ce qui tourne",
+            "qu est ce qui tourne",
+            "que tourne",
+            "actif",
+            "actifs",
+            "actives",
+            "en cours",
+            "ce qui tourne",
+            "quels bots",
+            "boucle active",
+            "boucles actives",
+            "statut des bots",
+            "status des bots",
+            "que faire",
+            "que puis-je faire",
+            "quoi faire",
+        ],
+        "icon": "📡",
+        "response": "Voici un aperçu de ce qui est disponible :<br><br>"
+        "🔍 <b>Athéna</b> — Recherche de fichiers<br>"
+        "📥 <b>Hadès</b> — Téléchargements<br>"
+        "📚 <b>Déméter</b> — Bibliothèque partagée<br>"
+        "📋 <b>Aphrodite</b> — Wishlist<br>"
+        "👁️ <b>Artémis</b> — Surveillance / Alertes<br>"
+        "📅 <b>Apollon</b> — Planificateur<br>"
+        "🧹 <b>Poséidon</b> — Ordonnanceur<br>"
+        "👥 <b>Arès</b> — Clients Actifs<br>"
+        "⚡ <b>Héphaistos</b> — Optimiseur<br>"
+        "⚙️ <b>Héra</b> — Configuration<br>"
+        "💬 <b>Hestia</b> — Salons<br><br>"
+        "Tous les bots avec une boucle peuvent être démarrés "
+        "et arrêtés. Dis-moi ce que tu veux lancer !",
+        "suggestions": [
+            {"label": "🔍 Chercher", "action": "chercher"},
+            {"label": "📥 Téléchargements", "action": "telechargement"},
+            {"label": "❓ Aide", "action": "aide"},
             {"label": "🏠 Accueil", "action": "welcome"},
         ],
     },
@@ -400,6 +769,7 @@ KNOWLEDGE: dict[str, dict] = {
         "<b>Artémis</b> (Surveillance), <b>Apollon</b> (Planificateur), "
         "<b>Poséidon</b> (Ordonnanceur), <b>Arès</b> (Clients Actifs), "
         "<b>Héphaistos</b> (Optimiseur), "
+        "<b>Hestia</b> (Salons), "
         "<b>Héra</b> (Assistant), et <b>Dionysos</b> (Aide).",
         "suggestions": [
             {"label": "🎯 Voir les 12 bots", "action": "about"},

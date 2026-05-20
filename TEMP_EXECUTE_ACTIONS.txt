@@ -1,0 +1,60 @@
+    def _execute_actions(self, actions: list[dict]) -> None:
+        """Exécute une séquence d'actions (combo actions)."""
+        if not actions:
+            return
+
+        def _run_step(index: int) -> None:
+            if index >= len(actions):
+                return
+            action = actions[index]
+            atype = action.get("type", "")
+
+            if atype == "message":
+                self.add_message(
+                    action.get("icon", "💬"),
+                    action.get("text", ""),
+                    action.get("suggestions"),
+                )
+                QTimer.singleShot(400, lambda: _run_step(index + 1))
+
+            elif atype == "navigate":
+                bot = action.get("bot", "")
+                if bot == "Assistant":
+                    self.assistant_request.emit("config", action.get("query", "Configuration"))
+                else:
+                    self.navigate_to(bot, action.get("icon", "➡️"))
+
+            elif atype == "delay":
+                QTimer.singleShot(
+                    action.get("ms", 500),
+                    lambda idx=index: _run_step(idx + 1),
+                )
+
+            elif atype == "suggestions":
+                self.set_suggestions(action.get("items", []))
+                QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+            elif atype == "start_loop":
+                bot_name = action.get("bot", "")
+                start_delay = action.get("delay", 0)
+                if bot_name:
+                    if start_delay > 0:
+                        QTimer.singleShot(start_delay, lambda: self._do_start_loop(bot_name))
+                    else:
+                        self._do_start_loop(bot_name)
+                QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+            elif atype == "start_loop_and_navigate":
+                bot_name = action.get("bot", "")
+                icon_nav = action.get("icon", "➡️")
+                if bot_name:
+                    # _do_start_loop() emits loop_started (→ toast) and handles
+                    # failure feedback internally — no need for extra add_message
+                    self._do_start_loop(bot_name)
+                    self.navigate_to(bot_name, icon_nav)
+                QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+            else:
+                _run_step(index + 1)
+
+        _run_step(0)

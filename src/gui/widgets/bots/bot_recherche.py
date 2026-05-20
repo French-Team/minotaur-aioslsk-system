@@ -714,10 +714,15 @@ class BotRecherche(QFrame):
         # pyrefly: ignore [missing-attribute]
         self.setFrameShape(QFrame.NoFrame)
 
+        self._actif = False
         self._connexion_manager = connexion_manager
         self._clients_actifs_service: ClientsActifsService | None = None
         self._searching = False
         self._search_timer: QTimer | None = None
+        self._loop_timer: QTimer = QTimer(self)
+        self._loop_timer.setInterval(60000)  # 60s entre chaque tick
+        self._loop_timer.timeout.connect(self._on_loop_tick)
+
         self._result_count = 0
         self._audio_filter_enabled = True
         self._mode_dispo_enabled = False
@@ -740,6 +745,34 @@ class BotRecherche(QFrame):
 
         self._setup_ui()
         self._update_connected_state()
+
+    # ── Interrupteur ─────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle Recherche."""
+        if self._actif:
+            return
+        self._actif = True
+        self._loop_timer.start()
+        self._on_loop_tick()
+        logger.info("BotRecherche démarré (cycle 60s)")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle Recherche."""
+        if not self._actif:
+            return
+        self._actif = False
+        self._loop_timer.stop()
+        logger.info("BotRecherche arrêté")
+
+    def _on_loop_tick(self) -> None:
+        """Tick périodique : vérifie l'état de connexion."""
+        if not self._actif:
+            return
+        self._update_connected_state()
+        logger.debug("BotRecherche tick — connexion OK" if (
+            self._connexion_manager is not None and self._connexion_manager.is_connected
+        ) else "BotRecherche tick — déconnecté")
 
     # ── Injection des services ─────────────────────────────────
 

@@ -7,16 +7,18 @@ connecté au ClientsActifsService.
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from aioslsk.user.model import UserStatus
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -24,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.theme_fragments.colors import COLORS
+from PySide6.QtCore import Qt
 
 if TYPE_CHECKING:
     from src.services.clients_actifs_service import (
@@ -99,6 +102,7 @@ class BotClientsActifs(QFrame):
 
     page_changed = Signal(str)
     unseen_count_changed = Signal(int)
+    rafraichir_demande = Signal()  # émis quand l'utilisateur clique Rafraîchir
 
     _COLONNES: list[tuple[str, str, int]] = [
         ("statut", "Statut", 90),
@@ -115,8 +119,25 @@ class BotClientsActifs(QFrame):
         super().__init__(parent)
         self._service: ClientsActifsService | None = None
         self._setup_done = False
+        self._actif = False
+
+        # Stats trackées depuis les signaux
+        self._total_candidats: int = 0
+        self._actifs_joignables: int = 0
+        self._last_update_time: float = 0.0
 
         self._build_ui()
+
+        # Timer pour mettre à jour l'affichage "Dernière mise à jour" toutes les 60s
+        self._maj_timer = QTimer(self)
+        self._maj_timer.setInterval(60_000)
+        self._maj_timer.timeout.connect(self._update_derniere_maj)
+
+        # Timer de sécurité pour le bouton Rafraîchir (60s max)
+        self._timeout_rafraichir = QTimer(self)
+        self._timeout_rafraichir.setSingleShot(True)
+        self._timeout_rafraichir.setInterval(60_000)
+        self._timeout_rafraichir.timeout.connect(self._on_rafraichir_timeout)
 
     # ── Construction UI ─────────────────────────────────────────
 
@@ -131,19 +152,76 @@ class BotClientsActifs(QFrame):
         self._header_layout = QHBoxLayout(self._header_bar)
         self._header_layout.setContentsMargins(16, 8, 16, 8)
 
-        self._lbl_total = QLabel("Total: —")
-        self._lbl_actifs = QLabel("Actifs: —")
-        self._lbl_connectes = QLabel("Connectés: —")
-        self._lbl_total.setStyleSheet(f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px;")
-        self._lbl_actifs.setStyleSheet(f"color: {COLORS['SUCCESS']}; font-size: 12px; font-weight: bold;")
-        self._lbl_connectes.setStyleSheet(f"color: {COLORS['SUCCESS_BORDER']}; font-size: 12px;")
+        # Indicateur d'état du pipeline
+        self._lbl_etat = QLabel("⏸ Arrêté")
+        self._lbl_etat.setStyleSheet(
+            f"color: {COLORS['TEXT_MUTED']}; font-size: 12px; font-weight: bold;"
+        )
+        self._header_layout.addWidget(self._lbl_etat)
+        self._header_layout.addSpacing(16)
 
-        self._header_layout.addWidget(self._lbl_total)
-        self._header_layout.addSpacing(16)
-        self._header_layout.addWidget(self._lbl_actifs)
-        self._header_layout.addSpacing(16)
-        self._header_layout.addWidget(self._lbl_connectes)
+        # Candidats (membres des rooms)
+        self._lbl_candidats = QLabel("Candidats: —")
+        self._lbl_candidats.setStyleSheet(
+            f"color: {COLORS['TEXT_SECONDARY']}; font-size: 12px;"
+        )
+        self._header_layout.addWidget(self._lbl_candidats)
+        self._header_layout.addSpacing(12)
+
+        # Actifs & joignables (après ping + ONLINE)
+        self._lbl_actifs_joignables = QLabel("Actifs: —")
+        self._lbl_actifs_joignables.setStyleSheet(
+            f"color: {COLORS['SUCCESS']}; font-size: 12px; font-weight: bold;"
+        )
+        self._header_layout.addWidget(self._lbl_actifs_joignables)
+        self._header_layout.addSpacing(12)
+
+        # Injouignables (ping échoué ou pas ONLINE)
+        self._lbl_injouignables = QLabel("Injouignables: —")
+        self._lbl_injouignables.setStyleSheet(
+            f"color: {COLORS['WARNING']}; font-size: 12px;"
+        )
+        self._header_layout.addWidget(self._lbl_injouignables)
+        self._header_layout.addSpacing(12)
+
+        # Dernière mise à jour
+        self._lbl_derniere_maj = QLabel("Dernière mise à jour: —")
+        self._lbl_derniere_maj.setStyleSheet(
+            f"color: {COLORS['TEXT_MUTED']}; font-size: 11px;"
+        )
+        self._header_layout.addWidget(self._lbl_derniere_maj)
         self._header_layout.addStretch()
+
+        # ── Bouton Rafraîchir ───────────────────────────────────
+        self._btn_rafraichir = QPushButton("🔄 Rafraîchir")
+        self._btn_rafraichir.setToolTip(
+            "Relance la détection complète des clients actifs (rooms → ping → filtrage)"
+        )
+        self._btn_rafraichir.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_rafraichir.setStyleSheet(
+            f"""
+            QPushButton {{
+                background: {COLORS["BG_SURFACE"]};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: 1px solid {COLORS["BORDER"]};
+                border-radius: 4px;
+                padding: 4px 12px;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background: {COLORS["ACCENT_HOVER"]};
+                border-color: {COLORS["ACCENT"]};
+                color: {COLORS["TEXT_WHITE"]};
+            }}
+            QPushButton:disabled {{
+                background: {COLORS["BG_INPUT"]};
+                color: {COLORS["TEXT_PLACEHOLDER"]};
+                border-color: {COLORS["BORDER_LIGHT"]};
+            }}
+            """
+        )
+        self._btn_rafraichir.clicked.connect(self._on_rafraichir_click)
+        self._header_layout.addWidget(self._btn_rafraichir)
 
         layout.addWidget(self._header_bar)
 
@@ -204,6 +282,32 @@ class BotClientsActifs(QFrame):
 
         layout.addWidget(self._table, 1)
 
+    # ── Interrupteur ─────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle clients actifs."""
+        if self._actif:
+            return
+        self._actif = True
+        self._show_etat("prêt")
+        if self._service is not None and hasattr(self._service, "demarrer"):
+            self._service.demarrer()
+        logger.info("BotClientsActifs démarré")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle clients actifs."""
+        if not self._actif:
+            return
+        self._actif = False
+        self._show_etat("arrêté")
+        if self._service is not None and hasattr(self._service, "arreter"):
+            self._service.arreter()
+        logger.info("BotClientsActifs arrêté")
+
+    @property
+    def est_actif(self) -> bool:
+        return self._actif
+
     # ── Setup ───────────────────────────────────────────────────
 
     def setup(self, service: ClientsActifsService) -> None:
@@ -215,11 +319,15 @@ class BotClientsActifs(QFrame):
         self._service = service
 
         # Connexion aux signaux du service
-        service.clients_synchronises.connect(self._initialiser_tableau)
+        service.clients_synchronises.connect(self._on_clients_synchronises)
+        service.clients_valides.connect(self._on_clients_valides)
         service.client_ajoute.connect(self._ajouter_ligne)
         service.client_retire.connect(self._retirer_ligne)
         service.client_statut_change.connect(self._mettre_a_jour_statut)
         service.client_info_change.connect(self._mettre_a_jour_info)
+
+        # Démarrer le timer de mise à jour du timestamp
+        self._maj_timer.start()
 
         # Rafraîchir si déjà synchronisé
         self.rafraichir()
@@ -232,6 +340,27 @@ class BotClientsActifs(QFrame):
             return
         actifs = self._service.clients_actifs()
         self._initialiser_tableau(actifs)
+
+    # ── Wrappers signaux ────────────────────────────────────────
+
+    def _on_clients_synchronises(self, clients: list[ClientInfo]) -> None:
+        """Réception du signal clients_synchronises (tous les candidats)."""
+        self._total_candidats = len(clients)
+        self._initialiser_tableau(clients)
+
+    def _on_clients_valides(self, clients: list[ClientInfo]) -> None:
+        """Réception du signal clients_valides (après ping + filtrage ONLINE)."""
+        self._actifs_joignables = len(clients)
+        self._last_update_time = time.time()
+        self._show_etat("prêt")
+        self._update_derniere_maj()
+
+        # Réactiver le bouton Rafraîchir (et arrêter le timeout)
+        self._btn_rafraichir.setEnabled(True)
+        self._btn_rafraichir.setText("🔄 Rafraîchir")
+        self._timeout_rafraichir.stop()
+
+        self._initialiser_tableau(clients)
 
     # ── Remplissage du tableau ──────────────────────────────────
 
@@ -358,18 +487,28 @@ class BotClientsActifs(QFrame):
 
                 # Fichiers
                 fichiers = f"{client.fichiers_partages:,}" if client.fichiers_partages else "—"
-                self._table.setItem(row, 4, _NumericItem(client.fichiers_partages, fichiers))
+                self._table.setItem(
+                    row, 4, _NumericItem(client.fichiers_partages, fichiers)
+                )
 
                 # Slots
                 if client.slots_libres_flag:
                     slots = f"{client.slots_libres} libre(s)"
                 else:
                     slots = "—"
-                self._table.setItem(row, 5, _NumericItem(client.slots_libres if client.slots_libres_flag else 0, slots))
+                self._table.setItem(
+                    row,
+                    5,
+                    _NumericItem(
+                        client.slots_libres if client.slots_libres_flag else 0, slots
+                    ),
+                )
 
                 # File
                 file_att = str(client.file_attente) if client.file_attente > 0 else "—"
-                self._table.setItem(row, 6, _NumericItem(client.file_attente, file_att))
+                self._table.setItem(
+                    row, 6, _NumericItem(client.file_attente, file_att)
+                )
 
                 # Pays
                 # pyrefly: ignore [missing-attribute]
@@ -382,20 +521,90 @@ class BotClientsActifs(QFrame):
                 self._table.setSortingEnabled(True)
                 break
 
+    # ── Indicateur d'état ──────────────────────────────────────
+
+    def _show_etat(self, etat: str) -> None:
+        """Met à jour l'indicateur d'état du pipeline.
+
+        Paramètres
+        ----------
+        etat : str
+            ``\"prêt\"`` → 🟢 Prêt
+            ``\"scan\"`` → 🔄 Scan en cours...
+            ``\"arrêté\"`` → ⏸ Arrêté
+        """
+        mapping = {
+            "prêt": ("🟢", "Prêt", COLORS["SUCCESS"]),
+            "scan": ("🔄", "Scan en cours…", COLORS["ACCENT"]),
+            "arrêté": ("⏸", "Arrêté", COLORS["TEXT_MUTED"]),
+        }
+        icone, texte, couleur = mapping.get(etat, ("❓", "Inconnu", COLORS["DANGER"]))
+        self._lbl_etat.setText(f"{icone} {texte}")
+        self._lbl_etat.setStyleSheet(
+            f"color: {couleur}; font-size: 12px; font-weight: bold;"
+        )
+
+    # ── Dernière mise à jour ────────────────────────────────────
+
+    def _update_derniere_maj(self) -> None:
+        """Met à jour le label 'Dernière mise à jour' avec le temps relatif."""
+        if self._last_update_time <= 0:
+            self._lbl_derniere_maj.setText("Dernière mise à jour: —")
+            return
+
+        elapsed = time.time() - self._last_update_time
+        if elapsed < 60:
+            texte = "il y a < 1 min"
+        elif elapsed < 3600:
+            minutes = int(elapsed // 60)
+            texte = f"il y a {minutes} min"
+        elif elapsed < 86400:
+            heures = int(elapsed // 3600)
+            minutes = int((elapsed % 3600) // 60)
+            texte = f"il y a {heures}h{minutes:02d}"
+        else:
+            jours = int(elapsed // 86400)
+            texte = f"il y a {jours} jour(s)"
+
+        self._lbl_derniere_maj.setText(f"Dernière mise à jour: {texte}")
+
+    # ── Rafraîchir ────────────────────────────────────────────
+
+    def _on_rafraichir_timeout(self) -> None:
+        """Timeout de sécurité : réactive le bouton après 60s si le pipeline n'a pas répondu."""
+        self._btn_rafraichir.setEnabled(True)
+        self._btn_rafraichir.setText("🔄 Rafraîchir")
+        if self._actif:
+            self._show_etat("prêt")
+        logger.warning("Timeout Rafraîchir — pipeline non terminé après 60s")
+
+    def _on_rafraichir_click(self) -> None:
+        """L'utilisateur a cliqué sur Rafraîchir → désactive le bouton et émet le signal."""
+        self._btn_rafraichir.setEnabled(False)
+        self._btn_rafraichir.setText("🔄 Scan en cours…")
+        self._show_etat("scan")
+        self._timeout_rafraichir.start()
+        self.rafraichir_demande.emit()
+
     # ── Stats ──────────────────────────────────────────────────
 
     def _mettre_a_jour_stats(self) -> None:
-        """Met à jour la barre de statistiques."""
-        if self._service is None:
-            return
+        """Met à jour la barre de statistiques (candidats / actifs & joignables / injouignables).
 
-        total = len(self._service.clients_actifs())
-        actifs = self._service.nombre_actifs()
-        connectes = self._service.nombre_connectes()
+        Utilise les valeurs trackées depuis les signaux pipeline (clients_synchronises
+        et clients_valides). Quand un client est ajouté individuellement via un
+        événement temps-réel (client_ajoute), le compteur ``_total_candidats`` n'est
+        pas incrémenté — on utilise ``max(nb_lignes, total_tracké)`` pour ne jamais
+        afficher un total inférieur au nombre réel de lignes.
+        """
+        nb_lignes = self._table.rowCount()
+        total = max(self._total_candidats, nb_lignes)
+        actifs = max(self._actifs_joignables, nb_lignes)
+        injouignables = max(0, total - actifs)
 
-        self._lbl_total.setText(f"Total: {total}")
-        self._lbl_actifs.setText(f"Actifs: {actifs}")
-        self._lbl_connectes.setText(f"Connectés: {connectes}")
+        self._lbl_candidats.setText(f"Candidats: {total}")
+        self._lbl_actifs_joignables.setText(f"Actifs & joignables: {actifs}")
+        self._lbl_injouignables.setText(f"Injouignables: {injouignables}")
 
-        # Badge pour la navigation
+        # Badge pour la navigation (basé sur les actifs & joignables)
         self.unseen_count_changed.emit(actifs)

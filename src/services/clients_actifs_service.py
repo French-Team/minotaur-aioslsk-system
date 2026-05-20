@@ -21,9 +21,15 @@ if TYPE_CHECKING:
     from aioslsk.client import SoulSeekClient
     from aioslsk.user.model import User
 
+    from src.services.connexion_manager import ConnexionManager
     from src.services.soulseek_client import SoulseekService
 
 logger = logging.getLogger(__name__)
+
+# ── Paramètres de rate limiting pour le ping par lots ────────────
+
+_LOT_PING = 10  # Nombre de clients pingés par lot
+_DELAI_INTER_LOTS = 2.0  # Secondes entre deux lots
 
 
 @dataclass
@@ -59,6 +65,8 @@ class ClientsActifsService(QObject):
     client_statut_change = Signal(str, object, object)  # username, nouveau statut, ancien statut
     client_info_change = Signal(str)  # username dont les infos ont changé
     clients_synchronises = Signal(list)  # liste initiale [ClientInfo, ...]
+    ping_termine = Signal(list)  # [str] — usernames ayant répondu au ping
+    clients_valides = Signal(list)  # [ClientInfo] — clients actifs & joignables après ping
 
     def __init__(
         self,
@@ -69,8 +77,8 @@ class ClientsActifsService(QObject):
         self._soulseek = soulseek_service
         self._clients: dict[str, ClientInfo] = {}
         self._running = False
-        self._ping_task = None
-        self._async_loop = None  # boucle asyncio du ConnexionManager (injectée au démarrage)
+        self._ping_en_cours = False  # Évite les doubles pings simultanés
+        self._cm: ConnexionManager | None = None  # Injecté via set_connexion_manager()
 
         # Minuteur pour synchroniser périodiquement les membres des salons rejoints
         self._sync_timer = QTimer(self)
@@ -78,6 +86,49 @@ class ClientsActifsService(QObject):
         self._sync_timer.timeout.connect(self._synchroniser)
 
         # Le cycle de vie est piloté de manière centralisée et séquentielle par le contrôleur (MainWindow)
+
+        # Connexion interne : ping_termine → filtre → clients_valides
+        self.ping_termine.connect(self._on_ping_termine)
+
+    # ── Propriétés ──────────────────────────────────────────────
+
+    def ingest_membres_rooms(self, membres: list[dict]) -> None:
+        """Reçoit les membres des salons depuis BoucleRooms.
+
+        Ces membres complètent le UserManager d'aioslsk avec les utilisateurs
+        découverts dans les salons publics.
+
+        Paramètres
+        ----------
+        membres : list[dict]
+            Liste de dictionnaires avec les clés ``username``, ``room``, ``status``.
+        """
+        for memb in membres:
+            username = memb.get("username", "")
+            if not username:
+                continue
+            if username not in self._clients:
+                info = ClientInfo(
+                    username=username,
+                    statut=UserStatus.ONLINE,  # From room = visible = online-ish
+                )
+                self._clients[username] = info
+                self.client_ajoute.emit(username)
+            else:
+                # Already tracked via UserManager — room membership may have changed
+                # Update statut to ONLINE since they're in a room (visible)
+                existing = self._clients[username]
+                if existing.statut == UserStatus.UNKNOWN:
+                    existing.statut = UserStatus.ONLINE
+                    self.client_statut_change.emit(username, UserStatus.ONLINE, UserStatus.UNKNOWN)
+                logger.debug("Client %s already tracked (rooms update skipped)", username)
+        # Re émette le signal de synchro pour que le tableau se mette à jour
+        actifs = self.clients_actifs()
+        self.clients_synchronises.emit(actifs)
+        logger.debug("ClientsActifsService: ingest %d membres depuis Rooms", len(membres))
+
+        # Déclencher le ping par lots pour valider la joignabilité des membres
+        self.lancer_ping(membres)
 
     # ── Propriétés ──────────────────────────────────────────────
 
@@ -88,17 +139,18 @@ class ClientsActifsService(QObject):
 
     # ── Cycle de vie ────────────────────────────────────────────
 
-    def demarrer(self, async_loop=None) -> None:
+    def demarrer(self) -> None:
         """Démarre le service : synchronisation initiale + abonnement événements.
 
-        Args:
-            async_loop: La boucle asyncio du ConnexionManager (thread réseau applicatif).
-                        Si fournie, une tâche de ping légère sera lancée dessus.
+        Note
+        ----
+        Le ping par lots n'est PAS lancé automatiquement au démarrage.
+        Il est déclenché via ``lancer_ping(membres)`` après réception
+        des membres depuis BoucleRooms.
         """
         if self._running:
             return
         self._running = True
-        self._async_loop = async_loop
 
         client = self._client
         if client is None:
@@ -124,34 +176,31 @@ class ClientsActifsService(QObject):
         # 3. Démarrer le minuteur de synchronisation Qt (thread UI — sans réseau)
         self._sync_timer.start()
 
-        # 4. Lancer le ping léger sur la boucle APPLICATIVE (pas la boucle interne aioslsk)
-        #    On n'exécute aucune commande réseau lourde ici — uniquement GetUserStatus
-        #    pour les utilisateurs déjà suivis par aioslsk.
-        if async_loop is not None:
-            try:
-                import asyncio
-                self._ping_task = asyncio.run_coroutine_threadsafe(
-                    self._do_ping_loop(), async_loop
-                )
-                logger.info("ClientsActifsService: tâche de ping démarrée")
-            except Exception:
-                logger.exception("ClientsActifsService: impossible de lancer le ping_task")
-        else:
-            logger.info("ClientsActifsService: pas de boucle async fournie — ping désactivé")
+        logger.info("ClientsActifsService démarré")
 
     def arreter(self) -> None:
         """Arrête le service."""
         self._running = False
+        self._ping_en_cours = False
         self._sync_timer.stop()
-        if self._ping_task is not None:
-            self._ping_task.cancel()
-            self._ping_task = None
         self._clients.clear()
         logger.info("ClientsActifsService arrêté")
 
     def rafraichir(self) -> None:
         """Re-synchronisation manuelle (ex: reconnexion)."""
         self._synchroniser()
+
+    # ── Injection ConnexionManager ───────────────────────────────
+
+    def set_connexion_manager(self, manager: ConnexionManager) -> None:
+        """Injecte le ConnexionManager pour exécuter des coroutines asynchrones.
+
+        Appelé par CenterZone au moment de la connexion. Permet à
+        ``lancer_ping()`` d'utiliser ``run_coro()`` au lieu d'accéder
+        directement à la boucle asyncio du client aioslsk.
+        """
+        self._cm = manager
+        logger.debug("ClientsActifsService: ConnexionManager injecté")
 
     # ── Accès aux données ───────────────────────────────────────
 
@@ -303,46 +352,117 @@ class ClientsActifsService(QObject):
         else:
             self.arreter()
 
-    async def _do_ping_loop(self) -> None:
-        """Boucle asyncio légère : rafraîchit le statut des utilisateurs déjà suivis.
+    # ── Ping par lots ───────────────────────────────────────────────
 
-        S'exécute sur la boucle applicative du ConnexionManager.
-        N'effectue AUCUN auto-join autonome — rejoindre des salons est
-        une action explicite déclenchée par l'utilisateur via l'interface.
+    def lancer_ping(self, membres: list[dict]) -> None:
+        """Déclenche le ping par lots sur la boucle asyncio du ConnexionManager.
+
+        Cette méthode est appelée après réception des membres depuis
+        BoucleRooms pour vérifier quels clients sont réellement joignables.
+        Utilise ``ConnexionManager.run_coro()`` pour exécuter la coroutine
+        sur la bonne boucle asyncio.
+
+        Paramètres
+        ----------
+        membres : list[dict]
+            Liste des membres (username, room, status) provenant de BoucleRooms.
+        """
+        if self._ping_en_cours:
+            logger.warning("Ping déjà en cours — ignoré")
+            return
+
+        if self._cm is None:
+            logger.warning("ClientsActifsService: ConnexionManager non injecté — ping impossible")
+            return
+
+        try:
+            self._cm.run_coro(self._ping_par_lots(membres))
+            logger.debug("Ping par lots déclenché (%d membres)", len(membres))
+        except Exception:
+            logger.exception("ClientsActifsService: impossible de lancer le ping")
+
+    async def _ping_par_lots(self, membres: list[dict]) -> list[str]:
+        """Pinge les membres par lots et retourne ceux qui ont répondu.
+
+        Découpe la liste en lots de ``_LOT_PING`` clients et attend
+        ``_DELAI_INTER_LOTS`` secondes entre chaque lot pour éviter
+        de saturer le réseau Soulseek.
+
+        Paramètres
+        ----------
+        membres : list[dict]
+            Liste des membres à pinger (username, room, status).
+
+        Retourne
+        --------
+        list[str]
+            Liste des usernames qui ont répondu au ping.
         """
         import asyncio
         from aioslsk.commands import GetUserStatusCommand
 
-        logger.info("ClientsActifsService: boucle de ping démarrée (intervalle=120s)")
+        self._ping_en_cours = True
+        reponses: list[str] = []
+        total = len(membres)
+        lots_total = (total - 1) // _LOT_PING + 1 if total > 0 else 0
 
-        while self._running:
-            # Attendre avant le premier ping (laisser la connexion se stabiliser)
-            await asyncio.sleep(120.0)
-
-            if not self._running:
-                break
-
-            client = self._client
-            if client is None:
-                break
-
-            # Rafraîchir uniquement les utilisateurs déjà trackés par aioslsk
-            current_clients = list(self._clients.keys())
-            if not current_clients:
-                continue
-
-            logger.debug(
-                "ClientsActifsService: ping de %d utilisateurs trackés",
-                len(current_clients),
-            )
-            for username in current_clients:
+        try:
+            for i in range(0, total, _LOT_PING):
                 if not self._running:
                     break
-                try:
-                    # pyrefly: ignore [bad-argument-type]
-                    await client.execute(GetUserStatusCommand(username))
-                except Exception:
-                    pass
-                await asyncio.sleep(0.2)  # Délai entre chaque requête
 
-        logger.info("ClientsActifsService: boucle de ping terminée")
+                lot = membres[i:i + _LOT_PING]
+                nb_reponses = 0
+
+                for memb in lot:
+                    username = memb.get("username", "")
+                    if not username:
+                        continue
+                    if not self._running:
+                        break
+                    try:
+                        await self._client.execute(GetUserStatusCommand(username))
+                        reponses.append(username)
+                        nb_reponses += 1
+                    except Exception:
+                        pass  # Pas de réponse → client non joignable
+
+                num_lot = i // _LOT_PING + 1
+                logger.debug(
+                    "Lot %d/%d : %d pings, %d réponses",
+                    num_lot, lots_total, len(lot), nb_reponses,
+                )
+
+                # Attendre avant le prochain lot (sauf si c'est le dernier)
+                if i + _LOT_PING < total:
+                    await asyncio.sleep(_DELAI_INTER_LOTS)
+
+        finally:
+            self._ping_en_cours = False
+
+        logger.info(
+            "Ping terminé : %d/%d ont répondu (lots=%d)",
+            len(reponses), total, lots_total,
+        )
+        self.ping_termine.emit(reponses)
+        return reponses
+
+    def _on_ping_termine(self, reponses: list[str]) -> None:
+        """Callback exécuté après la fin du ping asynchrone.
+
+        Filtre les répondants pour ne garder que ceux dont le statut
+        est ``ONLINE`` (actifs & joignables) et émet le résultat
+        via ``clients_valides``.
+
+        Paramètres
+        ----------
+        reponses : list[str]
+            Usernames ayant répondu au ping.
+        """
+        valides = [
+            self._clients[u]
+            for u in reponses
+            if u in self._clients and self._clients[u].statut == UserStatus.ONLINE
+        ]
+        self.clients_valides.emit(valides)
+        logger.info("ClientsActifsService: %d clients valides après ping (ONLINE)", len(valides))

@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime
 import json
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -278,6 +278,9 @@ class BotWishlist(QFrame):
 
         # Données
         self._wishlist: list[dict] = []
+        self._actif = False
+        self._timer: QTimer | None = None
+        self._interval_ms = 300_000  # 5 minutes par défaut
         self._local_metadata: dict[str, dict] = {}  # query → {results, last_search, status}
         self._filter: str = "all"  # all | active | inactive | error
         self._search_text: str = ""
@@ -441,6 +444,51 @@ class BotWishlist(QFrame):
 
         # ── Chargement initial des données ──
         self.refresh()
+
+    # ── Interrupteur ─────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle wishlist.
+
+        Lance un QTimer périodique pour rafraîchir automatiquement
+        les résultats de la wishlist.
+        """
+        if self._actif:
+            return
+        self._actif = True
+        if self._timer is None:
+            self._timer = QTimer(self)
+            self._timer.setInterval(self._interval_ms)
+            self._timer.timeout.connect(self._on_timer_tick)
+        self._timer.start()
+        logger.info("BotWishlist démarré")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle wishlist."""
+        if not self._actif:
+            return
+        self._actif = False
+        if self._timer is not None:
+            self._timer.stop()
+        logger.info("BotWishlist arrêté")
+
+    @property
+    def est_actif(self) -> bool:
+        return self._actif
+
+    def set_interval(self, ms: int) -> None:
+        """Configure l'intervalle du timer de rafraîssement."""
+        self._interval_ms = ms
+        if self._timer is not None:
+            self._timer.setInterval(ms)
+
+    def _on_timer_tick(self) -> None:
+        """Callback du timer — recherche automatique des souhaits actifs."""
+        logger.debug("BotWishlist: cycle automatique")
+        # TODO: Implémenter la recherche automatique via ConnexionManager
+        # for wish in self._wishlist:
+        #     if wish.get("enabled"):
+        #         self.search_now(wish["query"])
 
     # ── Gestion des données ──────────────────────────────────
 

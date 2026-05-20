@@ -519,6 +519,141 @@ class TestEvenements:
 
 
 # ═════════════════════════════════════════════════════════════════
+#  Tests de ingest_membres_rooms (BoucleRooms integration)
+# ═════════════════════════════════════════════════════════════════
+
+
+class TestIngestMembresRooms:
+    """Tests pour la méthode ingest_membres_rooms() de ClientsActifsService.
+
+    Cette méthode reçoit les membres des salons depuis BoucleRooms
+    et les intègre dans le suivi des clients actifs.
+    """
+
+    def test_ingest_membres_rooms_ajoute_nouveaux(self) -> None:
+        """ingest_membres_rooms() ajoute les usernames inconnus au suivi."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        ajoutes: list[str] = []
+        service.client_ajoute.connect(ajoutes.append)
+
+        membres = [
+            {"username": "alice", "room": "#musique", "status": "online"},
+            {"username": "bob", "room": "#chat", "status": "online"},
+        ]
+        service.ingest_membres_rooms(membres)
+
+        assert "alice" in service._clients
+        assert "bob" in service._clients
+        assert ajoutes == ["alice", "bob"]
+
+    def test_ingest_membres_rooms_stats_online(self) -> None:
+        """Les membres reçuent statut ONLINE par défaut."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        membres = [{"username": "alice", "room": "#musique", "status": "online"}]
+        service.ingest_membres_rooms(membres)
+
+        assert service._clients["alice"].statut == UserStatus.ONLINE
+
+    def test_ingest_membres_rooms_username_vide_ignore(self) -> None:
+        """Les entrées sans username sont ignorées silencieusement."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        membres = [
+            {"username": "", "room": "#musique", "status": "online"},
+            {"username": "alice", "room": "#musique", "status": "online"},
+        ]
+        service.ingest_membres_rooms(membres)
+
+        assert "alice" in service._clients
+        assert "" not in service._clients
+
+    def test_ingest_membres_rooms_client_existant_unknown_devient_online(self) -> None:
+        """Un client déjà tracked mais avec statut UNKNOWN passe à ONLINE."""
+        # Pré-condition : client tracked avec statut UNKNOWN (via synchronisation initiale vide)
+        service, _mock_soulseek, _mock_client = _make_service({})
+        service.demarrer()
+
+        # Injecter un client UNKNOWN manuellement
+        from src.services.clients_actifs_service import ClientInfo
+
+        service._clients["alice"] = ClientInfo(username="alice", statut=UserStatus.UNKNOWN)
+
+        statut_changes: list[tuple[str, Any, Any]] = []
+        service.client_statut_change.connect(lambda *a: statut_changes.append(a))
+
+        # ingest avec alice (same username, from room)
+        membres = [{"username": "alice", "room": "#musique", "status": "online"}]
+        service.ingest_membres_rooms(membres)
+
+        # Devrait mettre à jour UNKNOWN → ONLINE
+        assert service._clients["alice"].statut == UserStatus.ONLINE
+        assert len(statut_changes) == 1
+        assert statut_changes[0][0] == "alice"
+        assert statut_changes[0][1] == UserStatus.ONLINE
+        assert statut_changes[0][2] == UserStatus.UNKNOWN
+
+    def test_ingest_membres_rooms_client_existant_online_non_mis_a_jour(self) -> None:
+        """Un client déjà ONLINE ne déclenche pas de changement de statut."""
+        users = {"alice": _mock_user("alice", UserStatus.ONLINE)}
+        service, _mock_soulseek, _mock_client = _make_service(users)
+        service.demarrer()
+
+        statut_changes: list[tuple[str, Any, Any]] = []
+        service.client_statut_change.connect(lambda *a: statut_changes.append(a))
+
+        membres = [{"username": "alice", "room": "#musique", "status": "online"}]
+        service.ingest_membres_rooms(membres)
+
+        # ONLINE conservé (pas de changement)
+        assert service._clients["alice"].statut == UserStatus.ONLINE
+        assert len(statut_changes) == 0
+
+    def test_ingest_membres_rooms_emet_clients_synchronises(self) -> None:
+        """ingest_membres_rooms() ré-émet clients_synchronises pour MAJ tableau."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        sync_signals: list[list[ClientInfo]] = []
+        service.clients_synchronises.connect(sync_signals.append)
+
+        membres = [
+            {"username": "alice", "room": "#musique", "status": "online"},
+            {"username": "bob", "room": "#chat", "status": "online"},
+        ]
+        service.ingest_membres_rooms(membres)
+
+        assert len(sync_signals) == 1
+        synced_usernames = {c.username for c in sync_signals[0]}
+        assert "alice" in synced_usernames
+        assert "bob" in synced_usernames
+
+    def test_ingest_membres_rooms_liste_vide(self) -> None:
+        """ingest_membres_rooms() avec liste vide ne crash pas."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        service.ingest_membres_rooms([])
+        assert service._clients == {}
+
+    def test_ingest_membres_rooms_double_appel(self) -> None:
+        """Deux appels à ingest_membres_rooms() fusionnent correctement."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        service.ingest_membres_rooms([{"username": "alice", "room": "#musique", "status": "online"}])
+        service.ingest_membres_rooms([{"username": "bob", "room": "#chat", "status": "online"}])
+
+        assert "alice" in service._clients
+        assert "bob" in service._clients
+        assert service.nombre_connectes() == 2
+
+
+# ═════════════════════════════════════════════════════════════════
 #  Tests d'intégration (simulation de flux réel)
 # ═════════════════════════════════════════════════════════════════
 
@@ -569,3 +704,327 @@ class TestFluxReel:
         actifs = service.clients_actifs()
         assert len(actifs) == 3  # a + b + c (exclut UNKNOWN)
         assert service.obtenir_client("d") is not None  # existe mais UNKNOWN
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Tests du ping par lots (Étapes 1 & 2)
+# ═════════════════════════════════════════════════════════════════
+
+
+class TestPingParLots:
+    """Tests pour lancer_ping(), _ping_par_lots() et _on_ping_termine().
+
+    Ces tests vérifient le pipeline ingest → ping → signal ping_termine
+    → clients_valides introduit aux Étapes 1 & 2.
+    """
+
+    # ── lancer_ping() ───────────────────────────────────────────
+
+    def test_lancer_ping_sans_cm_log_warning(self) -> None:
+        """lancer_ping() sans ConnexionManager injecté ne fait rien."""
+        service, _mock_soulseek, _mock_client = _make_service()
+        service.demarrer()
+
+        # _cm n'est pas injecté → warning, pas de ping
+        membres = [{"username": "alice", "room": "#musique", "status": "online"}]
+        service.lancer_ping(membres)
+
+        # Aucun appel à run_coro puisque _cm est None
+        assert service._ping_en_cours is False
+
+    def test_lancer_ping_declenche_run_coro(self) -> None:
+        """lancer_ping() avec _cm injecté appelle run_coro()."""
+        import asyncio
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Injecter un ConnexionManager factice qui exécute réellement la coroutine
+        mock_cm = MagicMock()
+        mock_cm.run_coro.side_effect = lambda coro: asyncio.run(coro)
+        service.set_connexion_manager(mock_cm)
+
+        membres = [{"username": "alice", "room": "#musique", "status": "online"}]
+        service.lancer_ping(membres)
+
+        # run_coro doit avoir été appelé avec une coroutine
+        mock_cm.run_coro.assert_called_once()
+        call_arg = mock_cm.run_coro.call_args[0][0]
+        # Vérifier que c'est une coroutine (_ping_par_lots)
+        assert asyncio.iscoroutine(call_arg)
+
+    def test_lancer_ping_ping_deja_en_cours_ignore(self) -> None:
+        """lancer_ping() appelé deux fois ignore le second appel."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        service.set_connexion_manager(mock_cm)
+
+        # Forcer le flag à True (simule un ping en cours)
+        service._ping_en_cours = True
+
+        membres = [{"username": "alice", "room": "#musique", "status": "online"}]
+        service.lancer_ping(membres)
+
+        # run_coro ne doit PAS être appelé
+        mock_cm.run_coro.assert_not_called()
+
+        # Nettoyer le flag pour les autres tests
+        service._ping_en_cours = False
+
+    # ── _ping_par_lots() (asynchrone) ───────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_ping_par_lots_tous_repondent(self) -> None:
+        """_ping_par_lots() retourne tous les usernames si tous répondent."""
+        from src.services.clients_actifs_service import _LOT_PING
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Remplacer execute par une coroutine qui réussit toujours
+        async def _execute_success(_command):
+            return MagicMock()
+        mock_client.execute = _execute_success
+
+        # Plus de membres que _LOT_PING pour tester le découpage en lots
+        membres = [
+            {"username": f"user{i:03d}", "room": "#test", "status": "online"}
+            for i in range(_LOT_PING + 5)
+        ]
+
+        reponses = await service._ping_par_lots(membres)
+
+        assert len(reponses) == len(membres)
+        expected = [m["username"] for m in membres]
+        assert reponses == expected
+
+    @pytest.mark.asyncio
+    async def test_ping_par_lots_certains_echouent(self) -> None:
+        """_ping_par_lots() ignore les usernames qui ne répondent pas."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Faire échouer execute pour certains usernames
+        async def mock_execute(command):
+            username = getattr(command, "username", "")
+            if username and username.startswith("fail"):
+                raise RuntimeError("Timeout ping")
+            return MagicMock()
+
+        mock_client.execute = mock_execute
+
+        membres = [
+            {"username": "alice", "room": "#test", "status": "online"},
+            {"username": "fail_alice", "room": "#test", "status": "online"},
+            {"username": "bob", "room": "#test", "status": "online"},
+            {"username": "fail_bob", "room": "#test", "status": "online"},
+            {"username": "carol", "room": "#test", "status": "online"},
+        ]
+
+        reponses = await service._ping_par_lots(membres)
+
+        assert len(reponses) == 3
+        assert "alice" in reponses
+        assert "bob" in reponses
+        assert "carol" in reponses
+        assert "fail_alice" not in reponses
+        assert "fail_bob" not in reponses
+
+    @pytest.mark.asyncio
+    async def test_ping_par_lots_username_vide_ignore(self) -> None:
+        """_ping_par_lots() ignore les entrées sans username."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        async def _execute_ok(_command):
+            return MagicMock()
+        mock_client.execute = _execute_ok
+
+        membres = [
+            {"username": "", "room": "#test", "status": "online"},
+            {"username": "alice", "room": "#test", "status": "online"},
+        ]
+
+        reponses = await service._ping_par_lots(membres)
+
+        assert reponses == ["alice"]
+
+    @pytest.mark.asyncio
+    async def test_ping_par_lots_liste_vide(self) -> None:
+        """_ping_par_lots() avec liste vide retourne [] et ne crashe pas."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        reponses = await service._ping_par_lots([])
+
+        assert reponses == []
+
+    @pytest.mark.asyncio
+    async def test_ping_par_lots_emet_ping_termine(self) -> None:
+        """_ping_par_lots() émet ping_termine avec la liste des réponses."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        async def _execute_success(_command):
+            return MagicMock()
+        mock_client.execute = _execute_success
+
+        received_signals: list[list[str]] = []
+        service.ping_termine.connect(received_signals.append)
+
+        membres = [
+            {"username": "alice", "room": "#test", "status": "online"},
+            {"username": "bob", "room": "#test", "status": "online"},
+        ]
+        await service._ping_par_lots(membres)
+
+        assert len(received_signals) == 1
+        assert received_signals[0] == ["alice", "bob"]
+
+    @pytest.mark.asyncio
+    async def test_ping_par_lots_flag_ping_en_cours(self) -> None:
+        """_ping_par_lots() gère le flag _ping_en_cours (True pendant, False après)."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        assert service._ping_en_cours is False
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+        await service._ping_par_lots(membres)
+
+        assert service._ping_en_cours is False  # Remis à False après
+
+    # ── _on_ping_termine() ──────────────────────────────────────
+
+    def test_on_ping_termine_emet_clients_valides(self) -> None:
+        """_on_ping_termine() émet clients_valides avec les ClientInfo correspondants."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Pré-remplir _clients avec des ClientInfo
+        from src.services.clients_actifs_service import ClientInfo
+        from aioslsk.user.model import UserStatus
+
+        alice = ClientInfo(username="alice", statut=UserStatus.ONLINE, pays="FR", vitesse=500_000)
+        bob = ClientInfo(username="bob", statut=UserStatus.ONLINE, pays="US")
+        service._clients["alice"] = alice
+        service._clients["bob"] = bob
+
+        received: list[list[ClientInfo]] = []
+        service.clients_valides.connect(received.append)
+
+        service._on_ping_termine(["alice", "bob"])
+
+        assert len(received) == 1
+        result = received[0]
+        assert len(result) == 2
+        assert result[0].username == "alice"
+        assert result[0].pays == "FR"
+        assert result[0].vitesse == 500_000
+        assert result[1].username == "bob"
+        assert result[1].pays == "US"
+
+    def test_on_ping_termine_ignore_inconnus(self) -> None:
+        """_on_ping_termine() ignore les usernames pas dans _clients."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Un seul client dans _clients (ONLINE pour passer le filtre Étape 3)
+        from src.services.clients_actifs_service import ClientInfo
+        from aioslsk.user.model import UserStatus
+
+        service._clients["alice"] = ClientInfo(username="alice", statut=UserStatus.ONLINE)
+
+        received: list[list[ClientInfo]] = []
+        service.clients_valides.connect(received.append)
+
+        # "bob" n'est pas dans _clients → ignoré
+        service._on_ping_termine(["alice", "bob"])
+
+        assert len(received) == 1
+        assert len(received[0]) == 1
+        assert received[0][0].username == "alice"
+
+    def test_on_ping_termine_filtre_non_online(self) -> None:
+        """_on_ping_termine() exclut les clients dont le statut n'est pas ONLINE."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        from src.services.clients_actifs_service import ClientInfo
+        from aioslsk.user.model import UserStatus
+
+        service._clients["alice"] = ClientInfo(username="alice", statut=UserStatus.ONLINE)
+        service._clients["bob"] = ClientInfo(username="bob", statut=UserStatus.AWAY)
+        service._clients["carol"] = ClientInfo(username="carol", statut=UserStatus.OFFLINE)
+        service._clients["dave"] = ClientInfo(username="dave", statut=UserStatus.UNKNOWN)
+
+        received: list[list[ClientInfo]] = []
+        service.clients_valides.connect(received.append)
+
+        # Tous ont répondu au ping, mais seuls les ONLINE doivent passer
+        service._on_ping_termine(["alice", "bob", "carol", "dave"])
+
+        assert len(received) == 1
+        result = received[0]
+        assert len(result) == 1
+        assert result[0].username == "alice"
+
+    def test_on_ping_termine_liste_vide(self) -> None:
+        """_on_ping_termine() avec liste vide émet clients_valides([])."""
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        received: list[list[ClientInfo]] = []
+        service.clients_valides.connect(received.append)
+
+        service._on_ping_termine([])
+
+        assert len(received) == 1
+        assert received[0] == []
+
+    # ── Pipeline ingest → ping (connexion interne) ──────────────
+
+    def test_ingest_membres_rooms_declenche_lancer_ping(self) -> None:
+        """ingest_membres_rooms() déclenche lancer_ping() après l'ingestion."""
+        import asyncio
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Exécuter réellement la coroutine pour éviter RuntimeWarning
+        mock_cm = MagicMock()
+        mock_cm.run_coro.side_effect = lambda coro: asyncio.run(coro)
+        service.set_connexion_manager(mock_cm)
+
+        membres = [
+            {"username": "alice", "room": "#musique", "status": "online"},
+            {"username": "bob", "room": "#chat", "status": "online"},
+        ]
+        service.ingest_membres_rooms(membres)
+
+        # Vérifier que run_coro a été appelé (indirectement via lancer_ping)
+        mock_cm.run_coro.assert_called_once()
+        call_arg = mock_cm.run_coro.call_args[0][0]
+        assert asyncio.iscoroutine(call_arg)
+
+    def test_ingest_ping_termine_connecte_a_on_ping_termine(self) -> None:
+        """Le signal ping_termine est connecté à _on_ping_termine dans __init__."""
+        service, mock_soulseek, mock_client = _make_service()
+
+        # Vérifier la connexion interne (connectée dans __init__)
+        # On vérifie en émettant ping_termine et en voyant si clients_valides est émis
+        from src.services.clients_actifs_service import ClientInfo
+        from aioslsk.user.model import UserStatus
+
+        # Doit être ONLINE pour passer le filtre Étape 3
+        service._clients["alice"] = ClientInfo(username="alice", statut=UserStatus.ONLINE)
+
+        clients_valides_recus: list[list[ClientInfo]] = []
+        service.clients_valides.connect(clients_valides_recus.append)
+
+        # Émettre ping_termine → doit déclencher _on_ping_termine → émettre clients_valides
+        service.ping_termine.emit(["alice"])
+
+        assert len(clients_valides_recus) == 1
+        assert clients_valides_recus[0][0].username == "alice"

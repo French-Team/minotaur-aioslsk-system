@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -359,12 +359,43 @@ class BotTelechargement(QFrame):
         self.setObjectName("botTelechargement")
 
         # Données internes
+        self._actif = False
         self._downloads: dict[str, dict[str, Any]] = {}  # identifiant -> données
         self._setup_done: bool = False
         self._unseen_count: int = 0
         self._clients_actifs_service: Any = None
+        self._loop_timer: QTimer = QTimer(self)
+        self._loop_timer.setInterval(10000)  # 10s entre chaque tick
+        self._loop_timer.timeout.connect(self._on_loop_tick)
 
         self._build_ui()
+
+    # ── Interrupteur ─────────────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle Téléchargement."""
+        if self._actif:
+            return
+        self._actif = True
+        self._loop_timer.start()
+        self._on_loop_tick()
+        logger.info("BotTelechargement démarré (cycle 10s)")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle Téléchargement."""
+        if not self._actif:
+            return
+        self._actif = False
+        self._loop_timer.stop()
+        logger.info("BotTelechargement arrêté")
+
+    def _on_loop_tick(self) -> None:
+        """Tick périodique : met à jour les statistiques UI."""
+        if not self._actif:
+            return
+        self._update_stats()
+        self._update_global_progress()
+        logger.debug("BotTelechargement tick — %d téléchargements", len(self._downloads))
 
     # ── API publique ─────────────────────────────────────────────────────
 

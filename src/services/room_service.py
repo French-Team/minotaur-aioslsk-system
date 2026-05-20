@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 if TYPE_CHECKING:
     from src.services.soulseek_client import SoulseekService
@@ -49,6 +49,13 @@ class RoomService(QObject):
         self._rooms_publiques: list[RoomInfo] = []
         self._rooms_privees: list[RoomInfo] = []
         self._running = False
+        self._retry_count = 0
+
+        # Timer de retry : si la sync initiale trouve 0 salles, on réessaie
+        self._retry_timer = QTimer(self)
+        self._retry_timer.setSingleShot(True)
+        self._retry_timer.setInterval(3_000)  # 3s
+        self._retry_timer.timeout.connect(self._retry_synchroniser)
 
     # ── Propriétés ──────────────────────────────────────────────
 
@@ -80,13 +87,27 @@ class RoomService(QObject):
         self._soulseek.connection_changed.connect(self._on_connection_changed)
 
         # Synchronisation initiale : si déjà connecté, récupérer les rooms
+        self._retry_count = 0
         self._synchroniser()
+
+        # Si la sync initiale trouve 0 salles, lancer un retry différé
+        # (les données du serveur peuvent ne pas encore être arrivées)
+        if (
+            not self._rooms_publiques
+            and not self._rooms_privees
+            and self._soulseek.is_connected
+        ):
+            self._retry_count = 1
+            self._retry_timer.start()
+            logger.debug("RoomService: 0 salles au démarrage — retry dans 3s")
 
         logger.info("RoomService démarré")
 
     def arreter(self) -> None:
         """Arrête le service."""
         self._running = False
+        self._retry_timer.stop()
+        self._retry_count = 0
         try:
             self._soulseek.room_list_received.disconnect(self._on_room_list)
             self._soulseek.connection_changed.disconnect(self._on_connection_changed)
@@ -137,16 +158,46 @@ class RoomService(QObject):
 
     # ── Gestion des événements SoulseekService ──────────────────
 
+    def _retry_synchroniser(self) -> None:
+        """Retry différé de la synchronisation.
+
+        Appelé par le timer quand la sync initiale a trouvé 0 salles.
+        Maximum 3 tentatives espacées de 3s.
+        """
+        self._synchroniser()
+
+        # Si toujours 0 salles et pas encore 3 tentatives, reprogrammer
+        if (
+            not self._rooms_publiques
+            and not self._rooms_privees
+            and self._soulseek.is_connected
+            and self._retry_count < 3
+        ):
+            self._retry_count += 1
+            self._retry_timer.start()
+            logger.debug("RoomService: retry %d/3 — toujours 0 salles", self._retry_count)
+        else:
+            self._retry_count = 0
+            if self._rooms_publiques or self._rooms_privees:
+                logger.info("RoomService: %d salles trouvées après retry",
+                            len(self._rooms_publiques) + len(self._rooms_privees))
+
     def _on_room_list(self, evt: object) -> None:
         """Réception de RoomListEvent — met à jour les listes."""
         logger.info("RoomService: RoomListEvent reçu")
+        self._retry_count = 0
+        self._retry_timer.stop()
         self._synchroniser()
 
     def _on_connection_changed(self, connected: bool) -> None:
         """Gère la connexion et déconnexion pour réinitialiser ou synchroniser les salons."""
         if connected:
+            self._retry_count = 0
+            self._retry_timer.stop()
             self._synchroniser()
         else:
+            self._retry_timer.stop()
+            self._retry_count = 0
             self._rooms_publiques.clear()
             self._rooms_privees.clear()
             self.rooms_publiques_recues.emit([])

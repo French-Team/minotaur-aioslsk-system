@@ -8,6 +8,9 @@ boutons, et peut rediriger vers les autres bots de l'Armée des 12 Bots.
 from __future__ import annotations
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, TYPE_CHECKING
@@ -138,11 +141,14 @@ class BotAccueil(QFrame):
 
     page_changed = Signal(str)
     assistant_request = Signal(str, str)  # action_type, query
+    loop_started = Signal(str)  # emitted when a loop is started (for toast feedback)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("botAccueil")
         self._assistant = None
+        self._loop_starter: Callable[[str], bool] | None = None
+        self._loop_stopper: Callable[[str], bool] | None = None
 
         # Historique des messages (mémoire + persistance JSON)
         self._messages: list[dict] = []
@@ -248,6 +254,10 @@ class BotAccueil(QFrame):
         # ── Connexion des signaux ──
         self._input_field.returnPressed.connect(self._on_user_input)
         self._send_btn.clicked.connect(self._on_user_input)
+
+        # ── Loop starter (injecté par CenterZone) ──
+        # pyrefly: ignore [missing-attribute]
+        self._loop_starter = None
 
         # ── Démarrer avec un chat frais (init) ──
         # On ne restaure PAS l'historique au démarrage — le chat repart à zéro.
@@ -418,6 +428,32 @@ class BotAccueil(QFrame):
 
             elif atype == "suggestions":
                 self.set_suggestions(action.get("items", []))
+                QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+            elif atype == "start_loop":
+                bot_name = action.get("bot", "")
+                start_delay = action.get("delay", 0)
+                if bot_name:
+                    if start_delay > 0:
+                        QTimer.singleShot(start_delay, lambda: self._do_start_loop(bot_name))
+                    else:
+                        self._do_start_loop(bot_name)
+                QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+            elif atype == "start_loop_and_navigate":
+                bot_name = action.get("bot", "")
+                icon_nav = action.get("icon", "➡️")
+                if bot_name:
+                    # _do_start_loop() emits loop_started (→ toast) and handles
+                    # failure feedback internally — no need for extra add_message
+                    self._do_start_loop(bot_name)
+                    self.navigate_to(bot_name, icon_nav)
+                QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+            elif atype == "stop_loop":
+                bot_name = action.get("bot", "")
+                if bot_name:
+                    self._stop_loop(bot_name)
                 QTimer.singleShot(100, lambda: _run_step(index + 1))
 
             else:
@@ -638,6 +674,77 @@ class BotAccueil(QFrame):
 
     # ── Navigation vers un autre bot ────────────────────────────
 
+    def set_loop_starter(self, starter: Callable[[str], bool]) -> None:
+        """Injecte la fonction qui démarre la boucle d'un bot par son nom.
+
+        Appelée par CenterZone au moment de la connexion pour permettre
+        à l'Accueil de démarrer les boucles des bots.
+
+        Paramètres
+        ----------
+        starter : Callable[[str], bool]
+            Fonction(bot_name) → True si démarré avec succès.
+        """
+        self._loop_starter = starter
+
+    def set_loop_stopper(self, stopper: Callable[[str], bool]) -> None:
+        """Injecte la fonction qui arrête la boucle d'un bot par son nom.
+
+        Appelée par CenterZone au moment de la connexion pour permettre
+        à l'Accueil d'arrêter les boucles des bots.
+
+        Paramètres
+        ----------
+        stopper : Callable[[str], bool]
+            Fonction(bot_name) → True si arrêté avec succès.
+        """
+        self._loop_stopper = stopper
+
+    def _start_loop(self, bot_name: str) -> bool:
+        """Démarre la boucle d'un bot via le loop_starter injecté.
+
+        Paramètres
+        ----------
+        bot_name : str
+            Nom du bot dont la boucle doit être démarrée.
+
+        Retourne
+        --------
+        bool
+            True si la boucle a été démarrée avec succès.
+        """
+        if self._loop_starter is None:
+            logger.warning("BotAccueil: loop_starter non configuré")
+            return False
+        return self._loop_starter(bot_name)
+
+    def _do_start_loop(self, bot_name: str) -> bool:
+        """Méthode helper pour démarrer une boucle avec feedback utilisateur."""
+        success = self._start_loop(bot_name)
+        if success:
+            self.loop_started.emit(bot_name)
+        else:
+            self.add_message("⚠️", f"Impossible de démarrer la boucle <b>{bot_name}</b>", None)
+        return success
+
+    def _stop_loop(self, bot_name: str) -> bool:
+        """Arrête la boucle d'un bot via le loop_stopper injecté.
+
+        Paramètres
+        ----------
+        bot_name : str
+            Nom du bot dont la boucle doit être arrêtée.
+
+        Retourne
+        --------
+        bool
+            True si la boucle a été arrêtée avec succès.
+        """
+        if self._loop_stopper is None:
+            logger.warning("BotAccueil: loop_stopper non configuré")
+            return False
+        return self._loop_stopper(bot_name)
+
     def navigate_to(self, bot_name: str, icon: str = "➡️") -> None:
         """Affiche un message de redirection puis change de page après 1.5 s.
 
@@ -717,24 +824,52 @@ class BotAccueil(QFrame):
         """Restaure la conversation précédente."""
         self._restore_history()
 
+    def _show_knowledge_entry(self, entry_id: str) -> None:
+        """Réaffiche une entrée KNOWLEDGE dans le chat (réponse + suggestions)."""
+        entry = KNOWLEDGE.get(entry_id)
+        if entry:
+            self.add_message(
+                entry.get("icon", "💬"),
+                entry.get("response", ""),
+                entry.get("suggestions"),
+            )
+            actions = entry.get("actions", [])
+            if actions:
+                QTimer.singleShot(600, lambda: self._execute_actions(actions))
+
     def _on_suggestion(self, action: str) -> None:
         """Route une action utilisateur vers le dialogue ou la redirection appropriée."""
         route: dict[str, Callable[[], None]] = {
             "welcome": self._show_welcome,
             "search": lambda: self.navigate_to("Recherche", "🔍"),
+            "chercher": lambda: self.navigate_to("Recherche", "🔍"),
             "downloads": lambda: self.navigate_to("Téléchargement", "📥"),
+            "telechargement": lambda: self.navigate_to("Téléchargement", "📥"),
             "library": lambda: self.navigate_to("Bibliothèque", "📚"),
+            "bibliotheque": lambda: self.navigate_to("Bibliothèque", "📚"),
             "users": lambda: self.navigate_to("Utilisateurs", "👤"),
+            "utilisateurs": lambda: self.navigate_to("Utilisateurs", "👤"),
             "wishlist": lambda: self.navigate_to("Wishlist", "📋"),
             "surveillance": lambda: self.navigate_to("Surveillance", "👁️"),
             "planificateur": lambda: self.navigate_to("Planificateur", "📅"),
             "ordonnanceur": lambda: self.navigate_to("Ordonnanceur", "🧹"),
             "stats": lambda: self.navigate_to("Statistiques", "📊"),
             "config": lambda: (self.assistant_request.emit("config", "Configuration") if self._assistant is not None else self.navigate_to("Assistant", "⚙️")),
+            "assistant": lambda: self.navigate_to("Assistant", "⚙️"),
             "help": lambda: self.navigate_to("Aide", "❓"),
+            "aide": lambda: self._show_knowledge_entry("aide"),
             "about": self._show_about,
             "clear_history": self._on_clear_history,
             "restore_history": self._on_restore_history,
+            # ── 7 nouveaux routeurs ──
+            "optimiseur": lambda: self.navigate_to("Optimiseur", "⚡"),
+            "salons": lambda: self._do_start_loop("Rooms"),
+            "statistiques": lambda: self._show_knowledge_entry("statistiques"),
+            "arret": lambda: self._show_knowledge_entry("arret"),
+            "relance": lambda: self._show_knowledge_entry("relance"),
+            "connexion": lambda: self.navigate_to("connexion", "🔌"),
+            "clients-actifs": lambda: self.navigate_to("Clients Actifs", "👥"),
+            "etat": lambda: self._show_knowledge_entry("etat"),
         }
         handler = route.get(action, self._show_welcome)
         handler()

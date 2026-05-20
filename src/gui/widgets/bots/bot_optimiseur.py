@@ -8,6 +8,10 @@ paramètres de configuration des pages (Réseau, Recherche, etc.).
 from __future__ import annotations
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
+
 from glob import glob
 from pathlib import Path
 
@@ -55,6 +59,10 @@ class BotOptimiseur(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("botOptimiseur")
+        self._actif = False
+        self._loop_timer: QTimer = QTimer(self)
+        self._loop_timer.setInterval(300000)  # 5 min entre chaque tick
+        self._loop_timer.timeout.connect(self._on_loop_tick)
         self._center_zone = center_zone
         self._profil_actif: str | None = None
         self._watcher = QFileSystemWatcher(self)
@@ -70,6 +78,34 @@ class BotOptimiseur(QFrame):
         self._build_overlay()
         self._reload_profiles()
         self._setup_watcher()
+
+    # ═══════════════════════════════════════════════════════════
+    #  Interrupteur
+    # ═══════════════════════════════════════════════════════════
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle Optimiseur."""
+        if self._actif:
+            return
+        self._actif = True
+        self._loop_timer.start()
+        self._on_loop_tick()
+        logger.info("BotOptimiseur démarré (cycle 5 min)")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle Optimiseur."""
+        if not self._actif:
+            return
+        self._actif = False
+        self._loop_timer.stop()
+        logger.info("BotOptimiseur arrêté")
+
+    def _on_loop_tick(self) -> None:
+        """Tick périodique : recharge les profils si modifiés."""
+        if not self._actif:
+            return
+        self._reload_profiles()
+        logger.debug("BotOptimiseur tick — profils rechargés")
 
     # ═══════════════════════════════════════════════════════════
     #  UI

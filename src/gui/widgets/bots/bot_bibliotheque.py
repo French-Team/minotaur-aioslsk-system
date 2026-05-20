@@ -364,6 +364,10 @@ class BotBibliotheque(QFrame):
         super().__init__(parent)
         self.setObjectName("botBibliotheque")
 
+        self._actif = False
+        self._loop_timer: QTimer = QTimer(self)
+        self._loop_timer.setInterval(300000)  # 5 min entre chaque tick
+        self._loop_timer.timeout.connect(self._on_loop_tick)
         self._stats: dict[str, int] = dict(_INIT_STATS)
         self._current_folder: str | None = None
         self._current_folder_id: int | None = None
@@ -541,6 +545,32 @@ class BotBibliotheque(QFrame):
         self._main_stack.addWidget(self._main_container)  # index 1
 
         parent_layout.addWidget(self._main_stack, stretch=1)
+
+    # ── Interrupteur ────────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle Bibliothèque."""
+        if self._actif:
+            return
+        self._actif = True
+        self._loop_timer.start()
+        self._on_loop_tick()
+        logger.info("BotBibliotheque démarré (cycle 5 min)")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle Bibliothèque."""
+        if not self._actif:
+            return
+        self._actif = False
+        self._loop_timer.stop()
+        logger.info("BotBibliotheque arrêté")
+
+    def _on_loop_tick(self) -> None:
+        """Tick périodique : rafraîchit les statistiques DB."""
+        if not self._actif:
+            return
+        self._refresh_stats()
+        logger.debug("BotBibliotheque tick — %d fichiers", self._stats.get("fichiers", 0))
 
     # ── API publique ────────────────────────────────────────────────
 

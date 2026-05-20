@@ -1,7 +1,7 @@
 # Architecture des Boucles de Bots — Spécification
 
-> **Statut :** 🟡 Spécification validée, prête pour implémentation
-> **Dernière mise à jour :** 2026-05-19
+> **Statut :** ✅ Implémentation complète — tests en place
+> **Dernière mise à jour :** 2026-05-20
 > **Contexte :** Architecture indépendante pour chaque bot, orchestrée par le BotAccueil qui analyse la demande utilisateur et déclenche les services appropriés.
 
 ---
@@ -317,7 +317,7 @@ KNOWLEDGE: dict[str, BotKnowledge] = {
 }
 ```
 
-### 4.2 Nouveau type d'action : `start_loop`
+### 4.2 Types d'actions : `start_loop`, `stop_loop` et `start_loop_and_navigate`
 
 ```python
 # Dans BotAccueil._execute_actions()
@@ -325,30 +325,88 @@ if atype == "start_loop":
     bot_name = action.get("bot", "")
     start_delay = action.get("delay", 0)
     if start_delay > 0:
-        QTimer.singleShot(start_delay, lambda: self._start_loop(bot_name))
+        QTimer.singleShot(start_delay, lambda: self._do_start_loop(bot_name))
     else:
-        self._start_loop(bot_name)
+        self._do_start_loop(bot_name)
+    QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+elif atype == "stop_loop":
+    bot_name = action.get("bot", "")
+    if bot_name:
+        self._stop_loop(bot_name)
+    QTimer.singleShot(100, lambda: _run_step(index + 1))
+
+elif atype == "start_loop_and_navigate":
+    bot_name = action.get("bot", "")
+    icon_nav = action.get("icon", "➡️")
+    if bot_name:
+        # _do_start_loop() emits loop_started (→ toast) et gère
+        # l'échec en interne (add_message ⚠️)
+        self._do_start_loop(bot_name)
+        self.navigate_to(bot_name, icon_nav)
+    QTimer.singleShot(100, lambda: _run_step(index + 1))
 ```
 
-### 4.3 Méthode `_start_loop(bot_name)`
+> **Note :** `start_loop` supporte un paramètre `delay` (ms) pour différer le démarrage. `stop_loop` n'a pas de `delay` pour l'instant (asymétrie).
+
+### 4.3 Méthodes de contrôle des boucles
 
 ```python
-def _start_loop(self, bot_name: str) -> None:
-    """Démarre la boucle d'un bot via son wrapper.
+# Signaux
+loop_started = Signal(str)  # émis quand une boucle est démarrée avec succès
 
-    La méthode est connectée via CenterZone qui expose un dictionnaire
-    de fonctions callables pour démarrer/arrêter chaque boucle de bot.
+def set_loop_starter(self, starter: Callable[[str], bool]) -> None:
+    """Injecte la fonction qui démarre la boucle d'un bot par son nom.
+    
+    Appelée par CenterZone au moment de la connexion.
+    starter(bot_name) → True si démarré, False sinon.
     """
-    if self._loop_starter is not None:
-        success = self._loop_starter(bot_name)
-        if success:
-            self._show_toast(f"✅ Boucle {bot_name} démarrée")
-        else:
-            self._show_toast(f"⚠️ Impossible de démarrer la boucle {bot_name}")
+    self._loop_starter = starter
+
+def set_loop_stopper(self, stopper: Callable[[str], bool]) -> None:
+    """Injecte la fonction qui arrête la boucle d'un bot par son nom.
+    
+    Appelée par CenterZone au moment de la connexion.
+    stopper(bot_name) → True si arrêté, False sinon.
+    """
+    self._loop_stopper = stopper
+
+def _start_loop(self, bot_name: str) -> bool:
+    """Démarre la boucle d'un bot via le loop_starter injecté.
+    
+    Retourne True si la boucle a été démarrée avec succès.
+    """
+    if self._loop_starter is None:
+        logger.warning("BotAccueil: loop_starter non configuré")
+        return False
+    return self._loop_starter(bot_name)
+
+def _do_start_loop(self, bot_name: str) -> bool:
+    """Démarre une boucle avec feedback utilisateur (signal + message).
+    
+    Émet loop_started(success) et affiche un message ⚠️ sur échec.
+    """
+    success = self._start_loop(bot_name)
+    if success:
+        self.loop_started.emit(bot_name)  # → toast dans main_window
+    else:
+        self.add_message("⚠️", f"Impossible de démarrer la boucle <b>{bot_name}</b>", None)
+    return success
+
+def _stop_loop(self, bot_name: str) -> bool:
+    """Arrête la boucle d'un bot via le loop_stopper injecté.
+    
+    Retourne True si la boucle a été arrêtée avec succès.
+    """
+    if self._loop_stopper is None:
+        logger.warning("BotAccueil: loop_stopper non configuré")
+        return False
+    return self._loop_stopper(bot_name)
 ```
 
-> Note : on utilise `start_loop` (pas `start_bot`) pour insister sur le fait qu'on démarre une **boucle**,
-> pas un widget UI. Le bot (widget) existe déjà.
+**Signal `loop_started`** : émis par `_do_start_loop()` sur succès. Consommé par `main_window._connect_loop_started_signal()` qui affiche un toast.
+
+> Note : on utilise `start_loop` / `stop_loop` (pas `start_bot` / `stop_bot`) pour insister sur le fait qu'on contrôle une **boucle**, pas un widget UI. Le bot (widget) existe déjà.
 
 ---
 
@@ -508,33 +566,24 @@ Quand l'utilisateur tape un message dans l'Accueil, le flow est :
 
 1. `_on_user_input(text)` est appelé
 2. `_match_intent(text)` trouve l'intention la plus proche
-3. Si l'intention a `loop_type` défini dans KNOWLEDGE → déclenchement automatique de la boucle
-4. L'Accueil émet `assistant_request` + exécute les actions KNOWLEDGE
-5. `_execute_actions()` gère les actions `start_loop`, `navigate`, `message`
+3. Si l'intention a des `actions` dans KNOWLEDGE → exécutées par `_execute_actions()`
+4. `_execute_actions()` gère les actions `start_loop`, `stop_loop`, `start_loop_and_navigate`, `navigate`, `message`, `delay`, `suggestions`
 
-### 6.2 Mécanisme de démarrage d'une boucle
+### 6.2 Mécanisme de démarrage/arrêt d'une boucle
 
-Le BotAccueil a besoin d'un **pont** vers le monde des boucles. Ce pont est une fonction callable injectée :
-
-```python
-class BotAccueil(QFrame):
-    def set_loop_starter(self, starter: Callable[[str], bool]) -> None:
-        """Injecte la fonction qui démarre la boucle d'un bot par son nom.
-        
-        Appelée par CenterZone au moment de la connexion.
-        starter(bot_name) → True si démarré, False si déjà actif ou échec.
-        """
-        self._loop_starter = starter
-```
-
-Et dans `CenterZone` :
+Le BotAccueil a besoin d'un **pont** vers le monde des boucles. Ce pont est une fonction callable injectée par `CenterZone` :
 
 ```python
 class CenterZone(QFrame):
-    def _connect_event_signals(self):
-        accueil = self._bot_accueil
-        if accueil is not None and hasattr(accueil, "set_loop_starter"):
-            accueil.set_loop_starter(self._start_loop)
+    def _build_accueil_page(self) -> None:
+        page = BotAccueil()
+        page.page_changed.connect(self.show_page)
+        self._pages["Accueil"] = page
+        self._stack.addWidget(page)
+        # Injecter le loop starter et stopper pour permettre à l'Accueil
+        # de démarrer/arrêter les boucles des bots
+        page.set_loop_starter(self._start_loop)
+        page.set_loop_stopper(self._stop_loop)
 
     def _start_loop(self, loop_name: str) -> bool:
         """Active l'interrupteur d'une boucle par son nom.
@@ -542,16 +591,16 @@ class CenterZone(QFrame):
         Le mapping contient à la fois des bots (avec boucle) et des boucles pures.
         """
         mapping = {
-            "Recherche": self._bot_recherche,
-            "Téléchargement": self._bot_telechargement,
-            "Clients Actifs": self._bot_clients_actifs,
-            "Rooms": self._boucle_rooms,          # ← boucle pure (QObject)
-            "Surveillance": self._bot_surveillance,
-            "Bibliothèque": self._bibliotheque_page,
-            "Wishlist": self._bot_wishlist,
-            "Planificateur": self._bot_planificateur,
-            "Optimiseur": self._bot_optimiseur,
-            # "Ordonnanceur" — pas de boucle, action unique
+            "Recherche": self._pages.get("Recherche"),
+            "Téléchargement": self._pages.get("telechargements"),
+            "Clients Actifs": self._pages.get("Clients Actifs"),
+            "Rooms": self._boucle_rooms,             # ← boucle pure (QObject)
+            "Surveillance": self._pages.get("Surveillance"),
+            "Bibliothèque": self._pages.get("Bibliothèque"),
+            "Wishlist": self._pages.get("Wishlist"),
+            "Planificateur": self._pages.get("Planificateur"),
+            "Optimiseur": self._pages.get("Optimiseur"),
+            "Ordonnanceur": self._pages.get("Ordonnanceur"),
         }
         loop = mapping.get(loop_name)
         if loop is None:
@@ -559,13 +608,39 @@ class CenterZone(QFrame):
             return False
         if hasattr(loop, "demarrer"):
             loop.demarrer()  # active l'interrupteur
+            logger.info("Boucle %s démarrée", loop_name)
             return True
-        logger.warning("%s n'a pas d'interrupteur (pas de demarrer())", loop_name)
+        logger.warning("%s n'a pas de méthode demarrer()", loop_name)
+        return False
+
+    def _stop_loop(self, loop_name: str) -> bool:
+        """Désactive l'interrupteur d'une boucle par son nom."""
+        mapping = {
+            "Recherche": self._pages.get("Recherche"),
+            "Téléchargement": self._pages.get("telechargements"),
+            "Clients Actifs": self._pages.get("Clients Actifs"),
+            "Rooms": self._boucle_rooms,
+            "Surveillance": self._pages.get("Surveillance"),
+            "Bibliothèque": self._pages.get("Bibliothèque"),
+            "Wishlist": self._pages.get("Wishlist"),
+            "Planificateur": self._pages.get("Planificateur"),
+            "Optimiseur": self._pages.get("Optimiseur"),
+            "Ordonnanceur": self._pages.get("Ordonnanceur"),
+        }
+        loop = mapping.get(loop_name)
+        if loop is None:
+            logger.warning("Boucle %s inconnue", loop_name)
+            return False
+        if hasattr(loop, "arreter"):
+            loop.arreter()
+            logger.info("Boucle %s arrêtée", loop_name)
+            return True
+        logger.warning("%s n'a pas de méthode arreter()", loop_name)
         return False
 ```
 
-> Note : `_start_loop()` gère aussi bien les boucles portées par un bot (ex: `_bot_recherche.demarrer()`)
-> que les boucles pures (ex: `_boucle_rooms.demarrer()`). Toutes implémentent le même contrat `demarrer()/arreter()`.
+> `_start_loop()` et `_stop_loop()` gèrent aussi bien les boucles portées par un bot (ex: `self._pages["Recherche"].demarrer()`)
+> que les boucles pures (ex: `self._boucle_rooms.demarrer()`). Toutes implémentent le même contrat `demarrer()/arreter()`.
 
 ---
 

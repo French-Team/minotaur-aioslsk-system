@@ -294,8 +294,25 @@ class ConnexionManager(QObject):
         return self._service.is_connected
 
     @property
+    def client(self) -> object | None:
+        """Délègue à SoulseekService.client.
+
+        Expose l'instance ``SoulSeekClient`` (ou None si pas connecté).
+        Utilisé par BoucleRooms pour accéder à ``client.rooms``.
+        """
+        return self._service.client
+
+    @property
     def username(self) -> str:
         return self._service.username
+
+    def run_coro(self, coro) -> Future:
+        """Planifie une coroutine sur la boucle asyncio du thread dédié.
+
+        Délègue à ``_AsyncEventLoopThread.run_coro()``.
+        Retourne un ``concurrent.futures.Future`` pour récupérer le résultat.
+        """
+        return self._async_thread.run_coro(coro)
 
     def search(self, query: str) -> None:
         """Lance une recherche Soulseek.

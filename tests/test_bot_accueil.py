@@ -149,6 +149,78 @@ class TestMatchIntent:
         assert result is not None
         assert result in KNOWLEDGE
 
+    # ── Nouveaux bots ─────────────────────────────────────
+
+    def test_optimiseur(self, bot: BotAccueil) -> None:
+        """'optimisation' match l'entrée 'optimiseur'."""
+        assert bot._match_intent("optimisation") == "optimiseur"
+
+    def test_optimiseur_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'performance', 'profils'."""
+        for text in ["Performance", "Quel profil", "Optimiser la vitesse"]:
+            result = bot._match_intent(text)
+            assert result == "optimiseur", f"'{text}' devrait matcher optimiseur, got {result}"
+
+    def test_salons(self, bot: BotAccueil) -> None:
+        """'salon de discussion' match l'entrée 'salons'."""
+        assert bot._match_intent("salon de discussion") == "salons"
+
+    def test_salons_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'room', 'chat', 'discuter'."""
+        for text in ["Room", "Chat", "Discuter avec quelqu un"]:
+            result = bot._match_intent(text)
+            assert result == "salons", f"'{text}' devrait matcher salons, got {result}"
+
+    def test_statistiques(self, bot: BotAccueil) -> None:
+        """'statistiques' match l'entrée 'statistiques'."""
+        assert bot._match_intent("statistiques") == "statistiques"
+
+    def test_statistiques_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'stats', 'dashboard', 'tableau de bord'."""
+        for text in ["Stats", "Dashboard", "Tableau de bord"]:
+            result = bot._match_intent(text)
+            assert result == "statistiques", f"'{text}' devrait matcher statistiques, got {result}"
+
+    def test_arret(self, bot: BotAccueil) -> None:
+        """'arrête la boucle' match l'entrée 'arret'."""
+        assert bot._match_intent("arrête la boucle") == "arret"
+
+    def test_arret_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'stop', 'désactive', 'coupe'."""
+        for text in ["Stop", "Désactive tout", "Coupe le son"]:
+            result = bot._match_intent(text)
+            assert result == "arret", f"'{text}' devrait matcher arret, got {result}"
+
+    def test_relance(self, bot: BotAccueil) -> None:
+        """'relance' match l'entrée 'relance'."""
+        assert bot._match_intent("relance") == "relance"
+
+    def test_relance_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'redémarre', 'restart', 'réactive'."""
+        for text in ["Redémarre", "Restart", "Réactive tout"]:
+            result = bot._match_intent(text)
+            assert result == "relance", f"'{text}' devrait matcher relance, got {result}"
+
+    def test_connexion(self, bot: BotAccueil) -> None:
+        """'connexion' match l'entrée 'connexion'."""
+        assert bot._match_intent("connexion") == "connexion"
+
+    def test_connexion_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'login', 'déconnexion', 'serveur'."""
+        for text in ["Login", "Déconnexion", "Serveur soulseek"]:
+            result = bot._match_intent(text)
+            assert result == "connexion", f"'{text}' devrait matcher connexion, got {result}"
+
+    def test_etat(self, bot: BotAccueil) -> None:
+        """'état des boucles' match l'entrée 'etat'."""
+        assert bot._match_intent("état des boucles") == "etat"
+
+    def test_etat_variants(self, bot: BotAccueil) -> None:
+        """Variantes : 'qu'est-ce qui tourne', 'actif', 'que faire'."""
+        for text in ["Qu est ce qui tourne", "Actif", "Que faire"]:
+            result = bot._match_intent(text)
+            assert result == "etat", f"'{text}' devrait matcher etat, got {result}"
+
     def test_all_entries_have_keywords_except_fallback(
         self,
         bot: BotAccueil,
@@ -424,7 +496,7 @@ class TestHistory:
         # clear_history appelle _show_welcome() qui ajoute 1 message
         # Donc _messages n'est pas vide, il a le welcome
         assert len(bot._messages) >= 1
-        assert bot._messages[0]["icon"] == "🖐️"
+        assert bot._messages[0]["icon"] == "👑"
 
     def test_clear_history_removes_old_content(self, bot: BotAccueil) -> None:
         """Après clear_history, les anciens messages ont disparu."""
@@ -462,14 +534,14 @@ class TestHistory:
         )
         bot._restore_history()
         assert len(bot._messages) >= 1
-        assert bot._messages[0]["icon"] == "🖐️"
+        assert bot._messages[0]["icon"] == "👑"
 
     def test_restore_history_corrupted_file_shows_welcome(self, bot: BotAccueil) -> None:
         """Fichier corrompu → appelle _show_welcome."""
         bot._history_file.write_text("Not JSON!!!", encoding="utf-8")
         bot._restore_history()
         assert len(bot._messages) >= 1
-        assert bot._messages[0]["icon"] == "🖐️"
+        assert bot._messages[0]["icon"] == "👑"
 
 
 # ═════════════════════════════════════════════════════════════════

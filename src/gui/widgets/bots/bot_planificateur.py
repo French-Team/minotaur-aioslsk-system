@@ -519,6 +519,50 @@ class BotPlanificateur(QFrame):
     page_changed = Signal(str)  # navigation vers un autre bot
     unseen_count_changed = Signal(int)  # badge compteur (actions en attente)
 
+    # ── Interrupteur ─────────────────────────────────────────────
+
+    def demarrer(self) -> None:
+        """Active l'interrupteur → démarre la boucle du planificateur.
+
+        Lance un QTimer périodique pour vérifier et exécuter
+        les actions planifiées.
+        """
+        if self._actif:
+            return
+        self._actif = True
+        if self._loop_timer is None:
+            self._loop_timer = QTimer(self)
+            self._loop_timer.setInterval(self._loop_interval_ms)
+            self._loop_timer.timeout.connect(self._on_loop_tick)
+        self._loop_timer.start()
+        logger.info("BotPlanificateur démarré")
+
+    def arreter(self) -> None:
+        """Désactive l'interrupteur → suspend la boucle du planificateur."""
+        if not self._actif:
+            return
+        self._actif = False
+        if self._loop_timer is not None:
+            self._loop_timer.stop()
+        logger.info("BotPlanificateur arrêté")
+
+    @property
+    def est_actif(self) -> bool:
+        return self._actif
+
+    def set_loop_interval(self, ms: int) -> None:
+        """Configure l'intervalle de la boucle périodique."""
+        self._loop_interval_ms = ms
+        if self._loop_timer is not None:
+            self._loop_timer.setInterval(ms)
+
+    def _on_loop_tick(self) -> None:
+        """Callback du timer — vérifie et exécute les actions planifiées."""
+        logger.debug("BotPlanificateur: cycle de vérification")
+        if hasattr(self, "_svc"):
+            self._refresh_stats()
+            self._refresh_list()
+
     def __init__(
         self,
         center_zone: QWidget | None = None,
@@ -531,6 +575,11 @@ class BotPlanificateur(QFrame):
         self._filter_statut = ""
         self._filter_type = ""
         self._filter_recherche = ""
+
+        # Boucle périodique (interrupteur)
+        self._actif = False
+        self._loop_timer: QTimer | None = None
+        self._loop_interval_ms = 60_000  # 1 minute par défaut
 
         self.setObjectName("botPlanificateur")
         # pyrefly: ignore [missing-attribute]

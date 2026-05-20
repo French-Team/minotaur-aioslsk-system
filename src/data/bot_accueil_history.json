@@ -22,7 +22,14 @@
           "action": "restore_history"
         }
       ],
-      "timestamp": "2026-05-19T22:43:50.577648"
+      "timestamp": "2026-05-20T21:29:48.175814"
+    },
+    {
+      "type": "bot",
+      "icon": "💬",
+      "text": "Je lance la mise à jour des salons et je prépare la liste des clients actifs…",
+      "suggestions": null,
+      "timestamp": "2026-05-20T21:29:50.244462"
     }
   ]
 }
