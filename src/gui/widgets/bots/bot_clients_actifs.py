@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMenu,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -126,7 +127,15 @@ class BotClientsActifs(QFrame):
         self._actifs_joignables: int = 0
         self._last_update_time: float = 0.0
 
+        # Filtre par valeur de colonne
+        self._filtre_colonne: int | None = None
+        self._filtre_valeur: str | None = None
+
         self._build_ui()
+
+        # Activer le menu contextuel sur le tableau
+        self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._table.customContextMenuRequested.connect(self._on_context_menu)
 
         # Timer pour mettre à jour l'affichage "Dernière mise à jour" toutes les 60s
         self._maj_timer = QTimer(self)
@@ -190,6 +199,22 @@ class BotClientsActifs(QFrame):
             f"color: {COLORS['TEXT_MUTED']}; font-size: 11px;"
         )
         self._header_layout.addWidget(self._lbl_derniere_maj)
+        self._header_layout.addSpacing(16)
+
+        # ── Métriques de performance ───────────────────────────────
+        self._lbl_metriques = QLabel("📊 —")
+        self._lbl_metriques.setStyleSheet(
+            f"color: {COLORS['TEXT_MUTED']}; font-size: 11px;"
+        )
+        self._header_layout.addWidget(self._lbl_metriques)
+        self._header_layout.addSpacing(12)
+
+        # ── Indicateur de filtre actif ───────────────────────────────
+        self._lbl_filtre = QLabel("")
+        self._lbl_filtre.setStyleSheet(
+            f"color: {COLORS['ACCENT']}; font-size: 11px; font-weight: bold;"
+        )
+        self._header_layout.addWidget(self._lbl_filtre)
         self._header_layout.addStretch()
 
         # ── Bouton Rafraîchir ───────────────────────────────────
@@ -346,6 +371,8 @@ class BotClientsActifs(QFrame):
     def _on_clients_synchronises(self, clients: list[ClientInfo]) -> None:
         """Réception du signal clients_synchronises (tous les candidats)."""
         self._total_candidats = len(clients)
+        self._last_update_time = time.time()
+        self._update_derniere_maj()
         self._initialiser_tableau(clients)
 
     def _on_clients_valides(self, clients: list[ClientInfo]) -> None:
@@ -354,6 +381,7 @@ class BotClientsActifs(QFrame):
         self._last_update_time = time.time()
         self._show_etat("prêt")
         self._update_derniere_maj()
+        self._update_metriques()
 
         # Réactiver le bouton Rafraîchir (et arrêter le timeout)
         self._btn_rafraichir.setEnabled(True)
@@ -362,14 +390,134 @@ class BotClientsActifs(QFrame):
 
         self._initialiser_tableau(clients)
 
+    # ── Filtre contextuel ───────────────────────────────────────
+
+    def _on_context_menu(self, pos):
+        """Menu contextuel sur clic-droit : filtrer par valeur de cellule."""
+        from PySide6.QtCore import QPoint
+
+        item = self._table.itemAt(pos)
+        if item is None:
+            return
+        col = item.column()
+        # Ne pas filtrer sur le statut (enum → texte) ni les colonnes numériques
+        if col in (0, 3, 4, 5, 6):
+            return
+        value = item.text().strip()
+        if not value or value == "—":
+            return
+
+        # Nom de la colonne
+        nom_col = self._COLONNES[col][1]
+
+        menu = QMenu(self)
+
+        # Option filtrer
+        action_filter = menu.addAction(f"🔍 Filtrer par « {value} »")
+        action_filter.triggered.connect(
+            lambda: self._appliquer_filtre(col, value)
+        )
+
+        # Option effacer si un filtre est déjà actif
+        if self._filtre_colonne is not None:
+            action_clear = menu.addAction(
+                f"❌ Effacer le filtre ({self._COLONNES[self._filtre_colonne][1]})"
+            )
+            action_clear.triggered.connect(self._effacer_filtre)
+
+        menu.exec(self._table.viewport().mapToGlobal(pos))
+
+    def _appliquer_filtre(self, col: int, value: str) -> None:
+        """Applique un filtre par valeur de colonne et re-remplit le tableau."""
+        if self._service is None:
+            return
+        self._filtre_colonne = col
+        self._filtre_valeur = value
+
+        # Mettre à jour l'indicateur dans la barre d'en-tête
+        nom_col = self._COLONNES[col][1]
+        self._lbl_filtre.setText(f"🔍 Filtre: {nom_col} = « {value} »")
+
+        # Re-remplir le tableau avec le filtre
+        actifs = self._service.clients_actifs()
+        self._initialiser_tableau(actifs)
+        logger.info("Filtre appliqué : colonne %s = %s", nom_col, value)
+
+    def _effacer_filtre(self) -> None:
+        """Efface le filtre actif et re-remplit le tableau."""
+        if self._service is None:
+            return
+        self._filtre_colonne = None
+        self._filtre_valeur = None
+        self._lbl_filtre.setText("")
+
+        actifs = self._service.clients_actifs()
+        self._initialiser_tableau(actifs)
+        logger.info("Filtre effacé")
+
+    # ── Helpers ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _format_vitesse(vitesse_bps: int) -> str:
+        """Convertit une vitesse en B/s en format lisible.
+
+        Paramètres
+        ----------
+        vitesse_bps : int
+            Vitesse en bytes par seconde (avg_speed d'aioslsk).
+
+        Retourne
+        --------
+        str
+            ``"X.X Mo/s"``, ``"X Ko/s"``, ``"X o/s"`` ou ``"—"`` si nul.
+        """
+        if vitesse_bps <= 0:
+            return "—"
+        if vitesse_bps >= 1024 * 1024:
+            mo = vitesse_bps / (1024 * 1024)
+            return f"{mo:.1f} Mo/s"
+        if vitesse_bps >= 1024:
+            ko = vitesse_bps / 1024
+            return f"{ko:.0f} Ko/s"
+        return f"{vitesse_bps} o/s"
+
     # ── Remplissage du tableau ──────────────────────────────────
 
     def _initialiser_tableau(self, clients: list[ClientInfo]) -> None:
-        """Reconstruit le tableau avec une nouvelle liste de clients."""
+        """Reconstruit le tableau avec une nouvelle liste de clients.
+
+        Les clients sont triés par ordre de priorité :
+        1. Statut ONLINE en premier (actifs & joignables)
+        2. Pays ordre alphabétique
+        3. Nombre de fichiers décroissant
+
+        Si un filtre est actif (``_filtre_colonne``), seules les lignes
+        dont la valeur de colonne correspond sont affichées.
+        """
         self._table.setSortingEnabled(False)
         self._table.setRowCount(0)
 
-        for client in clients:
+        # Appliquer le filtre si actif
+        if self._filtre_colonne is not None and self._filtre_valeur is not None:
+            nom_attr = self._COLONNES[self._filtre_colonne][0]
+            clients = [
+                c for c in clients
+                if str(getattr(c, nom_attr, "") or "").strip() == self._filtre_valeur
+            ]
+
+        # Tri personnalisé : ONLINE → AWAY → OFFLINE/UNKNOWN, puis pays, puis fichiers↓
+        clients_tries = sorted(
+            clients,
+            key=lambda c: (
+                0 if c.statut == UserStatus.ONLINE
+                else 1 if c.statut == UserStatus.AWAY
+                else 2,
+                c.pays or "",
+                -(c.fichiers_partages or 0),
+            ),
+        )
+
+        for client in clients_tries:
             self._ajouter_ligne_client(client)
 
         self._table.setSortingEnabled(True)
@@ -407,8 +555,8 @@ class BotClientsActifs(QFrame):
         item_pays.setForeground(QColor(COLORS["TEXT_SECONDARY"]))
         self._table.setItem(row, 2, item_pays)
 
-        # Vitesse (colonne 3)
-        vitesse = f"{client.vitesse} kbps" if client.vitesse > 0 else "—"
+        # Vitesse (colonne 3) — convertie en Mo/s/Ko/s
+        vitesse = self._format_vitesse(client.vitesse)
         item_vitesse = _NumericItem(client.vitesse, vitesse)
         self._table.setItem(row, 3, item_vitesse)
 
@@ -418,11 +566,11 @@ class BotClientsActifs(QFrame):
         self._table.setItem(row, 4, item_fichiers)
 
         # Slots (colonne 5)
-        if client.slots_libres_flag:
+        if client.slots_libres > 0 or client.slots_libres_flag:
             slots = f"{client.slots_libres} libre(s)"
         else:
             slots = "—"
-        item_slots = _NumericItem(client.slots_libres if client.slots_libres_flag else 0, slots)
+        item_slots = _NumericItem(client.slots_libres, slots)
         self._table.setItem(row, 5, item_slots)
 
         # File d'attente (colonne 6)
@@ -481,8 +629,8 @@ class BotClientsActifs(QFrame):
             if item and item.text() == username:
                 self._table.setSortingEnabled(False)
 
-                # Vitesse
-                vitesse = f"{client.vitesse} kbps" if client.vitesse > 0 else "—"
+                # Vitesse — convertie en Mo/s/Ko/s
+                vitesse = self._format_vitesse(client.vitesse)
                 self._table.setItem(row, 3, _NumericItem(client.vitesse, vitesse))
 
                 # Fichiers
@@ -492,16 +640,14 @@ class BotClientsActifs(QFrame):
                 )
 
                 # Slots
-                if client.slots_libres_flag:
+                if client.slots_libres > 0 or client.slots_libres_flag:
                     slots = f"{client.slots_libres} libre(s)"
                 else:
                     slots = "—"
                 self._table.setItem(
                     row,
                     5,
-                    _NumericItem(
-                        client.slots_libres if client.slots_libres_flag else 0, slots
-                    ),
+                    _NumericItem(client.slots_libres, slots),
                 )
 
                 # File
@@ -510,6 +656,8 @@ class BotClientsActifs(QFrame):
                     row, 6, _NumericItem(client.file_attente, file_att)
                 )
 
+                # Pays
+                # pyrefly: ignore [missing-attribute]
                 # Pays
                 # pyrefly: ignore [missing-attribute]
                 self._table.item(row, 2).setText(client.pays if client.pays else "—")
@@ -542,6 +690,24 @@ class BotClientsActifs(QFrame):
         self._lbl_etat.setText(f"{icone} {texte}")
         self._lbl_etat.setStyleSheet(
             f"color: {couleur}; font-size: 12px; font-weight: bold;"
+        )
+
+    # ── Métriques de performance ─────────────────────────────────
+
+    def _update_metriques(self) -> None:
+        """Met à jour le label des métriques de performance."""
+        if self._service is None:
+            self._lbl_metriques.setText("📊 —")
+            return
+        m = self._service.ping_metrics()
+        if m["total_pings"] == 0:
+            self._lbl_metriques.setText("📊 —")
+            return
+        taux = m["taux_succes"] * 100
+        temps = m["temps_moyen"]
+        self._lbl_metriques.setText(
+            f"📊 {m['total_reponses']}/{m['total_pings']} réponses "
+            f"({taux:.0f}%, ~{temps:.1f}s/ping)"
         )
 
     # ── Dernière mise à jour ────────────────────────────────────
@@ -598,12 +764,21 @@ class BotClientsActifs(QFrame):
         afficher un total inférieur au nombre réel de lignes.
         """
         nb_lignes = self._table.rowCount()
-        total = max(self._total_candidats, nb_lignes)
-        actifs = max(self._actifs_joignables, nb_lignes)
+
+        # Compter les lignes ONLINE directement depuis les _StatutItem du tableau
+        actifs = 0
+        for row in range(nb_lignes):
+            item = self._table.item(row, 0)
+            if item is not None and isinstance(item, _StatutItem):
+                if item._statut == UserStatus.ONLINE:
+                    actifs += 1
+
+        # Total = candidats trackés (ou lignes si filtre actif)
+        total = self._total_candidats if self._filtre_colonne is None else nb_lignes
         injouignables = max(0, total - actifs)
 
         self._lbl_candidats.setText(f"Candidats: {total}")
-        self._lbl_actifs_joignables.setText(f"Actifs & joignables: {actifs}")
+        self._lbl_actifs_joignables.setText(f"Actifs & joignables: {total - injouignables}")
         self._lbl_injouignables.setText(f"Injouignables: {injouignables}")
 
         # Badge pour la navigation (basé sur les actifs & joignables)

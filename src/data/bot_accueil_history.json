@@ -3,7 +3,7 @@
     {
       "type": "bot",
       "icon": "👑",
-      "text": "Salut ! Je suis <b>Zeus</b>, le roi de l'Olympe et ton assistant personnel sur Soulseek.<br><br>Je suis là pour t'aider à utiliser l'appli, trouver des fichiers, gérer tes téléchargements, et te guider vers le bon dieu selon tes besoins.<br><br>Que veux-tu faire ?",
+      "text": "Salut ! Je suis <b>Zeus</b>, le roi de l'Olympe et ton assistant personnel sur Soulseek.<br><br>Bienvenue <b>EliBeats</b> ! Tu es connecté à Soulseek. Je lance la mise à jour des salons et la préparation de la liste des clients actifs en arrière-plan.<br><br>Que veux-tu faire ?",
       "suggestions": [
         {
           "label": "🔍 Chercher un fichier",
@@ -16,20 +16,9 @@
         {
           "label": "❓ Aide & explications",
           "action": "help"
-        },
-        {
-          "label": "📜 Conversation précédente",
-          "action": "restore_history"
         }
       ],
-      "timestamp": "2026-05-20T21:29:48.175814"
-    },
-    {
-      "type": "bot",
-      "icon": "💬",
-      "text": "Je lance la mise à jour des salons et je prépare la liste des clients actifs…",
-      "suggestions": null,
-      "timestamp": "2026-05-20T21:29:50.244462"
+      "timestamp": "2026-05-21T09:06:06.580186"
     }
   ]
 }

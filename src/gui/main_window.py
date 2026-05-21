@@ -329,6 +329,13 @@ class MainWindow(QMainWindow):
             connexion_header.set_username(username)
             connexion_header.set_photo(cfg_get("general.photo_profil"))
 
+            # Toast de bienvenue personnalisé
+            self._toast.show_toast(
+                "SUCCESS",
+                f"Bienvenue {username} !",
+                f"✅ Connecté à Soulseek en tant que <b>{username}</b>",
+            )
+
             # Séquence de démarrage séquentielle et contrôlée après validation du login
             logger.info("Connexion réussie ! Lancement séquentiel des services...")
             
@@ -349,9 +356,10 @@ class MainWindow(QMainWindow):
                     logger.exception("Échec lors du démarrage séquentiel de ClientsActifsService: %s", e)
 
             # Étape 3 : Démarrer BoucleRooms immédiatement
-            # Le message est ajouté dans _lancer_boucle_rooms_apres_connexion
+            # _lancer_boucle_rooms_apres_connexion remplace le message de
+            # bienvenue générique par un message personnalisé + lance la boucle
             # avant le show_page("Zeus") (handler _on_connected_nav exécuté après)
-            self._lancer_boucle_rooms_apres_connexion()
+            self._lancer_boucle_rooms_apres_connexion(username)
 
         self._connexion_manager.connected.connect(_on_connected)
 
@@ -432,22 +440,27 @@ class MainWindow(QMainWindow):
                 f"✅ Boucle <b>{bot_name}</b> est désormais active",
             ))
 
-    def _lancer_boucle_rooms_apres_connexion(self) -> None:
+    def _lancer_boucle_rooms_apres_connexion(self, username: str = "") -> None:
         """Lance BoucleRooms immédiatement après connexion via BotAccueil.
 
         Appelée directement depuis _on_connected dans
-        _connect_connexion_manager(). Ajoute un message dans l'Accueil
-        puis démarre la boucle (toast via loop_started si succès).
+        _connect_connexion_manager(). Remplace le message de bienvenue
+        générique de Zeus par un message personnalisé (mentionnant
+        le lancement des salons), puis démarre la boucle.
+
+        Paramètres
+        ----------
+        username : str
+            Nom d'utilisateur connecté (optionnel, pour personnaliser
+            le message de bienvenue).
         """
         center = self._layout.center
         accueil = getattr(center, "_bot_accueil", None)
-        if accueil is not None and hasattr(accueil, "_do_start_loop"):
-            accueil.add_message(
-                "💬",
-                "Je lance la mise à jour des salons et je prépare la liste "
-                "des clients actifs…",
-                None,
-            )
+        if accueil is None:
+            return
+        if hasattr(accueil, "_show_connected_welcome"):
+            accueil._show_connected_welcome(username)
+        if hasattr(accueil, "_do_start_loop"):
             accueil._do_start_loop("Rooms")
 
     def _on_toast_event(self, event: object) -> None:

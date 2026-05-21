@@ -371,20 +371,39 @@ class TestTri:
 
 
 class _FakeUserStatusEvent:
-    """Simule UserStatusUpdateEvent d'aioslsk."""
+    """Simule UserStatusUpdateEvent d'aioslsk avec before/current User objects."""
 
     def __init__(self, username: str, status: UserStatus) -> None:
-        self.username = username
-        self.status = status
+        before = MagicMock()
+        before.name = username
+        before.status = UserStatus.UNKNOWN
+        self.before = before
+        current = MagicMock()
+        current.name = username
+        current.status = status
+        self.current = current
 
 
 class _FakeUserInfoEvent:
-    """Simule UserInfoUpdateEvent d'aioslsk."""
+    """Simule UserInfoUpdateEvent d'aioslsk avec current User object."""
 
     def __init__(self, username: str, **kwargs: Any) -> None:
-        self.username = username
+        current = MagicMock()
+        current.name = username
+        # Valeurs par défaut (None = pas de mise à jour)
+        current.description = None
+        current.country = None
+        current.avg_speed = None
+        current.uploads = None
+        current.shared_file_count = None
+        current.shared_folder_count = None
+        current.slots_free = None
+        current.has_slots_free = None
+        current.queue_length = None
+        current.privileged = None
         for k, v in kwargs.items():
-            setattr(self, k, v)
+            setattr(current, k, v)
+        self.current = current
 
 
 class TestEvenements:
@@ -704,6 +723,123 @@ class TestFluxReel:
         actifs = service.clients_actifs()
         assert len(actifs) == 3  # a + b + c (exclut UNKNOWN)
         assert service.obtenir_client("d") is not None  # existe mais UNKNOWN
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Tests des métriques de performance
+# ═════════════════════════════════════════════════════════════════
+
+
+class TestMetriquesPerformance:
+    """Tests pour les métriques de performance du ping."""
+
+    def test_metriques_initiales_zero(self) -> None:
+        """Les métriques démarrent à zéro."""
+        service, _, _ = _make_service()
+        m = service.ping_metrics()
+        assert m["total_pings"] == 0
+        assert m["total_reponses"] == 0
+        assert m["taux_succes"] == 0.0
+        assert m["temps_moyen"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_metriques_apres_ping_reussi(self) -> None:
+        """Les métriques s'incrémentent après un ping réussi."""
+        service, _, mock_client = _make_service()
+        service.demarrer()
+
+        async def _ok(_cmd):
+            return MagicMock()
+        mock_client.execute = _ok
+
+        membres = [
+            {"username": "alice", "room": "#test", "status": "online"},
+            {"username": "bob", "room": "#test", "status": "online"},
+        ]
+        await service._ping_par_lots(membres)
+
+        m = service.ping_metrics()
+        assert m["total_pings"] == 2  # 2 candidats pingés
+        assert m["total_reponses"] == 2  # 2 réponses
+        assert m["taux_succes"] == 1.0  # 100%
+        assert m["temps_moyen"] >= 0.0  # temps enregistré (>= 0 car mock synchrone)
+
+    @pytest.mark.asyncio
+    async def test_metriques_apres_ping_partiel(self) -> None:
+        """Les métriques reflètent un taux de succès partiel."""
+        service, _, mock_client = _make_service()
+        service.demarrer()
+
+        async def _partial(command):
+            username = getattr(command, "username", "")
+            if username == "fail":
+                raise RuntimeError("Timeout")
+            return MagicMock()
+        mock_client.execute = _partial
+
+        membres = [
+            {"username": "alice", "room": "#test", "status": "online"},
+            {"username": "fail", "room": "#test", "status": "online"},
+        ]
+        await service._ping_par_lots(membres)
+
+        m = service.ping_metrics()
+        assert m["total_pings"] == 2
+        assert m["total_reponses"] == 1
+        assert m["taux_succes"] == 0.5  # 50%
+
+    @pytest.mark.asyncio
+    async def test_metriques_cumul_multiples_pings(self) -> None:
+        """Les métriques se cumulent sur plusieurs pings."""
+        service, _, mock_client = _make_service()
+        service.demarrer()
+
+        async def _ok(_cmd):
+            return MagicMock()
+        mock_client.execute = _ok
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+        await service._ping_par_lots(membres)  # 1 ping, 1 réponse
+        await service._ping_par_lots(membres)  # 2e ping, 1 réponse
+
+        m = service.ping_metrics()
+        assert m["total_pings"] == 2  # 1 + 1
+        assert m["total_reponses"] == 2  # 1 + 1
+        assert m["taux_succes"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_metriques_apres_reinitialisation(self) -> None:
+        """reinitialiser_metriques() remet tout à zéro."""
+        service, _, mock_client = _make_service()
+        service.demarrer()
+
+        async def _ok(_cmd):
+            return MagicMock()
+        mock_client.execute = _ok
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+        await service._ping_par_lots(membres)
+        assert service.ping_metrics()["total_pings"] == 1
+
+        service.reinitialiser_metriques()
+        m = service.ping_metrics()
+        assert m["total_pings"] == 0
+        assert m["total_reponses"] == 0
+        assert m["taux_succes"] == 0.0
+        assert m["temps_moyen"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_metriques_ping_liste_vide(self) -> None:
+        """Ping d'une liste vide : zéro candidats, zéro réponses."""
+        service, _, mock_client = _make_service()
+        service.demarrer()
+
+        await service._ping_par_lots([])
+
+        m = service.ping_metrics()
+        assert m["total_pings"] == 0
+        assert m["total_reponses"] == 0
+        assert m["taux_succes"] == 0.0
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -1028,3 +1164,198 @@ class TestPingParLots:
 
         assert len(clients_valides_recus) == 1
         assert clients_valides_recus[0][0].username == "alice"
+
+    # ── forcer_ping() ──────────────────────────────────────────
+
+    def test_forcer_ping_declenche_run_coro(self) -> None:
+        """forcer_ping() appelle lancer_ping(force=True) et déclenche run_coro."""
+        import asyncio
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        # Pré-remplir _clients avec des clients ONLINE
+        from src.services.clients_actifs_service import ClientInfo
+
+        service._clients["alice"] = ClientInfo(username="alice", statut=UserStatus.ONLINE)
+        service._clients["bob"] = ClientInfo(username="bob", statut=UserStatus.ONLINE)
+
+        mock_cm = MagicMock()
+        mock_cm.run_coro.side_effect = lambda coro: asyncio.run(coro)
+        service.set_connexion_manager(mock_cm)
+
+        service.forcer_ping()
+
+        mock_cm.run_coro.assert_called_once()
+        call_arg = mock_cm.run_coro.call_args[0][0]
+        assert asyncio.iscoroutine(call_arg)
+
+    def test_forcer_ping_sans_clients_liste_vide(self) -> None:
+        """forcer_ping() sans clients tracked appelle lancer_ping avec liste vide."""
+        import asyncio
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        mock_cm.run_coro.side_effect = lambda coro: asyncio.run(coro)
+        service.set_connexion_manager(mock_cm)
+
+        service.forcer_ping()
+
+        # _clients vide → membres=[] → run_coro appelé avec _ping_par_lots([])
+        mock_cm.run_coro.assert_called_once()
+
+    def test_forcer_ping_exclut_unknown(self) -> None:
+        """forcer_ping() exclut les clients UNKNOWN de la liste des membres."""
+        import asyncio
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+
+        from src.services.clients_actifs_service import ClientInfo
+
+        service._clients["alice"] = ClientInfo(username="alice", statut=UserStatus.ONLINE)
+        service._clients["bob"] = ClientInfo(username="bob", statut=UserStatus.UNKNOWN)
+
+        # Mocker lancer_ping pour capturer les membres passés
+        appels: list = []
+        original_lancer = service.lancer_ping
+
+        def _capture(membres, force=False):
+            appels.append((list(membres), force))
+            original_lancer(membres, force=force)
+        service.lancer_ping = _capture  # type: ignore[assignment]
+
+        mock_cm = MagicMock()
+        mock_cm.run_coro.side_effect = lambda coro: asyncio.run(coro)
+        service.set_connexion_manager(mock_cm)
+
+        service.forcer_ping()
+
+        assert len(appels) == 1
+        membres, force = appels[0]
+        assert force is True
+        usernames = [m["username"] for m in membres]
+        assert "alice" in usernames
+        assert "bob" not in usernames  # UNKNOWN exclu
+
+    # ── Gardes espacement + dirty flag ─────────────────────────
+
+    def test_lancer_ping_espacement(self, monkeypatch) -> None:
+        """Second ping <5 min après le premier est ignoré (espacement)."""
+        import time as time_module
+
+        fake_time = [1000.0]
+        monkeypatch.setattr(time_module, "time", lambda: fake_time[0])
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        service.set_connexion_manager(mock_cm)
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+
+        # Premier ping : _dernier_ping = 0 → time() - 0 = 1000 > 300 → passe
+        service.lancer_ping(membres)
+        assert mock_cm.run_coro.call_count == 1
+
+        # Second ping immédiat (même t=1000) : _dernier_ping = 1000 → time() - 1000 = 0 < 300 → bloqué
+        service.lancer_ping(membres)
+        assert mock_cm.run_coro.call_count == 1  # Inchangé
+
+        # Le deuxième lancer_ping a bien été bloqué par l'espacement
+        # (le ping n'a pas été relancé)
+
+    def test_lancer_ping_apres_espacement(self, monkeypatch) -> None:
+        """Second ping >5 min après le premier est accepté (espacement OK)."""
+        import time as time_module
+
+        fake_time = [1000.0]
+        monkeypatch.setattr(time_module, "time", lambda: fake_time[0])
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        service.set_connexion_manager(mock_cm)
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+
+        # Premier ping à t=1000
+        service.lancer_ping(membres)
+        assert mock_cm.run_coro.call_count == 1
+        service._ping_en_cours = False  # Simuler la fin du ping asynchrone
+
+        # Avancer le temps de 6 minutes (360s) → t=1360 → 1360-1000 = 360 > 300 → passe
+        fake_time[0] = 1360.0
+        service.lancer_ping([{"username": "bob", "room": "#test", "status": "online"}])
+        assert mock_cm.run_coro.call_count == 2
+
+    def test_lancer_ping_dirty_changed(self, monkeypatch) -> None:
+        """Membres différents → ping déclenché (dirty flag passe)."""
+        import time as time_module
+
+        fake_time = [1000.0]
+        monkeypatch.setattr(time_module, "time", lambda: fake_time[0])
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        service.set_connexion_manager(mock_cm)
+
+        # Premier lot : alice
+        service.lancer_ping([{"username": "alice", "room": "#test", "status": "online"}])
+        assert mock_cm.run_coro.call_count == 1
+        service._ping_en_cours = False  # Simuler la fin du ping asynchrone
+
+        # Avancer le temps (pour passer l'espacement) + membres différents
+        fake_time[0] = 2000.0
+        service.lancer_ping([{"username": "bob", "room": "#test", "status": "online"}])
+        # Dirty flag : hash("bob") ≠ hash("alice") → déclenché
+        assert mock_cm.run_coro.call_count == 2
+
+    def test_lancer_ping_dirty_identical(self, monkeypatch) -> None:
+        """Membres identiques → ping ignoré (dirty flag bloque)."""
+        import time as time_module
+
+        fake_time = [1000.0]
+        monkeypatch.setattr(time_module, "time", lambda: fake_time[0])
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        service.set_connexion_manager(mock_cm)
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+
+        # Premier ping
+        service.lancer_ping(membres)
+        assert mock_cm.run_coro.call_count == 1
+
+        # Avancer le temps (pour passer l'espacement) + mêmes membres
+        fake_time[0] = 2000.0
+        service.lancer_ping(membres)
+        # Dirty flag : même hash → bloqué
+        assert mock_cm.run_coro.call_count == 1  # Inchangé
+
+    def test_rafraichir_force_ping(self, monkeypatch) -> None:
+        """force=True ignore les deux gardes (espacement + dirty)."""
+        import time as time_module
+
+        fake_time = [1000.0]
+        monkeypatch.setattr(time_module, "time", lambda: fake_time[0])
+
+        service, mock_soulseek, mock_client = _make_service()
+        service.demarrer()
+        mock_cm = MagicMock()
+        service.set_connexion_manager(mock_cm)
+
+        membres = [{"username": "alice", "room": "#test", "status": "online"}]
+
+        # Premier ping normal (pose _dernier_ping, _dernier_hash_membres)
+        service.lancer_ping(membres)
+        assert mock_cm.run_coro.call_count == 1
+        service._ping_en_cours = False  # Simuler la fin du ping asynchrone
+
+        # Même temps + mêmes membres, MAIS force=True → doit contourner les deux gardes
+        service.lancer_ping(membres, force=True)
+        assert mock_cm.run_coro.call_count == 2  # Accepté malgré espacement + dirty identique

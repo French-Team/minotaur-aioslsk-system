@@ -41,18 +41,14 @@ _DATA_DIR = Path("data")
 _DB_PATH = _DATA_DIR / "bot_surveillance.db"
 
 # ── Schéma SQLite ────────────────────────────────────────────────────────
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 4
 
 _SQL_CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp   TEXT NOT NULL,
     severity    TEXT NOT NULL CHECK(severity IN ('INFO', 'WARN', 'ERROR')),
-    category    TEXT NOT NULL CHECK(category IN (
-                    'reseau', 'transfert', 'recherche', 'bibliotheque',
-                    'configuration', 'erreur', 'bot',
-                    'wishlist', 'optimiseur'
-                )),
+    category    TEXT NOT NULL,
     title       TEXT NOT NULL,
     message     TEXT NOT NULL,
     source      TEXT NOT NULL,
@@ -91,25 +87,12 @@ class SurveillanceEvent:
     created_at: str = ""
 
     SEVERITIES = ("INFO", "WARN", "ERROR")
-    CATEGORIES = (
-        "reseau",
-        "transfert",
-        "recherche",
-        "bibliotheque",
-        "configuration",
-        "erreur",
-        "bot",
-        "wishlist",
-        "optimiseur",
-    )
 
     def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = datetime.now().isoformat(timespec="seconds")
         if self.severity not in self.SEVERITIES:
             raise ValueError(f"Sévérité invalide : {self.severity!r}")
-        if self.category not in self.CATEGORIES:
-            raise ValueError(f"Catégorie invalide : {self.category!r}")
 
 
 # ── Service ──────────────────────────────────────────────────────────────

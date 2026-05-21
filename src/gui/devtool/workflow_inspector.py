@@ -600,6 +600,18 @@ class WorkflowInspector(QDockWidget):
 
         info_layout.addLayout(row2)
 
+        # Ligne 3 : Statistiques spécifiques à la boucle (Rooms, Clients Actifs)
+        row3 = QHBoxLayout()
+        row3.setSpacing(6)
+
+        lbl_loop_stats = QLabel()
+        lbl_loop_stats.setObjectName(f"loop_{name}")
+        lbl_loop_stats.setStyleSheet("color: #585b70; font-size: 9px;")
+        lbl_loop_stats.setVisible(False)  # rendu visible par _update_loop_stats
+        row3.addWidget(lbl_loop_stats)
+        row3.addStretch()
+        info_layout.addLayout(row3)
+
         # Défilement vers le bas à la construction
         h_layout.addLayout(info_layout)
 
@@ -867,16 +879,71 @@ class WorkflowInspector(QDockWidget):
             else:
                 btn_toggle.setText("▶ Démarrer")
 
-    def _refresh_cards_status(self) -> None:
-        """Rafraîchit le statut de toutes les cartes connues (timer 2s).
+    def _update_loop_stats(self, name: str) -> None:
+        """Met à jour les statistiques spécifiques à la boucle (Rooms, Clients Actifs)."""
+        card = self._bot_cards.get(name)
+        instance = self._bot_instances.get(name)
+        if card is None or instance is None:
+            return
 
-        Ne reconstruit pas les cartes — appelle juste _update_card() pour
-        synchroniser le statut, le bouton toggle, et le compteur d'événements.
+        lbl_loop = card.findChild(QLabel, f"loop_{name}")
+        if lbl_loop is None:
+            return
+
+        if name == "Rooms":
+            membres = getattr(instance, "membres", None)
+            rooms = getattr(instance, "rooms", None)
+            nb_membres = len(membres) if membres else 0
+            nb_rooms = len(rooms) if rooms else 0
+            actif = getattr(instance, "est_actif", False) or getattr(instance, "_actif", False)
+            lbl_loop.setVisible(True)
+            if actif:
+                lbl_loop.setText(f"🏠 {nb_rooms} rooms · 👥 {nb_membres} membres")
+                lbl_loop.setStyleSheet("color: #585b70; font-size: 9px;")
+            else:
+                lbl_loop.setText("⏸ boucle arrêtée")
+                lbl_loop.setStyleSheet("color: #f38ba8; font-size: 9px;")
+
+        elif name == "Clients Actifs":
+            ping_metrics = getattr(instance, "ping_metrics", None)
+            nb_trackes = len(getattr(instance, "_clients", {}))
+            actif = getattr(instance, "_running", False)
+            lbl_loop.setVisible(True)
+
+            if not actif:
+                lbl_loop.setText("⏸ service arrêté")
+                lbl_loop.setStyleSheet("color: #f38ba8; font-size: 9px;")
+            elif ping_metrics is not None:
+                m = ping_metrics()
+                if m["total_pings"] > 0:
+                    taux = m["taux_succes"] * 100
+                    lbl_loop.setText(
+                        f"👥 {nb_trackes} trackés · 📊 {m['total_reponses']}/{m['total_pings']} "
+                        f"réponses ({taux:.0f}%, ~{m['temps_moyen']:.1f}s/ping)"
+                    )
+                else:
+                    lbl_loop.setText(f"👥 {nb_trackes} trackés · 📊 aucun ping")
+                lbl_loop.setStyleSheet("color: #585b70; font-size: 9px;")
+            else:
+                lbl_loop.setText(f"👥 {nb_trackes} trackés")
+                lbl_loop.setStyleSheet("color: #585b70; font-size: 9px;")
+
+        else:
+            # Masquer la ligne pour les autres entités
+            lbl_loop.setVisible(False)
+
+    def _refresh_cards_status(self) -> None:
+        """Rafraîchit le statut et les stats boucle de toutes les cartes connues (timer 2s).
+
+        Ne reconstruit pas les cartes — appelle _update_card() et
+        _update_loop_stats() pour synchroniser le statut, le bouton toggle,
+        le compteur d'événements, et les statistiques spécifiques aux boucles.
         """
         if self._paused:
             return
         for name in list(self._bot_instances.keys()):
             self._update_card(name)
+            self._update_loop_stats(name)
 
     def _on_card_clicked(self, bot_name: str) -> None:
         """Navigue vers la page du bot dans le centre."""

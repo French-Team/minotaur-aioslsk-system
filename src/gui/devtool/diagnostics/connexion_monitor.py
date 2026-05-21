@@ -56,146 +56,121 @@ class ConnexionMonitorWidget(QFrame):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(8)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setSpacing(2)
 
-        # ── Bannière titre ──
-        titre = QLabel("📊  MONITEUR ÉTAT CONNEXION  (machine à états)")
+        # ── Bannière titre compacte ──
+        titre = QLabel("📊 MONITEUR CONNEXION")
         titre.setStyleSheet(
-            "font-weight: bold; color: #89b4fa; font-size: 11px; "
-            "background: #181825; border-radius: 4px; padding: 6px;"
+            "font-weight: bold; color: #89b4fa; font-size: 9px; "
+            "background: #181825; border-radius: 3px; padding: 2px 4px;"
         )
         layout.addWidget(titre)
 
-        # ── Ligne 1 : Drapeaux binaires ──
+        # ── Ligne 1 : Drapeaux + état machine + uptime (fusionné en une barre) ──
         flags_frame = QFrame()
         flags_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
+            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; padding: 2px;"
         )
-        flags_layout = QGridLayout(flags_frame)
-        flags_layout.setSpacing(6)
+        flags_layout = QHBoxLayout(flags_frame)
+        flags_layout.setContentsMargins(2, 1, 2, 1)
+        flags_layout.setSpacing(4)
 
-        # Rangée 0 : headers
-        headers = ["Drapeau", "Valeur", "État"]
-        for col, h in enumerate(headers):
-            lbl = QLabel(f"<b>{h}</b>")
-            lbl.setStyleSheet("color: #a6adc8; font-size: 10px;")
-            flags_layout.addWidget(lbl, 0, col)
-
-        # Rangée 1 : _connecting
-        flags_layout.addWidget(QLabel("_connecting :"), 1, 0)
-        self._lbl_connecting = QLabel("—")
-        self._lbl_connecting.setStyleSheet("font-weight: bold; font-size: 11px;")
-        flags_layout.addWidget(self._lbl_connecting, 1, 1)
-        self._lbl_connecting_state = QLabel("⚪")
-        flags_layout.addWidget(self._lbl_connecting_state, 1, 2)
-
-        # Rangée 2 : _cancel_requested
-        flags_layout.addWidget(QLabel("_cancel_requested :"), 2, 0)
-        self._lbl_cancel = QLabel("—")
-        self._lbl_cancel.setStyleSheet("font-weight: bold; font-size: 11px;")
-        flags_layout.addWidget(self._lbl_cancel, 2, 1)
-        self._lbl_cancel_state = QLabel("⚪")
-        flags_layout.addWidget(self._lbl_cancel_state, 2, 2)
-
-        # Rangée 3 : _generating
-        flags_layout.addWidget(QLabel("_generating :"), 3, 0)
-        self._lbl_generating = QLabel("—")
-        self._lbl_generating.setStyleSheet("font-weight: bold; font-size: 11px;")
-        flags_layout.addWidget(self._lbl_generating, 3, 1)
-        self._lbl_generating_state = QLabel("⚪")
-        flags_layout.addWidget(self._lbl_generating_state, 3, 2)
-
-        # Rangée 4 : is_connected (depuis le service)
-        flags_layout.addWidget(QLabel("is_connected  :"), 4, 0)
-        self._lbl_connected = QLabel("—")
-        self._lbl_connected.setStyleSheet("font-weight: bold; font-size: 11px;")
-        flags_layout.addWidget(self._lbl_connected, 4, 1)
-        self._lbl_connected_state = QLabel("⚪")
-        flags_layout.addWidget(self._lbl_connected_state, 4, 2)
-
-        # Rangée 5 : Thread
-        flags_layout.addWidget(QLabel("Thread asyncio :"), 5, 0)
+        # Groupe connecting
+        flags_layout.addWidget(QLabel("C:"))
+        self._lbl_connecting = QLabel("False")
+        self._lbl_connecting.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 11px;")
+        flags_layout.addWidget(self._lbl_connecting)
+        self._lbl_connecting_state = QLabel("🟢")
+        flags_layout.addWidget(self._lbl_connecting_state)
+        flags_layout.addWidget(QLabel("| Cncl:"))
+        self._lbl_cancel = QLabel("False")
+        self._lbl_cancel.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 11px;")
+        flags_layout.addWidget(self._lbl_cancel)
+        self._lbl_cancel_state = QLabel("🟢")
+        flags_layout.addWidget(self._lbl_cancel_state)
+        flags_layout.addWidget(QLabel("| Gen:"))
+        self._lbl_generating = QLabel("False")
+        self._lbl_generating.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 11px;")
+        flags_layout.addWidget(self._lbl_generating)
+        self._lbl_generating_state = QLabel("🟢")
+        flags_layout.addWidget(self._lbl_generating_state)
+        flags_layout.addWidget(QLabel("| Conn:"))
+        self._lbl_connected = QLabel("False")
+        self._lbl_connected.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 11px;")
+        flags_layout.addWidget(self._lbl_connected)
+        self._lbl_connected_state = QLabel("🟢")
+        flags_layout.addWidget(self._lbl_connected_state)
+        flags_layout.addWidget(QLabel("| Thread:"))
         self._lbl_thread = QLabel("—")
-        self._lbl_thread.setStyleSheet("font-weight: bold; font-size: 11px;")
-        flags_layout.addWidget(self._lbl_thread, 5, 1)
+        self._lbl_thread.setStyleSheet("color: #6c7086;")
+        flags_layout.addWidget(self._lbl_thread)
         self._lbl_thread_state = QLabel("⚪")
-        flags_layout.addWidget(self._lbl_thread_state, 5, 2)
+        flags_layout.addWidget(self._lbl_thread_state)
+
+        flags_layout.addStretch()
+
+        flags_layout.addWidget(QLabel("État:"))
+        self._lbl_machine = QLabel("OFFLINE")
+        self._lbl_machine.setStyleSheet(
+            "font-weight: bold; font-size: 10px; color: #f38ba8; padding: 0 4px;"
+        )
+        flags_layout.addWidget(self._lbl_machine)
+        flags_layout.addWidget(QLabel("Uptime:"))
+        self._lbl_uptime = QLabel("—")
+        self._lbl_uptime.setStyleSheet("color: #6c7086; font-size: 9px;")
+        flags_layout.addWidget(self._lbl_uptime)
 
         layout.addWidget(flags_frame)
 
-        # ── Ligne 2 : Résumé machine à états ──
-        etat_frame = QFrame()
-        etat_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
-        )
-        etat_layout = QHBoxLayout(etat_frame)
-
-        etat_layout.addWidget(QLabel("État machine :"))
-        self._lbl_machine = QLabel("OFFLINE")
-        self._lbl_machine.setStyleSheet(
-            "font-weight: bold; font-size: 14px; color: #f38ba8; padding: 2px 8px;"
-        )
-        etat_layout.addWidget(self._lbl_machine)
-
-        etat_layout.addStretch()
-
-        etat_layout.addWidget(QLabel("Uptime :"))
-        self._lbl_uptime = QLabel("—")
-        self._lbl_uptime.setStyleSheet("color: #a6adc8;")
-        etat_layout.addWidget(self._lbl_uptime)
-
-        layout.addWidget(etat_frame)
-
-        # ── Ligne 3 : Dernière tentative ──
+        # ── Ligne 2 : Dernière tentative (compact) ──
         last_frame = QFrame()
         last_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
+            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; padding: 2px;"
         )
-        last_layout = QVBoxLayout(last_frame)
+        last_layout = QHBoxLayout(last_frame)
+        last_layout.setContentsMargins(3, 1, 3, 1)
+        last_layout.setSpacing(4)
 
-        last_layout.addWidget(QLabel("<b>🕐 Dernière tentative</b>"))
-        self._lbl_last_attempt = QLabel("Aucune tentative récente")
-        self._lbl_last_attempt.setStyleSheet("color: #6c7086; font-size: 10px;")
+        last_layout.addWidget(QLabel("<b>🕐</b>"))
+        self._lbl_last_attempt = QLabel("Aucune tentative")
+        self._lbl_last_attempt.setStyleSheet("color: #6c7086; font-size: 9px;")
         last_layout.addWidget(self._lbl_last_attempt)
-
-        # Sous-lignes détaillées
-        details_grid = QGridLayout()
-        details_grid.setSpacing(4)
-        details_grid.addWidget(QLabel("Timestamp :"), 0, 0)
+        last_layout.addWidget(QLabel("| TS:"))
         self._lbl_last_ts = QLabel("—")
-        self._lbl_last_ts.setStyleSheet("color: #a6adc8;")
-        details_grid.addWidget(self._lbl_last_ts, 0, 1)
-        details_grid.addWidget(QLabel("Utilisateur :"), 0, 2)
+        self._lbl_last_ts.setStyleSheet("color: #6c7086; font-size: 9px;")
+        last_layout.addWidget(self._lbl_last_ts)
+        last_layout.addWidget(QLabel("User:"))
         self._lbl_last_user = QLabel("—")
-        self._lbl_last_user.setStyleSheet("color: #a6adc8;")
-        details_grid.addWidget(self._lbl_last_user, 0, 3)
-        details_grid.addWidget(QLabel("Résultat :"), 0, 4)
+        self._lbl_last_user.setStyleSheet("color: #6c7086; font-size: 9px;")
+        last_layout.addWidget(self._lbl_last_user)
+        last_layout.addWidget(QLabel("→"))
         self._lbl_last_result = QLabel("—")
-        self._lbl_last_result.setStyleSheet("color: #a6adc8;")
-        details_grid.addWidget(self._lbl_last_result, 0, 5)
-        last_layout.addLayout(details_grid)
+        self._lbl_last_result.setStyleSheet("color: #6c7086; font-size: 9px;")
+        last_layout.addWidget(self._lbl_last_result)
 
         layout.addWidget(last_frame)
 
-        # ── Ligne 4 : Historique ──
+        # ── Ligne 3 : Historique ──
         hist_frame = QFrame()
         hist_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
+            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; padding: 2px;"
         )
         hist_layout = QVBoxLayout(hist_frame)
-        hist_layout.addWidget(QLabel("<b>📜 Chronologie des transitions</b>"))
+        hist_layout.setContentsMargins(2, 1, 2, 1)
+        hist_layout.addWidget(QLabel("<b>📜 Chronologie</b>"), 0, Qt.AlignmentFlag.AlignLeft)
 
         self._history_list = QListWidget()
         self._history_list.setStyleSheet(
             "QListWidget {"
             "  background-color: #11111b;"
             "  border: 1px solid #313244;"
-            "  border-radius: 4px;"
+            "  border-radius: 3px;"
             "  font-family: 'Consolas', 'Courier New', monospace;"
-            "  font-size: 10px;"
+            "  font-size: 9px;"
             "  color: #cdd6f4;"
             "}"
+            "QListWidget::item { padding: 1px 3px; }"
         )
         hist_layout.addWidget(self._history_list)
 

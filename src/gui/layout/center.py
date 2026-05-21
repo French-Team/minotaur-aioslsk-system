@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
 
 from src.gui.theme_fragments.colors import COLORS
 from src.gui.widgets.bots.bot_accueil import BotAccueil
+from src.gui.widgets.bots.bot_aide import BotAide
+from src.gui.widgets.bots.bot_assistant import BotAssistant
 from src.gui.widgets.bots.bot_bibliotheque import BotBibliotheque
 from src.gui.widgets.bots.bot_clients_actifs import BotClientsActifs
 from src.gui.widgets.bots.bot_optimiseur import BotOptimiseur
@@ -115,8 +117,6 @@ class CenterZone(QFrame):
         for name in (
             "Surveillance",
             "Planificateur",
-            "Assistant",
-            "Aide",
         ):
             self._build_menu_page(name)
 
@@ -143,6 +143,12 @@ class CenterZone(QFrame):
 
         # Page du bot Ordonnanceur (assistant d'organisation)
         self._build_ordonnanceur_page()
+
+        # Page du bot Assistant (dashboard coulisses)
+        self._build_assistant_page()
+
+        # Page du bot Aide (consultation et recherche d'articles)
+        self._build_aide_page()
 
         # Connexion des signaux d'événements Soulseek
         self._connect_event_signals()
@@ -197,12 +203,12 @@ class CenterZone(QFrame):
         if actifs_service is not None and hasattr(actifs_service, "set_connexion_manager"):
             actifs_service.set_connexion_manager(manager)
 
-        # Connecter le bouton Rafraîchir du widget Clients Actifs à BoucleRooms
+        # Connecter le bouton Rafraîchir au forcer_ping() du service Clients Actifs
         # (flag anti-doublon pour éviter les connexions multiples en cas de reconnexion)
         page_clients = self._pages.get("Clients Actifs")
-        if isinstance(page_clients, BotClientsActifs) and self._boucle_rooms is not None:
+        if isinstance(page_clients, BotClientsActifs) and self._clients_actifs_service is not None:
             if not self._rafraichir_connecte:
-                page_clients.rafraichir_demande.connect(self._boucle_rooms.rafraichir)
+                page_clients.rafraichir_demande.connect(self._clients_actifs_service.forcer_ping)
                 self._rafraichir_connecte = True
 
     def _start_loop(self, loop_name: str) -> bool:
@@ -1021,6 +1027,19 @@ class CenterZone(QFrame):
         self._pages["Debug"] = debug
         self._stack.addWidget(debug)
 
+    def _build_assistant_page(self) -> None:
+        """Page du bot Assistant — dashboard de l'assistant en coulisses."""
+        page = BotAssistant()
+        self._pages["Assistant"] = page
+        self._stack.addWidget(page)
+
+    def _build_aide_page(self) -> None:
+        """Page du bot Aide — consultation et recherche d'articles."""
+        page = BotAide()
+        self._pages["Aide"] = page
+        self._stack.addWidget(page)
+        page.page_changed.connect(self.show_page)
+
     def _build_menu_page(self, name: str) -> None:
         """Crée une page de menu vide (remplie plus tard)."""
         page = QWidget()
@@ -1091,6 +1110,20 @@ class CenterZone(QFrame):
                 evt.result.username if hasattr(evt.result, "username") else "?",
             )
         )
+
+        # ── BotAssistant → BotAccueil ────────────────────────────
+
+        assistant = self._pages.get("Assistant")
+        if isinstance(assistant, BotAssistant) and hasattr(self, "_bot_accueil"):
+            assistant.setup(self._bot_accueil)
+
+        # ── BotAide → EventBus ────────────────────────────────────
+
+        aide = self._pages.get("Aide")
+        if isinstance(aide, BotAide):
+            from src.services.event_bus import EventBus
+
+            aide.setup(EventBus())
 
         # ── Messages → log (UI à venir) ───────────────────────────
 

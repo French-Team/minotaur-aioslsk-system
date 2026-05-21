@@ -9,24 +9,31 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import socket
 import time
 import traceback
 import threading
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QPoint, QRect, QSize, QTimer, Signal
 from PySide6.QtGui import QColor, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QDockWidget,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLayout,
+    QLayoutItem,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTabWidget,
     QTextEdit,
@@ -46,7 +53,7 @@ logger = logging.getLogger(__name__)
 # ── Custom Thread-Safe Log Handler for PySide6 ───────────────────────────
 
 class _LogSignalEmitter(QObject):
-    log_received = Signal(str, str)
+    log_received = Signal(str, str, str)  # level, logger_name, msg
 
 
 class QTextBoxLogHandler(logging.Handler):
@@ -59,7 +66,7 @@ class QTextBoxLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             msg = self.format(record)
-            self.emitter.log_received.emit(record.levelname, msg)
+            self.emitter.log_received.emit(record.levelname, record.name, msg)
         except Exception:
             self.handleError(record)
 
@@ -210,6 +217,109 @@ class _TasksSignalEmitter(QObject):
     diagnostic_log = Signal(str)
 
 
+# ── FlowLayout : layout qui passe à la ligne automatiquement ──────────────
+
+class _FlowLayout(QLayout):
+    """Layout à flux qui dispose les widgets horizontalement et passe à la ligne
+    suivante automatiquement quand il n'y a plus d'espace horizontal disponible.
+
+    Inspiré de l'exemple Qt officiel ``basiclayouts/flowlayout.py``.
+    """
+
+    def __init__(self, parent: QWidget | None = None, margin: int = 0, spacing: int = 4) -> None:
+        super().__init__(parent)
+        self._item_list: list[QLayoutItem] = []
+        self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
+
+    def __del__(self) -> None:
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item: QLayoutItem) -> None:
+        self._item_list.append(item)
+
+    def count(self) -> int:
+        return len(self._item_list)
+
+    def itemAt(self, index: int) -> QLayoutItem | None:
+        if 0 <= index < len(self._item_list):
+            return self._item_list[index]
+        return None
+
+    def takeAt(self, index: int) -> QLayoutItem | None:
+        if 0 <= index < len(self._item_list):
+            return self._item_list.pop(index)
+        return None
+
+    def expandingDirections(self) -> Qt.Orientations:
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._do_layout(QRect(0, 0, width, 0), False)
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for item in self._item_list:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def sizeHint(self) -> QSize:
+        return self.minimumSize()
+
+    def setGeometry(self, rect: QRect) -> None:
+        super().setGeometry(rect)
+        self._do_layout(rect, True)
+
+    def _do_layout(self, rect: QRect, set_geometry: bool) -> int:
+        """Dispose les widgets horizontalement avec retour à la ligne.
+
+        Retourne la hauteur totale utilisée (utile pour heightForWidth).
+        """
+        margins = self.contentsMargins()
+        effective_rect = QRect(
+            rect.x() + margins.left(),
+            rect.y() + margins.top(),
+            rect.width() - margins.left() - margins.right(),
+            rect.height() - margins.top() - margins.bottom(),
+        )
+
+        x = effective_rect.x()
+        y = effective_rect.y()
+        line_height = 0
+        spacing = self.spacing()
+
+        for item in self._item_list:
+            widget = item.widget()
+            if widget is None:
+                continue
+            if not widget.isVisible():
+                continue
+
+            space_x = spacing
+            next_x = x + item.sizeHint().width() + space_x
+
+            if next_x - space_x > effective_rect.right() and line_height > 0:
+                x = effective_rect.x()
+                y += line_height + spacing
+                next_x = x + item.sizeHint().width() + space_x
+                line_height = 0
+
+            if set_geometry:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+
+            x = next_x
+            line_height = max(line_height, item.sizeHint().height())
+
+        return y + line_height - rect.y() + margins.bottom()
+
+
 # ── Service Inspector main QDockWidget ────────────────────────────────────
 
 class ServiceInspector(QDockWidget):
@@ -298,6 +408,13 @@ class ServiceInspector(QDockWidget):
         self._log_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] (%(name)s) %(message)s', datefmt='%H:%M:%S'))
         self._log_handler.emitter.log_received.connect(self.append_log)
         logging.getLogger().addHandler(self._log_handler)
+
+        # Flag : l'onglet Dashboard est visible → on met à jour l'arbre des tâches
+        # Remplacer le check self._tabs.currentIndex() == 0 par ce flag permet
+        # de forcer la mise à jour depuis le bouton "Rafraîchir Tâches" même
+        # quand l'utilisateur est sur un autre onglet.
+        self._tasks_in_foreground = True
+        self._tabs.currentChanged.connect(lambda idx: setattr(self, "_tasks_in_foreground", idx == 0))
 
         # Active poll timer (1.5 seconds) to update services status and tasks
         self._poll_timer = QTimer(self)
@@ -458,7 +575,104 @@ class ServiceInspector(QDockWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(4, 4, 4, 4)
-        
+
+        # ── Barre de filtres + actions ──
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(0, 0, 0, 4)
+        toolbar.setSpacing(4)
+
+        toolbar.addWidget(QLabel("Filtrer :"))
+
+        self._chk_error = QCheckBox("ERROR")
+        self._chk_error.setChecked(True)
+        self._chk_error.toggled.connect(self._reapply_log_filter)
+        self._chk_error.setStyleSheet("color: #f38ba8; font-size: 10px;")
+        toolbar.addWidget(self._chk_error)
+
+        self._chk_warning = QCheckBox("WARNING")
+        self._chk_warning.setChecked(True)
+        self._chk_warning.toggled.connect(self._reapply_log_filter)
+        self._chk_warning.setStyleSheet("color: #f9e2af; font-size: 10px;")
+        toolbar.addWidget(self._chk_warning)
+
+        self._chk_info = QCheckBox("INFO")
+        self._chk_info.setChecked(True)
+        self._chk_info.toggled.connect(self._reapply_log_filter)
+        self._chk_info.setStyleSheet("color: #89b4fa; font-size: 10px;")
+        toolbar.addWidget(self._chk_info)
+
+        self._chk_debug = QCheckBox("DEBUG")
+        self._chk_debug.setChecked(True)
+        self._chk_debug.toggled.connect(self._reapply_log_filter)
+        self._chk_debug.setStyleSheet("color: #6c7086; font-size: 10px;")
+        toolbar.addWidget(self._chk_debug)
+
+        # Bouton "Tout sélectionner" pour les filtres
+        self._btn_select_all = QPushButton("Tout")
+        self._btn_select_all.setFixedWidth(40)
+        self._btn_select_all.setStyleSheet(
+            "background: #313244; color: #cdd6f4; "
+            "padding: 2px 4px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_select_all.clicked.connect(self._select_all_filters)
+        toolbar.addWidget(self._btn_select_all)
+
+        self._btn_deselect_all = QPushButton("Aucun")
+        self._btn_deselect_all.setFixedWidth(45)
+        self._btn_deselect_all.setStyleSheet(
+            "background: #313244; color: #cdd6f4; "
+            "padding: 2px 4px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_deselect_all.clicked.connect(self._deselect_all_filters)
+        toolbar.addWidget(self._btn_deselect_all)
+
+        toolbar.addStretch()
+
+        self._btn_copy_logs = QPushButton("📋 Copier les logs")
+        self._btn_copy_logs.setStyleSheet(
+            "background-color: #45475a; color: #cdd6f4; "
+            "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_copy_logs.clicked.connect(self._copy_filtered_logs)
+        toolbar.addWidget(self._btn_copy_logs)
+
+        layout.addLayout(toolbar)
+
+        # ── Barre de filtres par service (dynamique) ──
+        service_bar = QHBoxLayout()
+        service_bar.setContentsMargins(0, 0, 0, 4)
+        service_bar.setSpacing(4)
+
+        lbl_services = QLabel("Services :")
+        lbl_services.setStyleSheet("color: #a6adc8; font-size: 10px;")
+        service_bar.addWidget(lbl_services)
+
+        self._loggers_container = QWidget()
+        self._loggers_layout = _FlowLayout(self._loggers_container, margin=0, spacing=4)
+        service_bar.addWidget(self._loggers_container)
+
+        service_bar.addStretch()
+
+        self._btn_logger_all = QPushButton("Tout")
+        self._btn_logger_all.setFixedWidth(35)
+        self._btn_logger_all.setStyleSheet(
+            "background: #313244; color: #cdd6f4; "
+            "padding: 2px 4px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_logger_all.clicked.connect(self._select_all_loggers)
+        service_bar.addWidget(self._btn_logger_all)
+
+        self._btn_logger_none = QPushButton("Aucun")
+        self._btn_logger_none.setFixedWidth(40)
+        self._btn_logger_none.setStyleSheet(
+            "background: #313244; color: #cdd6f4; "
+            "padding: 2px 4px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_logger_none.clicked.connect(self._deselect_all_loggers)
+        service_bar.addWidget(self._btn_logger_none)
+
+        layout.addLayout(service_bar)
+
         self._logs_text = QTextEdit()
         self._logs_text.setReadOnly(True)
         self._logs_text.setStyleSheet(
@@ -473,7 +687,11 @@ class ServiceInspector(QDockWidget):
             "}"
         )
         layout.addWidget(self._logs_text)
-        
+
+        # Stockage des logs bruts pour re-filtrage
+        self._log_entries: list[tuple[str, str, str]] = []  # (level, logger_name, html_msg)
+        self._chk_loggers: dict[str, QCheckBox] = {}  # logger_name → checkbox
+
         self._tabs.addTab(tab, "Flux des Logs")
 
     def _setup_tab_control(self) -> None:
@@ -577,7 +795,7 @@ class ServiceInspector(QDockWidget):
             self._timeout_controller.refresh()
 
         # Only query active tasks if the dashboard tab is currently selected
-        if self._tabs.currentIndex() == 0:
+        if self._tasks_in_foreground:
             self.refresh_asyncio_tasks()
 
     def _toggle_polling(self) -> None:
@@ -619,11 +837,11 @@ class ServiceInspector(QDockWidget):
 
             # 2. RoomService
             room_svc = getattr(self._main_window, "_room_service", None)
-            if room_svc is not None and getattr(room_svc, "_demarre", False):
+            if room_svc is not None and getattr(room_svc, "_running", False):
                 self._lbl_room_status.setText("RUNNING")
                 self._lbl_room_status.setStyleSheet("color: #a6e3a1; font-weight: bold;")
-                rooms_count = len(getattr(room_svc, "_rooms_info", {}))
-                self._lbl_room_info.setText(f"{rooms_count} salon(s) actif(s)")
+                rooms_count = room_svc.nb_publiques + room_svc.nb_privees
+                self._lbl_room_info.setText(f"{rooms_count} salon(s) — {room_svc.nb_publiques} publiques, {room_svc.nb_privees} privées")
                 self._btn_room_act.setText("Arrêter")
             else:
                 self._lbl_room_status.setText("STOPPED")
@@ -637,7 +855,7 @@ class ServiceInspector(QDockWidget):
             if layout is not None and hasattr(layout, "center"):
                 clients_svc = getattr(layout.center, "_clients_actifs_service", None)
             
-            if clients_svc is not None and getattr(clients_svc, "_demarre", False):
+            if clients_svc is not None and getattr(clients_svc, "_running", False):
                 self._lbl_clients_status.setText("RUNNING")
                 self._lbl_clients_status.setStyleSheet("color: #a6e3a1; font-weight: bold;")
                 active_count = len(clients_svc.clients_actifs())
@@ -656,7 +874,7 @@ class ServiceInspector(QDockWidget):
         room_svc = getattr(self._main_window, "_room_service", None)
         if room_svc is None:
             return
-        if getattr(room_svc, "_demarre", False):
+        if getattr(room_svc, "_running", False):
             room_svc.arreter()
         else:
             room_svc.demarrer()
@@ -669,7 +887,7 @@ class ServiceInspector(QDockWidget):
         clients_svc = getattr(layout.center, "_clients_actifs_service", None)
         if clients_svc is None:
             return
-        if getattr(clients_svc, "_demarre", False):
+        if getattr(clients_svc, "_running", False):
             clients_svc.arreter()
         else:
             clients_svc.demarrer()
@@ -680,26 +898,39 @@ class ServiceInspector(QDockWidget):
     def refresh_asyncio_tasks(self) -> None:
         """Fetch all running asyncio tasks from the Connection Thread's event loop
         to diagnose deadlocks, pending awaits, or blocked execution paths.
+
+        Ajoute un header de diagnostic dans le QTreeWidget avec l'état de santé
+        de la boucle (running/stopped, nb tâches, exceptions récentes).
         """
         mgr = getattr(self._main_window, "_connexion_manager", None)
         if mgr is None or not hasattr(mgr, "_async_thread"):
-            self._update_tasks_list_ui([])
+            self._update_tasks_list_ui([], "Aucun ConnexionManager — thread asyncio introuvable")
             return
 
         thread = getattr(mgr, "_async_thread", None)
-        if thread is None or getattr(thread, "_loop", None) is None:
-            self._update_tasks_list_ui([])
+        if thread is None:
+            self._update_tasks_list_ui([], "Thread asyncio non initialisé")
             return
 
-        loop = thread._loop
-        if not loop.is_running():
-            self._update_tasks_list_ui([])
+        loop = getattr(thread, "_loop", None)
+        if loop is None:
+            self._update_tasks_list_ui([], "Boucle asyncio non créée")
             return
+
+        if not loop.is_running():
+            self._update_tasks_list_ui([], "🔴 Boucle asyncio ARRÊTÉE — thread mort ou exception non gérée")
+            logger.warning("ServiceInspector: la boucle asyncio du ConnexionManager est arrêtée !")
+            return
+
+        logger.debug("ServiceInspector: boucle asyncio active — lancement de l'inspection")
 
         # Query all tasks on their target event loop thread-safely
         # On exclut nos propres tâches d'inspection pour éviter le bruit
+        total_brut = [0]  # mutable pour closure interne
+
         def query_loop_tasks() -> list[tuple[str, str, str, str]]:
             task_instances = asyncio.all_tasks(loop)
+            total_brut[0] = len(task_instances)
             results = []
             for t in task_instances:
                 coro = t.get_coro()
@@ -721,7 +952,6 @@ class ServiceInspector(QDockWidget):
                 if frame:
                     tb = traceback.extract_stack(frame)
                     if tb:
-                        # Extract basename and line number
                         f_info = tb[-1]
                         filename = f_info.filename.split('/')[-1].split('\\')[-1]
                         stack_str = f"{filename}:{f_info.lineno} ({f_info.name})"
@@ -732,6 +962,7 @@ class ServiceInspector(QDockWidget):
                     t._state if hasattr(t, "_state") else "PENDING",
                     stack_str
                 ))
+            logger.debug("ServiceInspector: %d tâches brutes, %d après filtrage", total_brut[0], len(results))
             return results
 
         def future_done(future) -> None:
@@ -751,8 +982,22 @@ class ServiceInspector(QDockWidget):
     def _on_tasks_received(self, tasks: list) -> None:
         self._update_tasks_list_ui(tasks)
 
-    def _update_tasks_list_ui(self, tasks: list) -> None:
+    def _update_tasks_list_ui(self, tasks: list, health_msg: str = "") -> None:
         self._tasks_tree.clear()
+
+        # ── Ligne de diagnostic de la boucle (si présente) ──
+        if health_msg:
+            diag_item = QTreeWidgetItem([health_msg])
+            diag_item.setForeground(0, QColor("#f9e2af" if "ARRÊTÉE" in health_msg else "#89b4fa"))
+            diag_item.setFlags(Qt.ItemFlag.NoItemFlags)  # non sélectionnable
+            font = diag_item.font(0)
+            font.setBold(True)
+            diag_item.setFont(0, font)
+            self._tasks_tree.addTopLevelItem(diag_item)
+            # Si la boucle est arrêtée, on s'arrête là (pas de tâches à montrer)
+            if "ARRÊTÉE" in health_msg:
+                return
+
         if not tasks:
             item = QTreeWidgetItem(["Aucune tâche asyncio active dans la boucle"])
             self._tasks_tree.addTopLevelItem(item)
@@ -827,9 +1072,96 @@ class ServiceInspector(QDockWidget):
                     "ÉCHEC"
                 )
 
-    # ── Console Log Handling ──────────────────────────────────────────────
+    # ── Console Log Handling — Filtres & Copie ────────────────────────────
 
-    def append_log(self, level: str, msg: str) -> None:
+    def _should_show_log(self, level: str, logger_name: str) -> bool:
+        """Retourne True si le log doit être affiché selon les filtres actifs.
+
+        Vérifie à la fois le niveau (ERROR/WARNING/INFO/DEBUG) et
+        le service/logger (filtres dynamiques).
+        """
+        # Vérification du niveau
+        if level == "ERROR" or level == "CRITICAL":
+            if not self._chk_error.isChecked():
+                return False
+        elif level == "WARNING":
+            if not self._chk_warning.isChecked():
+                return False
+        elif level == "DEBUG":
+            if not self._chk_debug.isChecked():
+                return False
+        else:  # INFO et autres
+            if not self._chk_info.isChecked():
+                return False
+
+        # Vérification du service/logger
+        if logger_name in self._chk_loggers:
+            return self._chk_loggers[logger_name].isChecked()
+
+        # Nouveau logger inconnu → affiché par défaut
+        return True
+
+    def _reapply_log_filter(self) -> None:
+        """Re-filtre tous les logs selon les checkboxes actives."""
+        self._logs_text.clear()
+        for level, logger_name, html_msg in self._log_entries:
+            if self._should_show_log(level, logger_name):
+                self._logs_text.append(html_msg)
+        # pyrefly: ignore [missing-attribute]
+        self._logs_text.moveCursor(QTextCursor.End)
+
+    def _select_all_filters(self) -> None:
+        """Coche tous les filtres de niveau."""
+        self._chk_error.setChecked(True)
+        self._chk_warning.setChecked(True)
+        self._chk_info.setChecked(True)
+        self._chk_debug.setChecked(True)
+
+    def _deselect_all_filters(self) -> None:
+        """Décoche tous les filtres de niveau."""
+        self._chk_error.setChecked(False)
+        self._chk_warning.setChecked(False)
+        self._chk_info.setChecked(False)
+        self._chk_debug.setChecked(False)
+
+    def _copy_filtered_logs(self) -> None:
+        """Copie le contenu visible (filtré) des logs dans le presse-papier."""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self._logs_text.toPlainText())
+
+    def _update_logger_filters(self, logger_name: str) -> None:
+        """Ajoute une checkbox pour un nouveau logger si pas déjà présent.
+
+        Crée une checkbox avec le nom court du logger (dernier segment)
+        et le nom complet en tooltip. Tous les nouveaux loggers sont
+        cochés par défaut.
+        """
+        if logger_name in self._chk_loggers:
+            return
+
+        # Nom d'affichage : dernier segment du namespace
+        display_name = logger_name.split(".")[-1]
+
+        chk = QCheckBox(display_name)
+        chk.setChecked(True)
+        chk.setToolTip(logger_name)
+        chk.toggled.connect(self._reapply_log_filter)
+        chk.setStyleSheet("color: #a6adc8; font-size: 9px;")
+
+        self._chk_loggers[logger_name] = chk
+        self._loggers_layout.addWidget(chk)
+
+    def _select_all_loggers(self) -> None:
+        """Coche tous les filtres de service."""
+        for chk in self._chk_loggers.values():
+            chk.setChecked(True)
+
+    def _deselect_all_loggers(self) -> None:
+        """Décoche tous les filtres de service."""
+        for chk in self._chk_loggers.values():
+            chk.setChecked(False)
+
+    def append_log(self, level: str, logger_name: str, msg: str) -> None:
         """Append services logs inside scrollable console tab."""
         if not self._logs_text:
             return
@@ -837,6 +1169,9 @@ class ServiceInspector(QDockWidget):
         # Restrict captured logs to system scope packages for clarity
         if not any(pkg in msg for pkg in ("src.services", "aioslsk", "src.gui")):
             return
+
+        # Ajouter la checkbox pour ce logger si nouveau
+        self._update_logger_filters(logger_name)
 
         color = "#cdd6f4"
         if level == "INFO":
@@ -848,13 +1183,56 @@ class ServiceInspector(QDockWidget):
             color = "#f9e2af"
         elif level == "ERROR" or level == "CRITICAL":
             color = "#f38ba8"
+        elif level == "DEBUG":
+            color = "#6c7086"
 
         html_msg = f'<font color="{color}">{msg}</font>'
-        self._logs_text.append(html_msg)
-        # pyrefly: ignore [missing-attribute]
-        self._logs_text.moveCursor(QTextCursor.End)
+
+        # Stocker pour re-filtrage futur
+        self._log_entries.append((level, logger_name, html_msg))
+
+        # N'afficher que si le filtre le permet
+        if self._should_show_log(level, logger_name):
+            self._logs_text.append(html_msg)
+            # pyrefly: ignore [missing-attribute]
+            self._logs_text.moveCursor(QTextCursor.End)
 
     def closeEvent(self, event) -> None:
+        """Ferme l'inspecteur et sauvegarde tous les logs collectés dans un fichier."""
+        self._save_logs()
         logging.getLogger().removeHandler(self._log_handler)
         self._poll_timer.stop()
         super().closeEvent(event)
+
+    def _save_logs(self) -> None:
+        """Sauvegarde la totalité des logs bruts dans ``data/logs/``.
+
+        Le fichier est horodaté (``inspector_YYYYMMDD_HHMMSS.log``) pour
+        éviter tout écrasement. Les balises HTML sont retirées pour
+        obtenir du texte clair et lisible.
+        """
+        if not self._log_entries:
+            logger.debug("ServiceInspector: aucun log à sauvegarder")
+            return
+
+        log_dir = Path("data/logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = log_dir / f"inspector_{timestamp}.log"
+
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                # En-tête du fichier
+                f.write(f"# Session Inspector — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# {len(self._log_entries)} entrées de log\n\n")
+
+                for level, logger_name, html_msg in self._log_entries:
+                    # Nettoyer le HTML pour obtenir du texte brut
+                    text = re.sub(r"<[^>]+>", "", html_msg).strip()
+                    f.write(f"[{level}] ({logger_name}) {text}\n")
+
+            logger.info("Logs sauvegardés : %s (%d entrées)", filepath, len(self._log_entries))
+
+        except Exception as e:
+            logger.warning("Impossible de sauvegarder les logs : %s", e)

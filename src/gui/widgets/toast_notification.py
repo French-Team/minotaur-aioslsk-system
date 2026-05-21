@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 _SEVERITY_COLORS: dict[str, tuple[str, str]] = {
     "ERROR": ("#e74c3c", "#ffffff"),  # rouge, texte blanc
     "WARN": ("#f39c12", "#ffffff"),  # orange, texte blanc
+    "SUCCESS": ("#2ecc71", "#ffffff"),  # vert, texte blanc
     "INFO": ("#3498db", "#ffffff"),  # bleu, texte blanc
 }
 
@@ -51,7 +52,7 @@ class _ToastCard(QFrame):
         layout.setSpacing(10)
 
         # Icône de sévérité
-        icon_map = {"ERROR": "❌", "WARN": "⚠️", "INFO": "ℹ️"}
+        icon_map = {"ERROR": "❌", "WARN": "⚠️", "SUCCESS": "✅", "INFO": "ℹ️"}
         icon = QLabel(icon_map.get(severity, "●"))
         icon.setStyleSheet(f"font-size: 16px; color: {text_color};")
         layout.addWidget(icon)

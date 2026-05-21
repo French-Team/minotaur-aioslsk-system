@@ -273,7 +273,7 @@ class BotAssistant(QFrame):
         self._activity_list = QListWidget()
         self._activity_list.setStyleSheet(
             "QListWidget { background: #252525; border: 1px solid #3a3a3a; border-radius: 6px; }"
-            "QListWidget::item { padding: 6px 10px; border-bottom: 1px solid #333; }"
+            "QListWidget::item { padding: 6px 10px; border-bottom: 1px solid #333333; }"
         )
         layout.addWidget(self._activity_list)
 

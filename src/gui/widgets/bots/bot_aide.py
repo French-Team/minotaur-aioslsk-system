@@ -136,7 +136,7 @@ _CAT_FILTER_STYLE = """
         background: %s;
     }
     QPushButton:checked {
-        color: #fff;
+        color: #ffffff;
         border-color: transparent;
     }
 """ % (

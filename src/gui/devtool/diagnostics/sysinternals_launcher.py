@@ -393,7 +393,7 @@ class SysinternalsLauncherWidget(QFrame):
 
         self._btn_analyse = QPushButton("🔍 Analyse rapide (notre processus)")
         self._btn_analyse.setToolTip("Capture handles + threads + connexions TCP de notre processus Python en un clic")
-        self._btn_analyse.setStyleSheet("background-color: #6c5ce7; font-weight: bold; color: #fff;")
+        self._btn_analyse.setStyleSheet("background-color: #6c5ce7; font-weight: bold; color: #ffffff;")
         self._btn_analyse.clicked.connect(self._run_analyse_rapide)
         actions_layout.addWidget(self._btn_analyse)
 

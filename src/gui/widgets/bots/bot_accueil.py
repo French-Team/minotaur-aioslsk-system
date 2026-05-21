@@ -661,15 +661,7 @@ class BotAccueil(QFrame):
 
     def clear_history(self) -> None:
         """Efface l'historique, vide les messages et revient au message de bienvenue."""
-        self._messages = []
-        # Supprimer tous les widgets messages (sauf le stretch)
-        while self._messages_layout.count() > 1:
-            item = self._messages_layout.takeAt(0)
-            if item is not None:
-                widget = item.widget()
-                if widget is not None:
-                    widget.deleteLater()
-        self._save_history()
+        self._clear_messages()
         self._show_welcome()
 
     # ── Navigation vers un autre bot ────────────────────────────
@@ -766,6 +758,17 @@ class BotAccueil(QFrame):
 
     # ── Dialogues pré-formatés ──────────────────────────────────
 
+    def _clear_messages(self) -> None:
+        """Vide tous les messages du chat sans ajouter de nouveau message."""
+        self._messages = []
+        while self._messages_layout.count() > 1:
+            item = self._messages_layout.takeAt(0)
+            if item is not None:
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+        self._save_history()
+
     def _show_welcome(self) -> None:
         """Affiche le message de bienvenue de Zeus."""
         suggestions = [
@@ -785,6 +788,35 @@ class BotAccueil(QFrame):
             "Je suis là pour t'aider à utiliser l'appli, trouver des fichiers, "
             "gérer tes téléchargements, et te guider vers le bon dieu selon "
             "tes besoins.<br><br>"
+            "Que veux-tu faire ?",
+            suggestions,
+        )
+
+    def _show_connected_welcome(self, username: str = "") -> None:
+        """Affiche le message de bienvenue de Zeus après connexion.
+
+        Remplace le message générique (appelé dans __init__) par un message
+        personnalisé qui mentionne le lancement des salons et clients actifs.
+
+        Paramètres
+        ----------
+        username : str
+            Nom d'utilisateur connecté (optionnel).
+        """
+        self._clear_messages()
+        suggestions = [
+            {"label": "🔍 Chercher un fichier", "action": "search"},
+            {"label": "📥 Téléchargements", "action": "downloads"},
+            {"label": "❓ Aide & explications", "action": "help"},
+        ]
+
+        greeting = f"Bienvenue <b>{username}</b> ! " if username else ""
+        self.add_message(
+            "👑",
+            "Salut ! Je suis <b>Zeus</b>, le roi de l'Olympe et ton assistant personnel "
+            "sur Soulseek.<br><br>"
+            f"{greeting}Tu es connecté à Soulseek. Je lance la mise à jour des salons "
+            "et la préparation de la liste des clients actifs en arrière-plan.<br><br>"
             "Que veux-tu faire ?",
             suggestions,
         )

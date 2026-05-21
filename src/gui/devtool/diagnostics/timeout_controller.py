@@ -79,27 +79,23 @@ class TimeoutControllerWidget(QFrame):
         # Conteneur interne — tout le contenu va ici
         inner = QWidget()
         inner_layout = QVBoxLayout(inner)
-        inner_layout.setContentsMargins(6, 6, 6, 6)
-        inner_layout.setSpacing(8)
+        inner_layout.setContentsMargins(2, 2, 2, 2)
+        inner_layout.setSpacing(2)
 
         # ── Actions de débogage ──
         actions_frame = QFrame()
         actions_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
+            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; padding: 3px;"
         )
         actions_layout = QVBoxLayout(actions_frame)
-        actions_layout.setSpacing(6)
+        actions_layout.setContentsMargins(2, 2, 2, 2)
+        actions_layout.setSpacing(2)
 
         actions_layout.addWidget(QLabel("<b>🎮 Actions de débogage</b>"))
-        actions_layout.addWidget(QLabel(
-            "Utilisez ces boutons pour débloquer manuellement des flags ou simuler "
-            "des conditions de test — sans redémarrer l'application.",
-            styleSheet="color: #6c7086; font-size: 10px; font-style: italic;"
-        ))
 
         # Grille de boutons — 4 colonnes
         btn_grid = QGridLayout()
-        btn_grid.setSpacing(6)
+        btn_grid.setSpacing(2)
 
         # ── Rangée 0 : flags / connexion ──
         self._btn_reset_connecting = QPushButton("🔓 Reset _connecting")
@@ -170,13 +166,15 @@ class TimeoutControllerWidget(QFrame):
         # ── Configuration timeouts ──
         cfg_frame = QFrame()
         cfg_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
+            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; padding: 3px;"
         )
         cfg_layout = QVBoxLayout(cfg_frame)
+        cfg_layout.setContentsMargins(2, 2, 2, 2)
+        cfg_layout.setSpacing(2)
         cfg_layout.addWidget(QLabel("<b>⚙️ Configuration timeouts</b>"))
 
         cfg_grid = QGridLayout()
-        cfg_grid.setSpacing(4)
+        cfg_grid.setSpacing(1)
 
         cfg_grid.addWidget(QLabel("Port serveur :"), 0, 0)
         self._lbl_port = QLabel("—")
@@ -211,19 +209,13 @@ class TimeoutControllerWidget(QFrame):
         cfg_layout.addLayout(cfg_grid)
         inner_layout.addWidget(cfg_frame)
 
-        # ── État en direct ──
-        status_frame = QFrame()
-        status_frame.setStyleSheet(
-            "background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px;"
+        # ── État (compact) ──
+        self._lbl_direct_state = QLabel("Prêt")
+        self._lbl_direct_state.setStyleSheet(
+            "color: #6c7086; font-size: 9px; background: #181825; border: 1px solid #313244;"
+            "border-radius: 3px; padding: 1px 4px;"
         )
-        status_layout = QVBoxLayout(status_frame)
-        status_layout.addWidget(QLabel("<b>📋 État en direct</b>"))
-
-        self._lbl_direct_state = QLabel("Ouvre le Contrôle Connexion pour voir l'état en direct")
-        self._lbl_direct_state.setStyleSheet("color: #6c7086; font-size: 10px; font-style: italic;")
-        status_layout.addWidget(self._lbl_direct_state)
-
-        inner_layout.addWidget(status_frame)
+        inner_layout.addWidget(self._lbl_direct_state)
 
         inner_layout.addStretch()
 

@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from src.services.event_bus import EventBus
+
 if TYPE_CHECKING:
     from src.services.soulseek_client import SoulseekService
 
@@ -101,6 +103,13 @@ class RoomService(QObject):
             self._retry_timer.start()
             logger.debug("RoomService: 0 salles au démarrage — retry dans 3s")
 
+        EventBus().emit_event(
+            category="room",
+            severity="INFO",
+            title="Service démarré",
+            message=f"Abonné à room_list_received, {self.nb_publiques} publiques, {self.nb_privees} privées",
+            source="room_service",
+        )
         logger.info("RoomService démarré")
 
     def arreter(self) -> None:
@@ -115,6 +124,13 @@ class RoomService(QObject):
             pass
         self._rooms_publiques.clear()
         self._rooms_privees.clear()
+        EventBus().emit_event(
+            category="room",
+            severity="INFO",
+            title="Service arrêté",
+            message="Désabonné de room_list_received, listes vidées",
+            source="room_service",
+        )
         logger.info("RoomService arrêté")
 
     def rafraichir(self) -> None:
@@ -150,10 +166,25 @@ class RoomService(QObject):
             self.rooms_privees_recues.emit(self._rooms_privees)
             self.room_list_rafraichie.emit()
 
+            EventBus().emit_event(
+                category="room",
+                severity="INFO",
+                title="Salons synchronisés",
+                message=f"{len(self._rooms_publiques)} publiques, {len(self._rooms_privees)} privées",
+                source="room_service",
+            )
+
             logger.debug("RoomService: %d publiques, %d privées",
                          len(self._rooms_publiques), len(self._rooms_privees))
 
-        except Exception:
+        except Exception as e:
+            EventBus().emit_event(
+                category="room",
+                severity="ERROR",
+                title="Erreur synchronisation salons",
+                message=str(e),
+                source="room_service",
+            )
             logger.exception("RoomService: erreur lors de la synchronisation")
 
     # ── Gestion des événements SoulseekService ──────────────────
@@ -203,3 +234,11 @@ class RoomService(QObject):
             self.rooms_publiques_recues.emit([])
             self.rooms_privees_recues.emit([])
             self.room_list_rafraichie.emit()
+
+            EventBus().emit_event(
+                category="room",
+                severity="INFO",
+                title="Salles vidées (déconnexion)",
+                message="",
+                source="room_service",
+            )

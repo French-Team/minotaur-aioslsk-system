@@ -59,18 +59,6 @@ class TestSurveillanceEvent:
         with pytest.raises(ValueError, match="Sévérité"):
             SurveillanceEvent(severity=invalid_severity, category="bot")
 
-    @pytest.mark.parametrize("cat", SurveillanceEvent.CATEGORIES)
-    def test_all_valid_categories(self, cat):
-        """Toutes les catégories déclarées sont acceptées."""
-        evt = SurveillanceEvent(category=cat)
-        assert evt.category == cat
-
-    @pytest.mark.parametrize("invalid_category", ["invalide", "", "categorie_inconnue"])
-    def test_invalid_category_raises(self, invalid_category):
-        """Une catégorie invalide lève une ValueError."""
-        with pytest.raises(ValueError, match="Catégorie"):
-            SurveillanceEvent(category=invalid_category)
-
     def test_custom_timestamp_preserved(self):
         """Un timestamp fourni manuellement n'est pas écrasé."""
         evt = SurveillanceEvent(timestamp="2025-01-01T00:00:00", category="bot")
@@ -84,29 +72,40 @@ class TestSurveillanceEvent:
 
 
 class TestContrainteSQL:
-    """Teste la contrainte CHECK SQLite au niveau base de données."""
+    """Teste les contraintes CHECK SQLite au niveau base de données.
 
-    @pytest.mark.parametrize("sql_category, sql_severity", [
-        pytest.param("invalide", "INFO", id="categorie_invalide"),
-        pytest.param("", "INFO", id="categorie_vide"),
-        pytest.param("bot", "CRITIQUE", id="severite_invalide"),
-        pytest.param("bot", "", id="severite_vide"),
-        pytest.param("bot", "INFOO", id="severite_proche"),
-    ])
-    def test_insert_invalide_leve_integrity_error(self, bus: EventBus, sql_category: str, sql_severity: str) -> None:
-        """Une insertion SQL avec une catégorie/sévérité hors CHECK lève IntegrityError."""
+    Note : la contrainte sur category a été supprimée (EventBus dynamique).
+    Seule la contrainte sur severity est encore active.
+    """
+
+    @pytest.mark.parametrize("severite_invalide", ["CRITIQUE", "", "INFOO"])
+    def test_severite_invalide_leve_integrity_error(self, bus: EventBus, severite_invalide: str) -> None:
+        """Une insertion SQL avec une sévérité hors CHECK lève IntegrityError."""
         with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             bus._db.execute(
                 "INSERT INTO events (timestamp, severity, category, title, message, source) "
                 "VALUES (datetime('now'), ?, ?, 'Test', 'Message', 'test')",
-                (sql_severity, sql_category),
+                (severite_invalide, "bot"),
             )
             bus._db.commit()
+
+    def test_categorie_libre_reussit(self, bus: EventBus) -> None:
+        """N'importe quelle catégorie (même inconnue) est acceptée en SQL — EventBus dynamique."""
+        bus._db.execute(
+            "INSERT INTO events (timestamp, severity, category, title, message, source) "
+            "VALUES (datetime('now'), 'INFO', 'categorie_inconnue', 'Test', 'Message', 'test')",
+        )
+        bus._db.commit()
+        count = bus._db.execute(
+            "SELECT COUNT(*) FROM events WHERE category='categorie_inconnue'",
+        ).fetchone()[0]
+        assert count >= 1
 
     @pytest.mark.parametrize("sql_category, sql_severity", [
         pytest.param("bibliotheque", "INFO", id="categorie_bibliotheque"),
         pytest.param("bot", "ERROR", id="severite_error"),
         pytest.param("recherche", "WARN", id="categorie_recherche_warn"),
+        pytest.param("cat_inconnue", "INFO", id="categorie_inconnue_maintenant_valide"),
     ])
     def test_insert_valide_reussit(self, bus: EventBus, sql_category: str, sql_severity: str) -> None:
         """Une insertion SQL avec des valeurs valides réussit."""
@@ -179,12 +178,11 @@ class TestEventBusEmission:
         assert len(received) == 1
         assert received[0].title == "Signal test"
 
-    @pytest.mark.parametrize("cat", SurveillanceEvent.CATEGORIES)
-    def test_emit_all_categories(self, bus, cat):
-        """Toutes les catégories valides peuvent être émises."""
-        evt = bus.emit_event(category=cat, title=f"Test {cat}")
+    def test_emit_any_category(self, bus):
+        """N'importe quelle catégorie (même inconnue) peut être émise — EventBus dynamique."""
+        evt = bus.emit_event(category="cat_inconnue", title="Test dynamique")
         assert evt is not None
-        assert evt.category == cat
+        assert evt.category == "cat_inconnue"
 
     @pytest.mark.parametrize("sev", SurveillanceEvent.SEVERITIES)
     def test_emit_all_severities(self, bus, sev):
@@ -192,12 +190,6 @@ class TestEventBusEmission:
         evt = bus.emit_event(category="bot", severity=sev, title=f"Test {sev}")
         assert evt is not None
         assert evt.severity == sev
-
-    @pytest.mark.parametrize("invalid_category", ["invalide", ""])
-    def test_emit_categorie_invalide_leve_value_error(self, bus, invalid_category):
-        """emit_event avec une catégorie invalide lève ValueError (validation Python)."""
-        with pytest.raises(ValueError, match="Catégorie"):
-            bus.emit_event(category=invalid_category, title="Test")
 
     @pytest.mark.parametrize("invalid_severity", ["INVALID", "", "INFOO"])
     def test_emit_severite_invalide_leve_value_error(self, bus, invalid_severity):
@@ -356,43 +348,6 @@ class TestEventBusQuery:
 # ═══════════════════════════════════════════════════════════════════
 # Vérification inter-bots — toutes les catégories utilisées sont valides
 # ═══════════════════════════════════════════════════════════════════
-
-
-class TestBotCategoriesIntegration:
-    """Vérifie que les catégories utilisées par chaque bot sont valides."""
-
-    VALID = set(SurveillanceEvent.CATEGORIES)
-    SEVERITIES = set(SurveillanceEvent.SEVERITIES)
-
-    def test_connexion_manager_categories(self):
-        """ConnexionManager utilise 'reseau' — valide."""
-        assert "reseau" in self.VALID
-
-    def test_soulseek_client_categories(self):
-        """SoulseekClient utilise 'transfert' — valide."""
-        assert "transfert" in self.VALID
-
-    def test_bot_recherche_categories(self):
-        """BotRecherche utilise 'recherche' — valide."""
-        assert "recherche" in self.VALID
-
-    def test_bot_wishlist_categories(self):
-        """BotWishlist utilise 'wishlist' — valide."""
-        assert "wishlist" in self.VALID
-
-    def test_bot_bibliotheque_categories(self):
-        """BotBibliotheque utilise 'bibliotheque' — valide."""
-        assert "bibliotheque" in self.VALID
-
-    def test_bot_optimiseur_categories(self):
-        """BotOptimiseur utilise 'optimiseur' — valide."""
-        assert "optimiseur" in self.VALID
-
-    def test_all_severities_used_are_valid(self):
-        """Les sévérités INFO, WARN, ERROR sont toutes valides."""
-        assert "INFO" in self.SEVERITIES
-        assert "WARN" in self.SEVERITIES
-        assert "ERROR" in self.SEVERITIES
 
 
 # ═══════════════════════════════════════════════════════════════════

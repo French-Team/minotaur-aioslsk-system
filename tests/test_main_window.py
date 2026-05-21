@@ -442,32 +442,42 @@ class TestMainWindow:
     # ── BoucleRooms après connexion ──────────────────────────────────
 
     def test_lancer_boucle_rooms_apres_connexion(self, qapp) -> None:
-        """_lancer_boucle_rooms_apres_connexion appelle add_message puis _do_start_loop('Rooms')."""
+        """_lancer_boucle_rooms_apres_connexion appelle _show_connected_welcome puis _do_start_loop('Rooms')."""
         from src.gui.main_window import MainWindow
 
         mock_accueil = MagicMock()
-        mock_accueil.add_message = MagicMock()
+        mock_accueil._show_connected_welcome = MagicMock()
         mock_accueil._do_start_loop = MagicMock()
         self.mock_center._bot_accueil = mock_accueil
 
         win = MainWindow()
         win._lancer_boucle_rooms_apres_connexion()
 
-        # 1. add_message appelé avec le bon message de notification
-        mock_accueil.add_message.assert_called_once_with(
-            "💬",
-            "Je lance la mise à jour des salons et je prépare la liste des clients actifs…",
-            None,
-        )
+        # 1. _show_connected_welcome appelé avec le nom d'utilisateur (par défaut "")
+        mock_accueil._show_connected_welcome.assert_called_once_with("")
 
         # 2. _do_start_loop appelé avec "Rooms"
         mock_accueil._do_start_loop.assert_called_once_with("Rooms")
 
-        # 3. Ordre correct : add_message AVANT _do_start_loop
+        # 3. Ordre correct : _show_connected_welcome AVANT _do_start_loop
         mock_accueil.assert_has_calls([
-            call.add_message("💬", "Je lance la mise à jour des salons et je prépare la liste des clients actifs…", None),
+            call._show_connected_welcome(""),
             call._do_start_loop("Rooms"),
         ])
+
+    def test_lancer_boucle_rooms_apres_connexion_avec_username(self, qapp) -> None:
+        """_lancer_boucle_rooms_apres_connexion(username) transmet le nom à _show_connected_welcome."""
+        from src.gui.main_window import MainWindow
+
+        mock_accueil = MagicMock()
+        mock_accueil._show_connected_welcome = MagicMock()
+        mock_accueil._do_start_loop = MagicMock()
+        self.mock_center._bot_accueil = mock_accueil
+
+        win = MainWindow()
+        win._lancer_boucle_rooms_apres_connexion("EliBeats")
+
+        mock_accueil._show_connected_welcome.assert_called_once_with("EliBeats")
 
     def test_lancer_boucle_rooms_sans_accueil(self, qapp) -> None:
         """Si _bot_accueil est None, _lancer_boucle_rooms_apres_connexion ne fait rien."""
@@ -479,20 +489,19 @@ class TestMainWindow:
         # Ne doit pas planter
         win._lancer_boucle_rooms_apres_connexion()
 
-    def test_lancer_boucle_rooms_sans_do_start_loop(self, qapp) -> None:
-        """Si _bot_accueil n'a pas _do_start_loop, add_message n'est pas appelé non plus."""
+    def test_lancer_boucle_rooms_sans_methodes(self, qapp) -> None:
+        """Si _bot_accueil n'a pas les méthodes attendues, _lancer_boucle_rooms_apres_connexion ne plante pas."""
         from src.gui.main_window import MainWindow
 
-        # spec=["add_message"] → add_message accessible, _do_start_loop non (hasattr=False)
-        mock_accueil = MagicMock(spec=["add_message"])
-        self.mock_center._bot_accueil = mock_accueil
+        # Un objet simple sans _show_connected_welcome ni _do_start_loop
+        class FauxAccueil:
+            pass
+
+        self.mock_center._bot_accueil = FauxAccueil()
 
         win = MainWindow()
+        # Les guards hasattr() gèrent l'absence des méthodes → ne doit pas planter
         win._lancer_boucle_rooms_apres_connexion()
-
-        # hasattr(mock, "_do_start_loop") → False (pas dans spec)
-        # La méthode ne doit donc pas entrer dans le if → add_message jamais appelé
-        mock_accueil.add_message.assert_not_called()
 
     # ── Fermeture ─────────────────────────────────────────────────────
 

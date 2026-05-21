@@ -1,14 +1,14 @@
-# Plan d'implémentation — Boucle Clients Actifs
+# Boucle Clients Actifs — Spécification mise à jour
 
-> **Statut :** ✅ Implémentation en cours — Étape 1
-> **Dernière mise à jour :** 2026-05-20
-> **Contexte :** Bot le plus simple de l'ordre d'implémentation (Niveau 1). Pipeline de découverte et validation des clients actifs & joignables sur le réseau Soulseek.
+> **Statut :** ✅ Implémentation complète — toutes les fonctionnalités en place
+> **Dernière mise à jour :** 2026-05-21
+> **Contexte :** Pipeline de découverte, validation et affichage des clients actifs & joignables sur le réseau Soulseek.
 
 ---
 
-## 🎯 Objectif
+## 1. 🎯 Objectif
 
-Pipeline capable de découvrir, valider et filtrer les clients Soulseek qui sont **véritablement actifs et joignables**. Le bot ne se contente pas d'afficher une liste — il exécute un pipeline complet :
+Pipeline capable de découvrir, valider et filtrer les clients Soulseek qui sont **véritablement actifs et joignables** :
 
 1. **Récupérer** les rooms publiques (via BoucleRooms)
 2. **Rejoindre** le top 5 des rooms (les plus peuplées)
@@ -17,174 +17,9 @@ Pipeline capable de découvrir, valider et filtrer les clients Soulseek qui sont
 5. **Filtrer** pour ne garder que les clients répondant au ping **ET** ayant le statut ONLINE
 6. **Afficher** la liste filtrée dans BotClientsActifs
 
-**Différence clé avec les autres boucles :** Pas de cycle périodique automatique. Le pipeline s'exécute **une fois au démarrage** du bot, puis **à la demande** via un bouton dans le widget ou une intention dans l'Accueil.
-
 ---
 
-## 📋 Liste des étapes
-
-### Étape 1 — Refactor du ping existant (ClientsActifsService)
-
-**Statut :** ❌ À faire
-
-- [ ] Analyser `ClientsActifsService._do_ping_loop()` actuel
-  - [ ] Actuellement : boucle asynchrone infinie avec 120s d'attente, ping individuel avec 0.2s de délai
-  - [ ] À remplacer par un système de ping par lots déclenché ponctuellement
-- [ ] Créer `ClientsActifsService._pinger_par_lots(membres: list[dict]) -> list[str]`
-  - [ ] Paramètres : liste des membres (username, room, status) venant de BoucleRooms
-  - [ ] Découpage en lots de **10 clients**
-  - [ ] Délai de **2 secondes** entre chaque lot (paramétrable)
-  - [ ] Pour chaque client : exécuter `GetUserStatusCommand(username)`
-  - [ ] Retourne la liste des usernames qui ont répondu au ping
-  - [ ] Timeout par ping : 5 secondes
-  - [ ] Logguer chaque lot (debug) : `"Lot X/Y : N pings, M réponses"`
-- [ ] Remplacer l'ancien `_do_ping_loop()` par la nouvelle approche
-  - [ ] Supprimer l'ancienne méthode `_do_ping_loop()` (boucle infinie + while self._running)
-  - [ ] Créer la nouvelle méthode `async _ping_par_lots(membres: list[dict]) -> list[str]`
-  - [ ] La nouvelle méthode est déclenchée ponctuellement, jamais en boucle
-- [ ] ✅ Validation
-  - [ ] Compilation Python
-  - [ ] Tests unitaires du ping par lots
-  - [ ] Vérifier que le *ping task* existant ne tourne plus en boucle
-
-### Étape 2 — Intégration BoucleRooms → Ping
-
-**Statut :** ❌ À faire
-
-- [ ] Modifier `ClientsActifsService.ingest_membres_rooms()` pour déclencher le ping
-  - [ ] Après avoir ajouté les membres à `_clients`, appeler `_pinger_par_lots()`
-  - [ ] Attendre la fin du ping avant de filtrer
-  - [ ] Synchronisation : le ping est asynchrone, utiliser un callback ou signal
-- [ ] Créer le signal `clients_valides = Signal(list)` dans ClientsActifsService
-  - [ ] Émis après la fin du ping + filtrage
-  - [ ] Payload : `list[ClientInfo]` — les clients actifs & joignables
-  - [ ] Alternative : réutiliser `clients_synchronises` avec les données filtrées
-- [ ] Connecter le signal à `BotClientsActifs._initialiser_tableau()`
-  - [ ] Déjà connecté via `clients_synchronises` — à vérifier
-  - [ ] S'assurer que le tableau se met à jour automatiquement
-- [ ] ✅ Validation
-  - [ ] Compilation Python
-  - [ ] Test d'intégration : BoucleRooms → ingest → ping → filtrage → affichage
-  - [ ] Vérifier que l'UI se met à jour avec les données filtrées
-
-### Étape 3 — Filtrage actifs & joignables
-
-**Statut :** ❌ À faire
-
-- [ ] Implémenter `ClientsActifsService._filtrer_actifs_joignables(reponses_ping: list[str])`
-  - [ ] Critère : username dans `reponses_ping` **ET** statut == `UserStatus.ONLINE`
-  - [ ] Retourne `list[ClientInfo]` filtrée
-  - [ ] Si un client répond au ping mais n'est pas ONLINE → garder pour info ? (à décider)
-    - **Décision** : NE PAS garder. Seul "actif & joignable" = ping OK + ONLINE.
-  - [ ] Logguer le ratio : `"Filtrage : N actifs & joignables / M candidats"`
-- [ ] Mettre à jour les stats de `BotClientsActifs`
-  - [ ] Barre d'en-tête : Total (candidats avant filtrage) / Actifs & joignables (après filtrage)
-  - [ ] Afficher clairement la différence entre "vus dans les rooms" et "confirmés actifs"
-- [ ] ✅ Validation
-  - [ ] Compilation Python
-  - [ ] Tests unitaires du filtrage (ping OK + ONLINE, ping OK + AWAY, pas de ping, etc.)
-  - [ ] Vérifier l'affichage des stats dans le widget
-
-### Étape 4 — Déclenchement manuel
-
-**Statut :** ❌ À faire
-
-- [ ] Ajouter un bouton "Rafraîchir" dans `BotClientsActifs`
-  - [ ] Icône : `🔄` (ou `🔍`)
-  - [ ] Position : barre d'en-tête, à droite
-  - [ ] Texte : "Rafraîchir" ou juste l'icône
-  - [ ] Comportement : relance le pipeline complet (BoucleRooms → membres → ping → filtrage)
-  - [ ] **Problème** : `BoucleRooms._executer_cycle()` est privée. Solution : ajouter une méthode publique `rafraichir()` dans BoucleRooms qui appelle `_executer_cycle()` puis `_timer.start()` si arrêté
-  - [ ] Pendant l'exécution : désactiver le bouton, afficher "Scan en cours..."
-  - [ ] Réactiver à la fin
-  - [ ] Tooltip : "Relance la détection complète des clients actifs"
-- [ ] Ajouter l'intention `rafraichir_clients_actifs` dans `bot_accueil_knowledge.py`
-  - [ ] Keywords : `rafraîchir clients actifs`, `refresh`, `mettre à jour les clients`, `actualiser`
-  - [ ] Action : `start_loop` (relance Clients Actifs) ou nouvelle action `refresh`
-  - [ ] Réponse : "Je relance la détection des clients actifs et joignables..."
-  - [ ] Suggestions : `👥 Voir les clients`, `🏠 Accueil`
-- [ ] Ajouter le routeur dans `_on_suggestion` de `bot_accueil.py` (si action `rafraichir` utilisée)
-- [ ] ✅ Validation
-  - [ ] Compilation Python
-  - [ ] Test UI : clic sur le bouton Rafraîchir
-  - [ ] Test Accueil : intention "rafraîchir clients actifs"
-  - [ ] Vérifier que le bouton est désactivé pendant l'exécution
-
-### Étape 5 — Ajustements UI
-
-**Statut :** ❌ À faire
-
-- [ ] Modifier la barre de stats dans `BotClientsActifs`
-  - [ ] Actuel : Total / Actifs / Connectés
-  - [ ] Nouveau : Candidats (membres des rooms) / Actifs & joignables (après ping) / ❌ Injouignables
-  - [ ] Ajouter un indicateur "Dernière mise à jour : il y a X min"
-  - [ ] Style : candidats en gris, actifs & joignables en vert, injouignables en rouge clair
-- [ ] Ajouter une colonne "Dernier ping" dans le tableau ?
-  - [ ] À décider — optionnel, ajoute du bruit
-  - [ ] Alternative : tooltip sur le statut avec "Ping réussi à HH:MM:SS"
-- [ ] Ajouter un indicateur d'état du pipeline
-  - [ ] Icône dans l'en-tête : `🟢` (prêt), `🔄` (scan en cours), `⏸` (en pause/désactivé)
-  - [ ] Texte : "Prêt" / "Scan en cours..." / "Inactif"
-- [ ] ✅ Validation
-  - [ ] Compilation Python
-  - [ ] Vérification visuelle des stats
-
-### Étape 6 — Tests & Validation
-
-**Statut :** ❌ À faire
-
-- [ ] Tests unitaires de `_pinger_par_lots()`
-  - [ ] Lot de 5 clients → 1 lot, 5 pings
-  - [ ] Lot de 15 clients → 2 lots, rate limiting respecté
-  - [ ] 0 clients → aucun ping
-  - [ ] Timeout → client marqué comme injoignable
-- [ ] Tests unitaires de `_filtrer_actifs_joignables()`
-  - [ ] Ping OK + ONLINE → actif & joignable ✅
-  - [ ] Ping OK + AWAY → filtré ❌
-  - [ ] Ping OK + OFFLINE → filtré ❌
-  - [ ] Ping échoué + ONLINE → filtré ❌
-  - [ ] Mix : 3/10 passent le filtre
-- [ ] Tests d'intégration
-  - [ ] BoucleRooms mockée → ClientsActifsService → ping → filtrage → signal
-  - [ ] Bouton Rafraîchir → pipeline relancé
-- [ ] Code review complète
-- [ ] ✅ Validation : tout fonctionne de bout en bout
-  - [ ] Démarrer BoucleRooms → membres → ping → affichage filtré
-  - [ ] Cliquer Rafraîchir → nouveau cycle complet
-  - [ ] Intention Accueil → rafraîchir
-  - [ ] Pas de fuite mémoire, pas de tâche asyncio orpheline
-
----
-
-## 📁 Fichiers concernés
-
-### Modifications
-
-| Fichier | Étape | Changement |
-|---------|-------|------------|
-| `src/services/clients_actifs_service.py` | 1, 2, 3 | Nouveau ping par lots, filtrage, signal |
-| `src/services/boucle_rooms.py` | — | Aucun changement (reste tel quel) |
-| `src/gui/widgets/bots/bot_clients_actifs.py` | 4, 5 | Bouton Rafraîchir, stats, indicateur |
-| `src/gui/widgets/bots/bot_accueil_knowledge.py` | 4 | Nouvelle intention `rafraichir_clients_actifs` |
-| `src/gui/widgets/bots/bot_accueil.py` | 4 | Routeur `rafraichir` si nécessaire |
-
-### Créations
-
-*Aucun nouveau fichier — tout est dans l'existant.*
-
----
-
-## 🐛 Problèmes connus
-
-- **Conflit potentiel entre l'ancien `_do_ping_loop()` et le nouveau `_pinger_par_lots()`** : L'ancienne méthode tourne en boucle infinie toutes les 120s. Il faut la désactiver proprement pour éviter deux pings simultanés.
-- **Tâche asyncio orpheline** : Si le bot est arrêté (`arreter()`) pendant un ping en cours, la tâche asynchrone peut rester accrochée. Utiliser un mécanisme d'annulation (`asyncio.CancelledError`).
-- **BoucleRooms tourne indépendamment à 30s** : Pendant que le pipeline Clients Actifs s'exécute, BoucleRooms continue son cycle. Si un nouveau signal `membres_actualises` arrive pendant un ping en cours, il faut ignorer ou bufferiser (pas de double ping simultané).
-
----
-
-## 📝 Notes de conception
-
-### Architecture du pipeline
+## 2. 🧱 Architecture du pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -199,123 +34,242 @@ Pipeline capable de découvrir, valider et filtrer les clients Soulseek qui sont
 ┌─────────────────────────────────────────────────────────────┐
 │ ClientsActifsService.ingest_membres_rooms(membres)           │
 │  1. Ajouter les nouveaux membres à _clients                  │
-│  2. Déclencher _pinger_par_lots() ───────────┐               │
-└───────────────────────────────────────────────┤               │
-                                                ▼               │
-┌─────────────────────────────────────────────────────────────┐│
-│ _pinger_par_lots(membres) : async                            ││
-│  1. Découper en lots de 10 clients                           ││
-│  2. Pour chaque lot :                                        ││
-│     a. Exécuter GetUserStatusCommand pour chaque client      ││
-│     b. Collecter les réponses (timeout 5s)                   ││
-│     c. Attendre 2s avant le prochain lot                     ││
-│  3. Retourner la liste des usernames qui ont répondu         ││
-└─────────────────────────────────────────────────────────────┘│
-                                                │               │
-                                                ▼               │
-┌─────────────────────────────────────────────────────────────┐│
-│ _filtrer_actifs_joignables(reponses)                          ││
-│  1. Garder : username in reponses AND statut == ONLINE        ││
-│  2. Retourner list[ClientInfo] filtrée                       ││
-└─────────────────────────────────────────────────────────────┘│
-                                                │               │
-                                                ▼               │
-┌─────────────────────────────────────────────────────────────┐│
-│ Émettre signal clients_valides / clients_synchronises         ││
-│  → BotClientsActifs._initialiser_tableau()                   ││
-└─────────────────────────────────────────────────────────────┘│
+│  2. Vérifier les gardes (espacement + dirty)                 │
+│  3. Déclencher lancer_ping() si conditions remplies ────┐   │
+└───────────────────────────────────────────────────────────┘ │
+                                                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ _ping_par_lots(membres) : async [rate limité]                │
+│  1. Découper en lots de 10 clients                           │
+│  2. Pour chaque lot :                                        │
+│     a. GetUserStatusCommand pour chaque client               │
+│     b. Collecter les réponses (timeout explicite ou exception)│
+│     c. Attendre 2s avant le prochain lot                     │
+│  3. Émettre ping_termine(liste des réponses)                 │
+└─────────────────────────────────────────────────────────────┘
+                                                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ _on_ping_termine(reponses) [connecté dans __init__]          │
+│  1. Filtrer : username in reponses AND statut == ONLINE      │
+│  2. Émettre clients_valides(list[ClientInfo]) filtrée        │
+└─────────────────────────────────────────────────────────────┘
+                                                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ BotClientsActifs._on_clients_valides(clients)                │
+│  1. Mettre à jour _actifs_joignables                         │
+│  2. Mettre à jour le timestamp _last_update_time             │
+│  3. Ré-afficher état 🟢 Prêt                                 │
+│  4. Réactiver le bouton 🔄 Rafraîchir                        │
+│  5. Reconstruire le tableau avec la liste filtrée            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Flux de déclenchement
+### Déclenchement
 
 ```
 Démarrage (demarrer())
     │
-    ├─► Pipeline complet : BoucleRooms → membres → ping → filtrage → affichage
+    ├─► BoucleRooms démarre (cycle 30s)
+    │   └─► membres_actualises → ingest_membres_rooms → ping → filtrage → affichage
     │
-    └─► Attente (pas de timer périodique)
+    └─► Attente (pas de timer périodique propre au ping)
 
 Bouton 🔄 Rafraîchir (widget)
     │
-    └─► Pipeline complet
+    └─► rafraichir_demande → BoucleRooms.rafraichir() → cycle complet → ping → filtrage
 
 Intention "rafraîchir clients actifs" (Accueil)
     │
-    └─► start_loop → redéclenche demarrer() → pipeline complet
+    └─► start_loop Rooms + start_loop Clients Actifs + navigate
 ```
 
-### Rate limiting
+---
 
-- **Taille du lot** : 10 clients (paramétrable via constante `_LOT_PING = 10`)
-- **Délai inter-lots** : 2 secondes (paramétrable via constante `_DELAI_INTER_LOTS = 2.0`)
-- **Timeout par ping** : 5 secondes (paramétrable)
-- **Justification** : Soulseek est un réseau P2P non commercial. Envoyer trop de pings simultanés pourrait être perçu comme agressif ou saturer la connexion. 10 clients / 2s est un rythme prudent.
+## 3. 📡 Composants & signaux
 
-### Gestion des conflits
+### 3.1 ClientsActifsService (`src/services/clients_actifs_service.py`)
 
-- **Ping en cours + nouveau signal BoucleRooms** : Ignorer le nouveau signal si un ping est en cours. Utiliser un flag `_ping_en_cours = False/True`.
-- **Arrêt du bot pendant un ping** : Capturer `asyncio.CancelledError` et nettoyer. Le flag `_running` est vérifié entre chaque lot.
-- **BoucleRooms continue pendant le ping** : C'est normal. BoucleRooms tourne indépendamment. Le nouveau signal sera traité au prochain cycle (après la fin du ping en cours).
+**Signaux émis :**
 
-### Paramètres exposés
+| Signal | Type | Payload | Émis par |
+|--------|------|---------|----------|
+| `client_ajoute` | `Signal(str)` | username | `ingest_membres_rooms()`, `_on_user_status_update()` |
+| `client_retire` | `Signal(str)` | username | méthodes externes |
+| `client_statut_change` | `Signal(str, object, object)` | username, nouveau, ancien | `_on_user_status_update()` |
+| `client_info_change` | `Signal(str)` | username | `_on_user_info_update()` |
+| `clients_synchronises` | `Signal(list)` | `list[ClientInfo]` | `_synchroniser()`, `ingest_membres_rooms()` |
+| `ping_termine` | `Signal(list)` | `list[str]` (usernames) | `_ping_par_lots()` (fin du ping asynchrone) |
+| `clients_valides` | `Signal(list)` | `list[ClientInfo]` | `_on_ping_termine()` (après filtrage ONLINE) |
 
-| Paramètre | Défaut | Description |
-|-----------|--------|-------------|
-| `_LOT_PING` | 10 | Nombre de clients pingés simultanément par lot |
-| `_DELAI_INTER_LOTS` | 2.0 | Secondes d'attente entre deux lots |
-| `_TIMEOUT_PING` | 5.0 | Timeout en secondes pour un ping individuel |
+**Connexion interne (__init__) :**
+```python
+self.ping_termine.connect(self._on_ping_termine)  # ping_termine → filtrage → clients_valides
+```
 
-Ces paramètres sont des constantes de classe, modifiables directement dans `ClientsActifsService`. Pas besoin d'interface utilisateur pour les modifier dans un premier temps.
+**Flux de déclenchement du ping :**
+```python
+def ingest_membres_rooms(self, membres):
+    # 1. Ajouter les nouveaux membres à _clients
+    # 2. Émettre clients_synchronises pour MAJ tableau
+    # 3. Déclencher lancer_ping(membres) ← si conditions remplies
+
+def lancer_ping(self, membres, force=False):
+    if self._ping_en_cours: return          # ← Garde anti-doublon
+    if self._cm is None: return              # ← Pas de ConnexionManager
+    if not force:
+        # 1. Espacement temporel (5 min)
+        # 2. Flag dirty (hash membres)
+        pass  # ← les deux gardes sont vérifiées ici, voir §4.1
+    self._cm.run_coro(self._ping_par_lots(membres))
+```
+
+### 3.2 BoucleRooms (`src/services/boucle_rooms.py`)
+
+| Signal | Payload | Description |
+|--------|---------|-------------|
+| `membres_actualises` | `list[dict]` | Membres des rooms rejointes (username, room, status) |
+
+Connecté dans `center.py` :
+```python
+self._boucle_rooms.membres_actualises.connect(
+    self._clients_actifs_service.ingest_membres_rooms
+)
+```
+
+### 3.3 BotClientsActifs (`src/gui/widgets/bots/bot_clients_actifs.py`)
+
+| Signal | Payload | Description |
+|--------|---------|-------------|
+| `rafraichir_demande` | `Signal()` | L'utilisateur clique 🔄 Rafraîchir |
+
+Connecté dans `center.py` (set_connexion_manager) :
+```python
+page_clients.rafraichir_demande.connect(self._boucle_rooms.rafraichir)
+```
+⚠️ Flag `_rafraichir_connecte` évite les connexions multiples en cas de reconnexion.
+
+**Réception des signaux service (via `setup()`) :**
+| Signal service | Handler widget | Effet |
+|----------------|----------------|-------|
+| `clients_synchronises` | `_on_clients_synchronises` | Reconstruit le tableau + met à jour _total_candidats |
+| `clients_valides` | `_on_clients_valides` | Met à jour _actifs_joignables, réaffiche 🟢 Prêt, réactive bouton |
+| `client_ajoute` | `_ajouter_ligne` | Ajoute une ligne au tableau |
+| `client_retire` | `_retirer_ligne` | Supprime une ligne |
+| `client_statut_change` | `_mettre_a_jour_statut` | Met à jour la cellule statut |
+| `client_info_change` | `_mettre_a_jour_info` | Met à jour les cellules info |
+
+### 3.4 CenterZone — Injection & connexions
+
+```python
+# Dans __init__ : création des pages
+self._build_clients_actifs_table_page()  # → BotClientsActifs
+self._init_boucle_rooms(manager)          # → BoucleRooms (via set_connexion_manager)
+
+# Dans _connect_event_signals :
+self._clients_actifs_service = ClientsActifsService(soulseek_service)
+page.setup(self._clients_actifs_service)
+self._boucle_rooms.membres_actualises.connect(
+    self._clients_actifs_service.ingest_membres_rooms
+)
+
+# Dans set_connexion_manager :
+actifs_service.set_connexion_manager(manager)  # Injection pour run_coro
+page_clients.rafraichir_demande.connect(self._boucle_rooms.rafraichir)
+```
 
 ---
 
-## ❓ Questions résolues
+## 4. ✅ État d'avancement
 
-### Architecture
+### 4.1 Implémenté
 
-- [x] **Où placer la logique de ping par lots ?** Dans `ClientsActifsService` (pas dans BoucleRooms). BoucleRooms reste une boucle pure de collecte. ClientsActifsService orchestre la validation.
-- [x] **BoucleRooms doit-elle changer ?** Non. Elle continue son cycle de 30s inchangé. ClientsActifsService s'abonne à son signal `membres_actualises` (déjà en place).
-- [x] **Pipeline synchrone ou asynchrone ?** Asynchrone. Le ping utilise `GetUserStatusCommand` qui est une commande asynchrone aioslsk. `_pinger_par_lots()` est une coroutine, exécutée via `run_coro()` du ConnexionManager.
+| Composant | Statut | Détail |
+|-----------|--------|--------|
+| **Ping par lots** | ✅ | `_ping_par_lots()` — lots de 10, délai 2s, `GetUserStatusCommand` |
+| **Filtrage ONLINE** | ✅ | `_on_ping_termine()` — garde uniquement `UserStatus.ONLINE` |
+| **Signal ping_termine → clients_valides** | ✅ | Connecté dans `__init__` |
+| **ingest_membres_rooms → lancer_ping** | ✅ | Déclenché automatiquement depuis BoucleRooms |
+| **Clés KNOWLEDGE** | ✅ | `rafraichir_clients_actifs` avec actions complètes |
+| **Bouton 🔄 Rafraîchir** | ✅ | Timeout 60s, désactivé pendant ping |
+| **Stats UI** | ✅ | Candidats / Actifs & joignables / Injouignables |
+| **Indicateur d'état** | ✅ | 🟢 Prêt / 🔄 Scan… / ⏸ Arrêté |
+| **Dernière mise à jour** | ✅ | Timer 60s, format relatif |
+| **Flag anti-doublon Rafraîchir** | ✅ | `_rafraichir_connecte` dans center.py |
+| **ConnexionManager injection** | ✅ | `set_connexion_manager()` |
+| **Tests ping par lots** | ✅ | 8 tests asynchrones dans `test_clients_actifs_service.py` |
+| **Tests filtrage** | ✅ | 5 tests dans `TestPingParLots` |
+| **Tests ingest** | ✅ | 9 tests dans `TestIngestMembresRooms` |
+| **Sync timer 30s** | ✅ | `_sync_timer` re-synchronise avec UserManager.users |
+| **BoucleRooms indépendante** | ✅ | Cycle 30s, top 5 rooms par nb membres |
+| **Métriques de performance** | ✅ | `ping_metrics()` + `reinitialiser_metriques()` + 📊 dans l'UI |
+| **Événements EventBus (Rooms)** | ✅ | Cycles, membres récupérés — visible dans timeline workflow inspector |
+| **Événements EventBus (ClientsActifs)** | ✅ | Ping lancé/ignoré/terminé, ingestion — visible dans timeline & matrice |
+| **Surveillance workflow inspector** | ✅ | Stats boucle (rooms/membres, métriques ping) dans carte dédiée, MAJ 2s |
 
-### Cycle de vie
+### 4.2 À faire
 
-- [x] **Période du cycle automatique ?** Pas de cycle automatique. Pipeline exécuté **une fois au démarrage**, puis **à la demande**.
-- [x] **Comment rafraîchir manuellement ?** Bouton `🔄` dans le widget + intention `rafraîchir clients actifs` dans l'Accueil.
-- [x] **Que se passe-t-il au démarrage ?** `BotClientsActifs.demarrer()` → `ClientsActifsService.demarrer()` → attend le prochain signal `membres_actualises` de BoucleRooms → déclenche le pipeline complet.
-
-### Filtrage
-
-- [x] **Critère "actif & joignable" ?** Client répond au ping (`GetUserStatusCommand` réussit) **ET** statut = `UserStatus.ONLINE`. Les clients AWAY, OFFLINE ou UNKNOWN sont exclus même s'ils répondent au ping.
-- [x] **Client dans une room mais pas dans la liste pingée ?** Si un client n'a pas été pingé (ex: arrivé après le début du ping), il n'apparaît pas dans la liste filtrée. Il attendra le prochain rafraîchissement.
-- [x] **Client qui change de statut après le ping ?** Géré par les événements `UserStatusUpdateEvent` déjà connectés. Le statut se met à jour en temps réel via le signal `client_statut_change`.
-
-### Interface
-
-- [x] **Bouton Rafraîchir dans le widget ?** Oui, dans la barre d'en-tête, côté droit. Icône `🔄`, désactivé pendant l'exécution.
-- [x] **Stats à afficher ?** Candidats (membres des rooms) / Actifs & joignables (après ping) / Injouignables (ping échoué ou pas ONLINE).
-- [x] **Indicateur d'état ?** Icône `🟢 Prêt` / `🔄 Scan en cours...` / `⏸ Inactif`.
-
----
-
-## 🔗 Dépendances
-
-- **BoucleRooms** : Déjà implémentée. Fournit `membres_actualises` signal. Cycle 30s.
-  - **Bug corrigé** : `_rooms_actuelles` était pris non trié (`[:5]` sur itération dict). Désormais trié par `users` décroissant avant le `[:5]` pour obtenir le vrai top 5 des rooms les plus peuplées.
-- **ClientsActifsService** : Existe déjà. À modifier pour ajouter le ping par lots et le filtrage.
-- **BotClientsActifs (widget)** : Existe déjà. À modifier pour ajouter le bouton Rafraîchir et les nouvelles stats.
-- **BotAccueil** : Existe déjà. À modifier pour ajouter l'intention `rafraichir_clients_actifs`.
+Aucune — toutes les fonctionnalités prévues sont implémentées.
 
 ---
 
-## 📊 Niveau de complexité
+## 5. 🔧 Paramètres exposés
 
-**Niveau 1** (le plus simple des 8 bots)
+| Paramètre | Valeur | Définition | Modifiable |
+|-----------|--------|------------|------------|
+| `_LOT_PING` | 10 | Clients pingés simultanément par lot | Constante de classe |
+| `_DELAI_INTER_LOTS` | 2.0 | Secondes entre deux lots | Constante de classe |
+| `_INTERVALLE_PING_MIN` | 300 | Secondes minimum entre deux pings | Constante de classe |
+| `_TIMEOUT_RAFRAICHIR` | 60 | Timeout du bouton Rafraîchir (widget) | Constante widget |
 
-| Critère | Évaluation |
-|---------|-----------|
-| Ticks par cycle | 1 seul tick (le pipeline complet est exécuté en une fois) |
-| Logique décisionnelle | Simple (ping réussi + ONLINE binaire) |
-| État à gérer | Flag `_ping_en_cours` + liste de clients |
-| Files modifiées | 2 fichiers service, 2 fichiers widget |
-| Risque de saturation | Modéré (rate limiting par lots gère ce risque) |
-| Dépendances externes | BoucleRooms (déjà en place) |
+---
+
+## 6. 🧪 Tests
+
+### Tests existants (implémentés)
+
+| Fichier | Groupe | Nb tests | Couvre |
+|---------|--------|----------|--------|
+| `test_clients_actifs_service.py` | `TestPingParLots` | ~17 | `lancer_ping`, `_ping_par_lots` (async), `_on_ping_termine`, pipeline ingest→ping, espacement, dirty, forcer_ping |
+| `test_clients_actifs_service.py` | `TestMetriquesPerformance` | 6 | métriques initiales, ping réussi, partiel, cumul, reset, liste vide |
+| `test_clients_actifs_service.py` | `TestIngestMembresRooms` | ~9 | ingestion, doublons, signaux, statuts |
+| `test_clients_actifs_service.py` | TestFluxReel, TestEvenements, etc. | ~15 | cycle de vie, events, tri |
+
+### Tests implémentés (espacement + dirty + force)
+
+| Test | Description |
+|------|-------------|
+| `test_lancer_ping_espacement` | Ping déclenché 2x en <5 min → second ignoré |
+| `test_lancer_ping_apres_espacement` | Ping déclenché 2x en >5 min → second accepté |
+| `test_lancer_ping_dirty_changed` | Membres différents → ping déclenché |
+| `test_lancer_ping_dirty_identical` | Membres identiques → ping ignoré |
+| `test_forcer_ping_declenche_run_coro` | `forcer_ping()` déclenche bien `run_coro` |
+| `test_forcer_ping_liste_vide` | `forcer_ping()` avec 0 clients → run_coro appelé avec membres vide |
+| `test_forcer_ping_exclut_unknown` | `forcer_ping()` filtre les clients UNKNOWN |
+
+---
+
+## 7. 🔗 Dépendances
+
+- **BoucleRooms** : ✅ Déjà implémentée. Fournit `membres_actualises`. Cycle 30s.
+- **ClientsActifsService** : ✅ Implémenté. ✅ Espacement + dirty flag + `forcer_ping()`.
+- **BotClientsActifs (widget)** : ✅ Implémenté. Bouton, stats, indicateur d'état.
+- **BotAccueil** : ✅ Implémenté. Intention `rafraichir_clients_actifs` dans KNOWLEDGE.
+
+---
+
+## 8. ❓ Questions résolues
+
+- [x] **Ping par lots dans ClientsActifsService** (pas dans BoucleRooms)
+- [x] **Pipeline asynchrone** : `_ping_par_lots()` via `run_coro()` du ConnexionManager
+- [x] **Pas de cycle automatique** : ping déclenché événementiellement + manuellement
+- [x] **Critère actif & joignable** : ping réussi **ET** statut = ONLINE. AWAY/UNKNOWN exclus.
+- [x] **Flag anti-doublon** : `_rafraichir_connecte` dans center.py
+- [x] **Double source** : UserManager (utilisateurs trackés historiques) + BoucleRooms (découverte rooms) — complémentaires
+- [x] **Sync timer 30s** : gardé — resynchronise périodiquement avec UserManager.users
+- [x] **Espacement ping 5 min** : ✅ implémenté — `_INTERVALLE_PING_MIN = 300` dans `lancer_ping()`
+- [x] **Flag dirty** : ✅ implémenté — `hash(frozenset(...))` comparé à `_dernier_hash_membres`
+
+---
+
+> *Spec v2.1 — Mise à jour le 2026-05-21 pour documenter la surveillance EventBus + workflow inspector.*
+> **Prochaine action :** Intégration continue des tests (CI) et Dashboard de monitoring centralisé.
