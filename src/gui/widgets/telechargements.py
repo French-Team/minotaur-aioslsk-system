@@ -9,6 +9,10 @@ Composants :
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger("[TELECHARGEMENTS-UI]")
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
@@ -21,6 +25,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from src.utils.log_action import log_action
 
 # ── Constantes ───────────────────────────────────────────────────
 _STATUT_COULEURS = {
@@ -176,15 +182,25 @@ class DownloadRow(QFrame):
         # ── Boutons d'action ──
         if statut in ("en_cours", "attente"):
             self._btn_cancel = self._make_btn("✕ Annuler", "downloadBtnCancel")
-            self._btn_cancel.clicked.connect(lambda: self.cancel_requested.emit(identifiant))
+            self._btn_cancel.clicked.connect(self._on_cancel)
             layout.addWidget(self._btn_cancel)
 
         if statut == "echoue":
             self._btn_retry = self._make_btn("⟳ Réessayer", "downloadBtnRetry")
-            self._btn_retry.clicked.connect(lambda: self.retry_requested.emit(identifiant))
+            self._btn_retry.clicked.connect(self._on_retry)
             layout.addWidget(self._btn_retry)
 
     # ── Privé ────────────────────────────────────────────────────
+
+    @log_action("Annuler le téléchargement")
+    def _on_cancel(self) -> None:
+        """Émet la demande d'annulation du téléchargement."""
+        self.cancel_requested.emit(self._id)
+
+    @log_action("Réessayer le téléchargement")
+    def _on_retry(self) -> None:
+        """Émet la demande de réessai du téléchargement."""
+        self.retry_requested.emit(self._id)
 
     @staticmethod
     def _make_btn(text: str, obj_name: str) -> QPushButton:

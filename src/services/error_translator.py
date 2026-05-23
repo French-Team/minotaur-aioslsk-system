@@ -10,9 +10,13 @@ Catégorise chaque exception en trois niveaux de sévérité :
 from __future__ import annotations
 
 import asyncio
+import logging
 from enum import Enum
 
 import aioslsk.exceptions as aioslsk_exc
+
+logger = logging.getLogger("[ERROR-TRAD]")
+
 
 
 class Severite(Enum):

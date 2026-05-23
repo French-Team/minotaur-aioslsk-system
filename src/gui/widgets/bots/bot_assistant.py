@@ -13,10 +13,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[ASSISTANT]")
 
 # ── Constantes ──────────────────────────────────────────────────────────
 
@@ -304,6 +306,7 @@ class BotAssistant(QFrame):
         # Chargement initial
         self._update_stats()
 
+    @log_action("Assistant : rafraîchir les stats")
     def _update_stats(self) -> None:
         """Met à jour les labels de stats et la liste d'activité depuis SQLite."""
         stats = self._get_stats()

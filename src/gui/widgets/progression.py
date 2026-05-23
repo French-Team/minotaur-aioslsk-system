@@ -11,7 +11,12 @@ Modes disponibles :
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt
+
+logger = logging.getLogger("[PROGRESSION]")
+
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,

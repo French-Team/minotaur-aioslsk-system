@@ -8,7 +8,14 @@ Contient :
 
 from __future__ import annotations
 
+import logging
+
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import Qt, Signal
+
+logger = logging.getLogger("[CONNEXIONS-UI]")
+
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -367,6 +374,7 @@ class ConnexionPage(QFrame):
             self._message.setStyleSheet(f"color: {color}; font-size: 12px; font-weight: 600;")
         self._message.setVisible(bool(text))
 
+    @log_action("Connexion : tenter de se connecter")
     def _on_login(self) -> None:
         username = self.get_username()
         password = self.get_password()
@@ -382,8 +390,10 @@ class ConnexionPage(QFrame):
         cfg_set("general.connexion_automatique", checked)
         self.auto_login_changed.emit(checked)
 
+    @log_action("Connexion : générer un compte")
     def _on_generate(self) -> None:
         self.generate_requested.emit()
 
+    @log_action("Connexion : se déconnecter")
     def _on_disconnect(self) -> None:
         self.disconnect_requested.emit()

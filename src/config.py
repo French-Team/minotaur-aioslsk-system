@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger("[CONFIG]")
+
 
 
 class Settings(BaseSettings):

@@ -6,7 +6,12 @@ Chaque bouton = un bot. Change la page affichée dans la zone centrale.
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt, Signal
+
+logger = logging.getLogger("[FOOTER]")
+
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -145,5 +150,6 @@ class FooterZone(QFrame):
     # ── Interne ──────────────────────────────────────────────────
 
     def _on_button(self, name: str) -> None:
+        logger.info("[ACTION] Naviguer vers %s", name)
         self.set_active(name)
         self.page_changed.emit(name)

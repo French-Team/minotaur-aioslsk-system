@@ -1,4 +1,8 @@
-import pathlib, sys
+import logging
+import pathlib
+import sys
+
+logger = logging.getLogger("[TEMP-CHECK]")
 f = pathlib.Path('src/gui/main_window.py')
 raw = f.read_bytes()
 text = raw.decode('utf-8-sig')

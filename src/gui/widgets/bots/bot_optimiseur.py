@@ -10,9 +10,11 @@ from __future__ import annotations
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[OPTIMISEUR]")
 
 from glob import glob
+
+from src.utils.log_action import log_action
 from pathlib import Path
 
 from PySide6.QtCore import QFileSystemWatcher, Qt, QTimer, Signal
@@ -444,6 +446,7 @@ class BotOptimiseur(QFrame):
             self._action_layout.addWidget(aucun)
             self._boutons.append(aucun)
 
+    @log_action("Sélectionner un profil d'optimisation")
     def _on_profil_clicked(self, fichier: str) -> None:
         """Déclenché quand l'utilisateur clique sur un profil."""
         self._apply_profile(fichier)
@@ -697,6 +700,7 @@ class BotOptimiseur(QFrame):
         else:
             self._overlay_compteur.setText(f"Fermeture dans {self._overlay_compte}s")
 
+    @log_action("Rester sur l'overlay")
     def _hide_overlay(self) -> None:
         """Cache l'overlay et arrête le timer."""
         if self._overlay_timer_id is not None:
@@ -722,6 +726,7 @@ class BotOptimiseur(QFrame):
         if barre:
             barre.setValue(barre.maximum())
 
+    @log_action("Copier les logs de l'optimiseur")
     def _copier_logs(self) -> None:
         """Copie le contenu du viewer dans le presse-papier."""
         from PySide6.QtWidgets import QApplication
@@ -843,6 +848,7 @@ class BotOptimiseur(QFrame):
 
         self._placeholder_diff.setText("")
 
+    @log_action("Réinitialiser le tableau de bord")
     def _reset_dashboard(self) -> None:
         """Réinitialise le dashboard et les logs."""
         self._profil_label.setText(_DASHBOARD_EMPTY)

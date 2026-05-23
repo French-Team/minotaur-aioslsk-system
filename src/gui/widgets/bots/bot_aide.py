@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 from typing import Any, Callable
 
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import Qt, QTimer, Signal, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
@@ -35,7 +37,7 @@ from src.gui.theme_fragments.colors import COLORS
 from src.services.aide_db import AideDB
 from src.services.event_bus import EventBus, SurveillanceEvent
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[AIDE]")
 
 # ── Délai de debounce pour la recherche ───────────────────────────────
 _SEARCH_DEBOUNCE_MS = 300
@@ -704,6 +706,7 @@ class BotAide(QFrame):
                 self._db.delete_history_entry(entry_id)
                 self._load_history()
 
+    @log_action("Aide : afficher/masquer la sidebar")
     def _toggle_sidebar(self) -> None:
         """Affiche ou masque la sidebar."""
         self._sidebar_visible = not self._sidebar_visible
@@ -802,6 +805,7 @@ class BotAide(QFrame):
         fade_in.finished.connect(_on_fade_in_finished)
         fade_out.start()
 
+    @log_action("Aide : filtre catégorie")
     def _on_category_clicked(self, category: str | None) -> None:
         """Gère le clic sur un bouton de filtre catégorie.
 

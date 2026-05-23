@@ -7,7 +7,14 @@ Le panneau complet peut se replier vers la gauche.
 
 from __future__ import annotations
 
+import logging
+
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import Qt, Signal
+
+logger = logging.getLogger("[LEFT]")
+
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -208,11 +215,13 @@ class LeftZone(QFrame):
 
     def _on_button(self, name: str) -> None:
         """Un bouton de navigation a été cliqué."""
+        logger.info("[ACTION] Naviguer vers %s", name)
         self.set_active(name)
         # Mapper vers le vrai nom de page config (évite les collisions bot/config)
         page_name = _SECTION_TO_PAGE.get(name, name)
         self.page_changed.emit(page_name)
 
+    @log_action("Basculer le panneau gauche")
     def _toggle_panel(self) -> None:
         self._collapsed = not self._collapsed
         self._apply_state()

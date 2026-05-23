@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from src.models import ConnectRequest, ConnectResponse, StatusResponse
 from src.services.soulseek_client import soulseek_service
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[CONNEXION-WEB]")
 
 router = APIRouter(prefix="/api", tags=["connection"])
 

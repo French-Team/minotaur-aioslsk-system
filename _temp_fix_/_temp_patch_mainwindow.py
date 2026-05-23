@@ -1,5 +1,8 @@
 """Patch main_window.py pour intégrer le QSS Inspector."""
+import logging
 import pathlib
+
+logger = logging.getLogger("[TEMP-PATCH-MW]")
 
 f = pathlib.Path('src/gui/main_window.py')
 text = f.read_text(encoding='utf-8')

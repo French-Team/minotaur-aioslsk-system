@@ -18,6 +18,10 @@ Chaque entrée contient :
     Chaque item : {"label": "...", "action": "..."}
 """
 
+import logging
+
+logger = logging.getLogger("[ACCUEIL-KNOWLEDGE]")
+
 KNOWLEDGE: dict[str, dict] = {
     # ═══════════════════════════════════════════════════════════
     # Navigation vers les bots

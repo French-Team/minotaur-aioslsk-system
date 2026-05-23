@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "genres": [
+    {
+      "id": "techno",
+      "name": "Techno",
+      "keywords": ["techno", "detroit", "berlin", "minimal", "schranz", "industrial techno"],
+      "exclude": ["rock", "pop", "jazz", "video", "photo", "cover"]
+    },
+    {
+      "id": "house",
+      "name": "House",
+      "keywords": ["house", "deep house", "tech house", "garage", "soulful", "jackin"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "trance",
+      "name": "Trance",
+      "keywords": ["trance", "progressive", "goa", "psytrance", "uplifting", "vocal trance"],
+      "exclude": ["rock", "pop", "video", "cover"]
+    },
+    {
+      "id": "dnb",
+      "name": "Drum & Bass",
+      "keywords": ["drum and bass", "dnb", "drum&bass", "jungle", "liquid", "neurofunk", "drumfunk"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "electro",
+      "name": "Electro",
+      "keywords": ["electro", "electronic", "electronica", "electro house", "electroclash"],
+      "exclude": ["rock", "pop", "video", "cover"]
+    },
+    {
+      "id": "ambient",
+      "name": "Ambient / Downtempo",
+      "keywords": ["ambient", "downtempo", "chill", "atmospheric", "drone", "chillout"],
+      "exclude": ["rock", "pop", "video", "metal", "cover"]
+    },
+    {
+      "id": "hardcore",
+      "name": "Hardcore / Gabber",
+      "keywords": ["hardcore", "gabber", "hardstyle", "hardtechno", "terror", "speedcore"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "breakbeat",
+      "name": "Breaks / Breakbeat",
+      "keywords": ["breakbeat", "breaks", "big beat", "break", "nu skool", "funky breaks"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "minimal",
+      "name": "Minimal",
+      "keywords": ["minimal", "microhouse", "minimal techno", "minimal house", "click"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "dubstep",
+      "name": "Dubstep",
+      "keywords": ["dubstep", "brostep", "deep dub", "riddim", "140", "grime"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "synthwave",
+      "name": "Synthwave / Retrowave",
+      "keywords": ["synthwave", "retrowave", "outrun", "darksynth", "cyberpunk", "chillsynth"],
+      "exclude": ["rock", "pop", "jazz", "video", "cover"]
+    },
+    {
+      "id": "disco",
+      "name": "Disco / Funk",
+      "keywords": ["disco", "funk", "nu disco", "boogie", "italo", "cosmic"],
+      "exclude": ["rock", "pop", "jazz", "video", "metal", "cover"]
+    }
+  ],
+  "aliases": {
+    "drum and bass": "dnb",
+    "drum & bass": "dnb",
+    "electronic": "electro",
+    "breaks": "breakbeat",
+    "chillout": "ambient",
+    "hardstyle": "hardcore",
+    "dub": "dubstep",
+    "retro": "synthwave",
+    "nu disco": "disco"
+  }
+}

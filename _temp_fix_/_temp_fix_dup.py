@@ -1,4 +1,7 @@
+import logging
 import pathlib
+
+logger = logging.getLogger("[TEMP-FIX-DUP]")
 f = pathlib.Path('src/gui/main_window.py')
 raw = f.read_bytes()
 text = raw.decode('utf-8-sig')

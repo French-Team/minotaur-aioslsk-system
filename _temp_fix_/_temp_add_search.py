@@ -1,5 +1,9 @@
 """Ajoute une barre de recherche au _WidgetTree du QSS Inspector."""
-import pathlib, re
+import logging
+import pathlib
+import re
+
+logger = logging.getLogger("[TEMP-ADD-SEARCH]")
 
 f = pathlib.Path('src/gui/devtool/qss_inspector.py')
 text = f.read_text(encoding='utf-8-sig')

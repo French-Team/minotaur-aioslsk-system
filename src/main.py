@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+
+logger = logging.getLogger("[WEB]")
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 

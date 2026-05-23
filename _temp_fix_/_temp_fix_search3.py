@@ -1,5 +1,8 @@
 """Ajoute l'import QLineEdit et les methodes de recherche manquantes."""
+import logging
 import pathlib
+
+logger = logging.getLogger("[TEMP-FIX-SEARCH3]")
 
 f = pathlib.Path('src/gui/devtool/qss_inspector.py')
 text = f.read_text(encoding='utf-8-sig')

@@ -8,32 +8,37 @@ entire codebase and test raw networking capabilities.
 from __future__ import annotations
 
 import asyncio
+import functools
+import json
 import logging
+import platform
 import re
 import socket
 import time
 import traceback
 import threading
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from PySide6.QtCore import QObject, Qt, QPoint, QRect, QSize, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QComboBox,
     QDockWidget,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
-    QLayout,
-    QLayoutItem,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
-    QSizePolicy,
     QSplitter,
     QTabWidget,
     QTextEdit,
@@ -47,8 +52,11 @@ from PySide6.QtWidgets import (
 from src.gui.devtool.diagnostics import ConnexionMonitorWidget, TimeoutControllerWidget
 from src.services.soulseek_client import soulseek_service
 from src.services.app_config import get as cfg_get
+from src.utils.log_action import log_action
+from security.crash_reporter import register_crash_hook
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[SERVICE-INSPECTOR]")
+
 
 # ── Custom Thread-Safe Log Handler for PySide6 ───────────────────────────
 
@@ -217,113 +225,93 @@ class _TasksSignalEmitter(QObject):
     diagnostic_log = Signal(str)
 
 
-# ── FlowLayout : layout qui passe à la ligne automatiquement ──────────────
+# ── Helper : Contexte système ──────────────────────────────────────────
 
-class _FlowLayout(QLayout):
-    """Layout à flux qui dispose les widgets horizontalement et passe à la ligne
-    suivante automatiquement quand il n'y a plus d'espace horizontal disponible.
-
-    Inspiré de l'exemple Qt officiel ``basiclayouts/flowlayout.py``.
-    """
-
-    def __init__(self, parent: QWidget | None = None, margin: int = 0, spacing: int = 4) -> None:
-        super().__init__(parent)
-        self._item_list: list[QLayoutItem] = []
-        self.setContentsMargins(margin, margin, margin, margin)
-        self.setSpacing(spacing)
-
-    def __del__(self) -> None:
-        item = self.takeAt(0)
-        while item:
-            item = self.takeAt(0)
-
-    def addItem(self, item: QLayoutItem) -> None:
-        self._item_list.append(item)
-
-    def count(self) -> int:
-        return len(self._item_list)
-
-    def itemAt(self, index: int) -> QLayoutItem | None:
-        if 0 <= index < len(self._item_list):
-            return self._item_list[index]
-        return None
-
-    def takeAt(self, index: int) -> QLayoutItem | None:
-        if 0 <= index < len(self._item_list):
-            return self._item_list.pop(index)
-        return None
-
-    def expandingDirections(self) -> Qt.Orientations:
-        return Qt.Orientation(0)
-
-    def hasHeightForWidth(self) -> bool:
-        return True
-
-    def heightForWidth(self, width: int) -> int:
-        return self._do_layout(QRect(0, 0, width, 0), False)
-
-    def minimumSize(self) -> QSize:
-        size = QSize()
-        for item in self._item_list:
-            size = size.expandedTo(item.minimumSize())
-        margins = self.contentsMargins()
-        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
-        return size
-
-    def sizeHint(self) -> QSize:
-        return self.minimumSize()
-
-    def setGeometry(self, rect: QRect) -> None:
-        super().setGeometry(rect)
-        self._do_layout(rect, True)
-
-    def _do_layout(self, rect: QRect, set_geometry: bool) -> int:
-        """Dispose les widgets horizontalement avec retour à la ligne.
-
-        Retourne la hauteur totale utilisée (utile pour heightForWidth).
-        """
-        margins = self.contentsMargins()
-        effective_rect = QRect(
-            rect.x() + margins.left(),
-            rect.y() + margins.top(),
-            rect.width() - margins.left() - margins.right(),
-            rect.height() - margins.top() - margins.bottom(),
-        )
-
-        x = effective_rect.x()
-        y = effective_rect.y()
-        line_height = 0
-        spacing = self.spacing()
-
-        for item in self._item_list:
-            widget = item.widget()
-            if widget is None:
-                continue
-            if not widget.isVisible():
-                continue
-
-            space_x = spacing
-            next_x = x + item.sizeHint().width() + space_x
-
-            if next_x - space_x > effective_rect.right() and line_height > 0:
-                x = effective_rect.x()
-                y += line_height + spacing
-                next_x = x + item.sizeHint().width() + space_x
-                line_height = 0
-
-            if set_geometry:
-                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
-
-            x = next_x
-            line_height = max(line_height, item.sizeHint().height())
-
-        return y + line_height - rect.y() + margins.bottom()
+def _get_system_context() -> str:
+    """Retourne une chaîne formatée avec le contexte système (OS, Python, mémoire)."""
+    import os as _os
+    import sys as _sys
+    import platform as _platform
+    lines = [
+        f"# OS            : {_platform.platform()}",
+        f"# Python        : {_sys.version.split()[0]}",
+        f"# CPU           : {_os.cpu_count()} cœurs",
+    ]
+    try:
+        import psutil
+        mem = psutil.virtual_memory()
+        total_gb = mem.total / (1024 ** 3)
+        avail_gb = mem.available / (1024 ** 3)
+        lines.append(f"# Mémoire RAM   : {total_gb:.1f} Go total — {avail_gb:.1f} Go disponible")
+    except ImportError:
+        lines.append("# Mémoire RAM   : psutil non installé — info indisponible")
+    return "\n".join(lines)
 
 
-# ── Service Inspector main QDockWidget ────────────────────────────────────
+    # ── Service Inspector main QDockWidget ────────────────────────────────────
 
 class ServiceInspector(QDockWidget):
     """Ancillary Developer panel to inspect and control the active Soulseek client & services."""
+
+    # ── Presets par defaut pre-installes ──────────────────────────────────
+    # Ces presets sont fusionnes avec les presets sauvegardes par l'utilisateur
+    # et apparaissent toujours dans la liste, meme si filter_presets.json n'existe pas.
+    _DEFAULT_PRESETS: dict[str, dict] = {
+        "⚡ Debug Réseau": {
+            "levels": {"error": True, "warning": False, "info": False, "debug": True},
+            "services": {},
+            "limit": "200",
+        },
+        "🔴 Erreurs uniquement": {
+            "levels": {"error": True, "warning": False, "info": False, "debug": False},
+            "services": {},
+            "limit": "100",
+        },
+        "📊 Surveillance complète": {
+            "levels": {"error": True, "warning": True, "info": True, "debug": True},
+            "services": {},
+            "limit": "200",
+        },
+        "🐌 Performance": {
+            "levels": {"error": True, "warning": True, "info": False, "debug": False},
+            "services": {},
+            "limit": "50",
+        },
+        "🌐 Connexion & Réseau": {
+            "levels": {"error": True, "warning": True, "info": True, "debug": True},
+            "services": {
+                "[CONNEXION]": True, "[SOULSEEK]": True, "[EVENTBUS]": True,
+                "[CONNEXION-WEB]": True, "[CONNEXION-MONITOR]": True,
+            },
+            "limit": "200",
+        },
+        "🔍 Recherche & Téléchargement": {
+            "levels": {"error": True, "warning": True, "info": True, "debug": True},
+            "services": {
+                "[RECHERCHE]": True, "[TELECHARGEMENT]": True, "[WISHLIST]": True,
+                "[RECHERCHE-HIST]": True, "[RECHERCHE-MODES]": True,
+                "[TELECHARGEMENT-HIST]": True,
+            },
+            "limit": "200",
+        },
+        "🤖 Bots uniquement": {
+            "levels": {"error": True, "warning": True, "info": True, "debug": True},
+            "services": {
+                "[ACCUEIL]": True, "[SURVEILLANCE]": True, "[PLANIFICATEUR]": True,
+                "[OPTIMISEUR]": True, "[AIDE]": True, "[ASSISTANT]": True,
+                "[ORDONNANCEUR]": True, "[ORDONNANCEUR-UI]": True,
+                "[CLIENTS-ACTIFS]": True, "[CLIENTS-ACTIFS-UI]": True,
+                "[BIBLIOTHEQUE]": True, "[BIBLIOTHEQUE-DB]": True,
+                "[BIBLIOTHEQUE-UI]": True,
+            },
+            "limit": "200",
+        },
+        "⚠️ Erreurs + Warnings": {
+            "levels": {"error": True, "warning": True, "info": False, "debug": False},
+            "services": {},
+            "limit": "Tout",
+        },
+    }
 
     def __init__(self, main_window: QWidget, parent: Optional[QWidget] = None) -> None:
         super().__init__("Service & Connection Inspector", parent)
@@ -361,7 +349,7 @@ class ServiceInspector(QDockWidget):
             "background-color: #6c5ce7; font-weight: bold; color: #ffffff; "
             "padding: 3px 10px; font-size: 10px; border-radius: 3px;"
         )
-        self._btn_refresh.clicked.connect(self.refresh_all)
+        self._btn_refresh.clicked.connect(self._on_refresh_all)
         toolbar.addWidget(self._btn_refresh)
 
         # Timer toggle (permet de suspendre le polling si besoin)
@@ -419,8 +407,11 @@ class ServiceInspector(QDockWidget):
         # Active poll timer (1.5 seconds) to update services status and tasks
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(1500)
-        self._poll_timer.timeout.connect(self.refresh_all)
+        self._poll_timer.timeout.connect(self.refresh_all)  # timer → pas de @log_action (évite le bruit)
         self._poll_timer.start()
+
+        # ── Crash hook : sauvegarde automatique des logs si l'app plante ──
+        register_crash_hook(self._save_logs_on_crash)
 
     def _setup_tab_dashboard(self) -> None:
         tab = QWidget()
@@ -494,7 +485,7 @@ class ServiceInspector(QDockWidget):
 
         # Refresh button
         self._btn_refresh_tasks = QPushButton("🔄 Rafraîchir Tâches")
-        self._btn_refresh_tasks.clicked.connect(self.refresh_asyncio_tasks)
+        self._btn_refresh_tasks.clicked.connect(self._on_refresh_asyncio_tasks)
         layout.addWidget(self._btn_refresh_tasks)
 
         self._tabs.addTab(tab, "Démarrage & Tâches")
@@ -560,7 +551,7 @@ class ServiceInspector(QDockWidget):
 
         # Action to clear console
         btn_clear_diag = QPushButton("🗑️ Vider le Terminal de Diagnostic")
-        btn_clear_diag.clicked.connect(self._diag_console.clear)
+        btn_clear_diag.clicked.connect(self._clear_diag_console)
         layout.addWidget(btn_clear_diag)
 
         # Info : le moniteur de connexion suit aussi le diagnostic
@@ -626,9 +617,44 @@ class ServiceInspector(QDockWidget):
         self._btn_deselect_all.clicked.connect(self._deselect_all_filters)
         toolbar.addWidget(self._btn_deselect_all)
 
+        # ── Sélecteur de limite de logs ──
+        lbl_limit = QLabel("Limit :")
+        lbl_limit.setStyleSheet("color: #a6adc8; font-size: 10px;")
+        toolbar.addWidget(lbl_limit)
+
+        self._log_limit = QComboBox()
+        self._log_limit.addItems(["Tout", "10", "50", "100", "150", "200"])
+        self._log_limit.setCurrentIndex(0)
+        self._log_limit.currentIndexChanged.connect(self._reapply_log_filter)
+        self._log_limit.setStyleSheet(
+            "QComboBox {"
+            "  background: #313244; color: #cdd6f4;"
+            "  border: 1px solid #45475a; border-radius: 3px;"
+            "  padding: 1px 4px; font-size: 9px;"
+            "}"
+            "QComboBox::drop-down {"
+            "  border: none; width: 16px;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "  background: #1e1e2e; color: #cdd6f4;"
+            "  selection-background-color: #45475a;"
+            "}"
+        )
+        toolbar.addWidget(self._log_limit)
+
         toolbar.addStretch()
 
-        self._btn_copy_logs = QPushButton("📋 Copier les logs")
+        self._btn_save_filtered = QPushButton("💾 Enregistrer")
+        self._btn_save_filtered.setToolTip("Sauvegarder les logs filtrés dans data/logs/")
+        self._btn_save_filtered.setStyleSheet(
+            "background-color: #45475a; color: #cdd6f4; "
+            "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_save_filtered.clicked.connect(self._save_filtered_logs)
+        toolbar.addWidget(self._btn_save_filtered)
+
+        self._btn_copy_logs = QPushButton("📋 Copier")
+        self._btn_copy_logs.setToolTip("Copier les logs filtrés dans le presse-papier")
         self._btn_copy_logs.setStyleSheet(
             "background-color: #45475a; color: #cdd6f4; "
             "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
@@ -638,40 +664,114 @@ class ServiceInspector(QDockWidget):
 
         layout.addLayout(toolbar)
 
-        # ── Barre de filtres par service (dynamique) ──
-        service_bar = QHBoxLayout()
-        service_bar.setContentsMargins(0, 0, 0, 4)
-        service_bar.setSpacing(4)
+        # ── Liste de filtres par service (compacte) ──
+        # Utilise une QListWidget avec items checkables, scrollable verticalement
+        # et prenant un minimum de place (hauteur fixe ~6 lignes).
+        # Ligne titre "Services :" + boutons Tout/Aucun à droite
+        services_header = QHBoxLayout()
+        services_header.setContentsMargins(0, 0, 0, 0)
+        services_header.setSpacing(4)
 
         lbl_services = QLabel("Services :")
         lbl_services.setStyleSheet("color: #a6adc8; font-size: 10px;")
-        service_bar.addWidget(lbl_services)
+        services_header.addWidget(lbl_services)
 
-        self._loggers_container = QWidget()
-        self._loggers_layout = _FlowLayout(self._loggers_container, margin=0, spacing=4)
-        service_bar.addWidget(self._loggers_container)
+        services_header.addStretch()
 
-        service_bar.addStretch()
-
-        self._btn_logger_all = QPushButton("Tout")
-        self._btn_logger_all.setFixedWidth(35)
-        self._btn_logger_all.setStyleSheet(
+        self._btn_services_all = QPushButton("Tout")
+        self._btn_services_all.setFixedWidth(45)
+        self._btn_services_all.setStyleSheet(
             "background: #313244; color: #cdd6f4; "
             "padding: 2px 4px; font-size: 9px; border-radius: 3px;"
         )
-        self._btn_logger_all.clicked.connect(self._select_all_loggers)
-        service_bar.addWidget(self._btn_logger_all)
+        self._btn_services_all.clicked.connect(self._select_all_loggers)
+        services_header.addWidget(self._btn_services_all)
 
-        self._btn_logger_none = QPushButton("Aucun")
-        self._btn_logger_none.setFixedWidth(40)
-        self._btn_logger_none.setStyleSheet(
+        self._btn_services_none = QPushButton("Aucun")
+        self._btn_services_none.setFixedWidth(45)
+        self._btn_services_none.setStyleSheet(
             "background: #313244; color: #cdd6f4; "
             "padding: 2px 4px; font-size: 9px; border-radius: 3px;"
         )
-        self._btn_logger_none.clicked.connect(self._deselect_all_loggers)
-        service_bar.addWidget(self._btn_logger_none)
+        self._btn_services_none.clicked.connect(self._deselect_all_loggers)
+        services_header.addWidget(self._btn_services_none)
 
-        layout.addLayout(service_bar)
+        layout.addLayout(services_header)
+
+        self._logger_list = QListWidget()
+        self._logger_list.setObjectName("loggerFilterList")
+        self._logger_list.setMaximumHeight(130)
+        self._logger_list.setAlternatingRowColors(True)
+        self._logger_list.itemChanged.connect(self._reapply_log_filter)
+        self._logger_list.setStyleSheet(
+            "QListWidget#loggerFilterList {"
+            "  background: #11111b;"
+            "  border: 1px solid #313244;"
+            "  border-radius: 4px;"
+            "  font-family: 'Consolas', 'Courier New', monospace;"
+            "  font-size: 9px;"
+            "  padding: 2px;"
+            "}"
+            "QListWidget#loggerFilterList::item {"
+            "  padding: 1px 4px;"
+            "  min-height: 14px;"
+            "}"
+            "QListWidget#loggerFilterList::item:alternate {"
+            "  background: #1e1e2e;"
+            "}"
+        )
+        layout.addWidget(self._logger_list)
+
+        # ── Barre de presets de filtres ──
+        preset_bar = QHBoxLayout()
+        preset_bar.setContentsMargins(0, 0, 0, 4)
+        preset_bar.setSpacing(4)
+
+        lbl_presets = QLabel("🎯 Presets :")
+        lbl_presets.setStyleSheet("color: #a6adc8; font-size: 10px; font-weight: bold;")
+        preset_bar.addWidget(lbl_presets)
+
+        self._preset_combo = QComboBox()
+        self._preset_combo.addItem("─ Presets ─")
+        self._preset_combo.currentIndexChanged.connect(self._on_preset_selected)
+        self._preset_combo.setMinimumWidth(160)
+        self._preset_combo.setStyleSheet(
+            "QComboBox {"
+            "  background: #313244; color: #cdd6f4;"
+            "  border: 1px solid #45475a; border-radius: 3px;"
+            "  padding: 1px 4px; font-size: 9px;"
+            "}"
+            "QComboBox::drop-down {"
+            "  border: none; width: 16px;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "  background: #1e1e2e; color: #cdd6f4;"
+            "  selection-background-color: #45475a;"
+            "}"
+        )
+        preset_bar.addWidget(self._preset_combo)
+
+        self._btn_save_preset = QPushButton("💾 Sauver")
+        self._btn_save_preset.setToolTip("Sauvegarder les filtres actuels comme preset")
+        self._btn_save_preset.setStyleSheet(
+            "background: #45475a; color: #cdd6f4;"
+            "  padding: 2px 6px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_save_preset.clicked.connect(self._save_preset)
+        preset_bar.addWidget(self._btn_save_preset)
+
+        self._btn_delete_preset = QPushButton("🗑️ Suppr.")
+        self._btn_delete_preset.setToolTip("Supprimer le preset sélectionné")
+        self._btn_delete_preset.setStyleSheet(
+            "background: #45475a; color: #cdd6f4;"
+            "  padding: 2px 6px; font-size: 9px; border-radius: 3px;"
+        )
+        self._btn_delete_preset.clicked.connect(self._delete_preset)
+        preset_bar.addWidget(self._btn_delete_preset)
+
+        preset_bar.addStretch()
+
+        layout.addLayout(preset_bar)
 
         self._logs_text = QTextEdit()
         self._logs_text.setReadOnly(True)
@@ -690,7 +790,15 @@ class ServiceInspector(QDockWidget):
 
         # Stockage des logs bruts pour re-filtrage
         self._log_entries: list[tuple[str, str, str]] = []  # (level, logger_name, html_msg)
-        self._chk_loggers: dict[str, QCheckBox] = {}  # logger_name → checkbox
+
+        # Pré-populer les filtres avec tous les loggers connus
+        self._prepopulate_logger_filters()
+
+        # ── Presets de filtres (persistance JSON) ──
+        self._presets_file = Path("data/logs/filter_presets.json")
+        self._presets: dict[str, dict] = {}
+        # Charger les presets utilisateur + fusionner avec les presets par défaut
+        self._load_presets_from_disk()
 
         self._tabs.addTab(tab, "Flux des Logs")
 
@@ -781,8 +889,13 @@ class ServiceInspector(QDockWidget):
 
     # ── Service Management & Dynamic State Polling ───────────────────────────
 
+    @log_action("Rafraîchir tous les onglets")
+    def _on_refresh_all(self) -> None:
+        """Handler bouton — rafraîchit tous les onglets avec log d'action."""
+        self.refresh_all()
+
     def refresh_all(self) -> None:
-        """Invoked periodically to update service labels and asyncio active tasks."""
+        """Invoked periodically (timer) to update service labels and asyncio active tasks."""
         self._refresh_count += 1
         self._lbl_refresh_count.setText(f"#{self._refresh_count}")
 
@@ -798,6 +911,7 @@ class ServiceInspector(QDockWidget):
         if self._tasks_in_foreground:
             self.refresh_asyncio_tasks()
 
+    @log_action("Suspendre/reprendre le polling")
     def _toggle_polling(self) -> None:
         """Suspend/reprend le rafraîchissement automatique."""
         if self._poll_timer.isActive():
@@ -870,6 +984,7 @@ class ServiceInspector(QDockWidget):
         except Exception as e:
             logger.debug("Error during stats refresh: %s", e)
 
+    @log_action("Démarrer/arrêter le service salons")
     def _toggle_room_service(self) -> None:
         room_svc = getattr(self._main_window, "_room_service", None)
         if room_svc is None:
@@ -880,6 +995,7 @@ class ServiceInspector(QDockWidget):
             room_svc.demarrer()
         self.refresh_stats()
 
+    @log_action("Démarrer/arrêter le service clients actifs")
     def _toggle_clients_service(self) -> None:
         layout = getattr(self._main_window, "_layout", None)
         if layout is None or not hasattr(layout, "center"):
@@ -894,6 +1010,11 @@ class ServiceInspector(QDockWidget):
         self.refresh_stats()
 
     # ── Thread-Safe Asyncio Event Loop Inspector ─────────────────────────────
+
+    @log_action("Rafraîchir les tâches asyncio")
+    def _on_refresh_asyncio_tasks(self) -> None:
+        """Handler bouton — rafraîchit les tâches asyncio avec log d'action."""
+        self.refresh_asyncio_tasks()
 
     def refresh_asyncio_tasks(self) -> None:
         """Fetch all running asyncio tasks from the Connection Thread's event loop
@@ -1017,6 +1138,7 @@ class ServiceInspector(QDockWidget):
 
     # ── Thread-Isolated Diagnostic Connectivity Test ────────────────────────
 
+    @log_action("Lancer le diagnostic de connexion")
     def _run_isolated_diagnostic(self) -> None:
         """Start the isolated network test thread to prove server availability."""
         self._diag_console.clear()
@@ -1033,7 +1155,7 @@ class ServiceInspector(QDockWidget):
 
         # Spawn worker
         worker = DiagnosticWorker(port, user, passwd, self._emitter.diagnostic_log)
-        
+
         # Enable button back when thread finishes
         def on_thread_complete() -> None:
             self._btn_run_diag.setEnabled(True)
@@ -1047,6 +1169,11 @@ class ServiceInspector(QDockWidget):
                 QTimer.singleShot(0, on_thread_complete)
 
         MonitorThread().start()
+
+    @log_action("Vider le terminal de diagnostic")
+    def _clear_diag_console(self) -> None:
+        """Vide le terminal de diagnostic."""
+        self._diag_console.clear()
 
     def _on_diagnostic_log(self, html_msg: str) -> None:
         self._diag_console.append(html_msg)
@@ -1074,6 +1201,15 @@ class ServiceInspector(QDockWidget):
 
     # ── Console Log Handling — Filtres & Copie ────────────────────────────
 
+    def _logger_is_checked(self, logger_name: str) -> bool:
+        """Vérifie si un logger est coché dans la QListWidget."""
+        for i in range(self._logger_list.count()):
+            item = self._logger_list.item(i)
+            if item and item.data(Qt.ItemDataRole.UserRole) == logger_name:
+                return item.checkState() == Qt.CheckState.Checked
+        # Logger inconnu → affiché par défaut
+        return True
+
     def _should_show_log(self, level: str, logger_name: str) -> bool:
         """Retourne True si le log doit être affiché selon les filtres actifs.
 
@@ -1094,22 +1230,39 @@ class ServiceInspector(QDockWidget):
             if not self._chk_info.isChecked():
                 return False
 
-        # Vérification du service/logger
-        if logger_name in self._chk_loggers:
-            return self._chk_loggers[logger_name].isChecked()
-
-        # Nouveau logger inconnu → affiché par défaut
-        return True
+        # Vérification du service/logger via la QListWidget
+        return self._logger_is_checked(logger_name)
 
     def _reapply_log_filter(self) -> None:
-        """Re-filtre tous les logs selon les checkboxes actives."""
+        """Re-filtre tous les logs selon les filtres actifs + limite N derniers.
+
+        Applique successivement :
+        1. Filtres de niveau (ERROR/WARNING/INFO/DEBUG)
+        2. Filtres par service/logger
+        3. Limite du nombre de logs (Tout / 10 / 50 / 100 / 150 / 200)
+        """
+        # Déterminer la limite
+        limit_txt = self._log_limit.currentText()
+        limit = 0 if limit_txt == "Tout" else int(limit_txt)
+
         self._logs_text.clear()
+
+        # Collecter les entrées filtrées
+        filtered: list[str] = []
         for level, logger_name, html_msg in self._log_entries:
             if self._should_show_log(level, logger_name):
-                self._logs_text.append(html_msg)
+                filtered.append(html_msg)
+
+        # Appliquer la limite : garder les N derniers
+        if limit > 0 and len(filtered) > limit:
+            filtered = filtered[-limit:]
+
+        for html_msg in filtered:
+            self._logs_text.append(html_msg)
         # pyrefly: ignore [missing-attribute]
         self._logs_text.moveCursor(QTextCursor.End)
 
+    @log_action("Niveaux : tout sélectionner")
     def _select_all_filters(self) -> None:
         """Coche tous les filtres de niveau."""
         self._chk_error.setChecked(True)
@@ -1117,6 +1270,7 @@ class ServiceInspector(QDockWidget):
         self._chk_info.setChecked(True)
         self._chk_debug.setChecked(True)
 
+    @log_action("Niveaux : tout désélectionner")
     def _deselect_all_filters(self) -> None:
         """Décoche tous les filtres de niveau."""
         self._chk_error.setChecked(False)
@@ -1124,53 +1278,332 @@ class ServiceInspector(QDockWidget):
         self._chk_info.setChecked(False)
         self._chk_debug.setChecked(False)
 
+    @log_action("Copier les logs filtrés dans le presse-papier")
     def _copy_filtered_logs(self) -> None:
         """Copie le contenu visible (filtré) des logs dans le presse-papier."""
         clipboard = QApplication.clipboard()
         clipboard.setText(self._logs_text.toPlainText())
 
-    def _update_logger_filters(self, logger_name: str) -> None:
-        """Ajoute une checkbox pour un nouveau logger si pas déjà présent.
+    @log_action("Sauvegarder les logs filtrés")
+    def _save_filtered_logs(self) -> None:
+        """Sauvegarde UNIQUEMENT les logs filtrés (visibles) dans ``data/logs/``.
 
-        Crée une checkbox avec le nom court du logger (dernier segment)
+        Génère un fichier ``filtered_YYYYMMDD_HHMMSS.log`` contenant le texte
+        brut (sans HTML) des logs actuellement affichés, utile pour envoyer
+        un extrait ciblé à un développeur.
+
+        Affiche un feedback visuel temporaire sur le bouton ("✅ Sauvé !")
+        pour que l'utilisateur sache que la sauvegarde a bien eu lieu.
+        """
+        plain_text = self._logs_text.toPlainText().strip()
+        if not plain_text:
+            logger.info("ServiceInspector: aucun log filtré à sauvegarder")
+            # Feedback visuel : bouton clignote en orange "⚠️ Vide"
+            self._btn_save_filtered.setText("⚠️ Vide")
+            self._btn_save_filtered.setStyleSheet(
+                "background-color: #f9e2af; color: #11111b; "
+                "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
+            )
+            QTimer.singleShot(2000, self._restore_save_btn_style)
+            return
+
+        log_dir = Path("data/logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = log_dir / f"filtered_{timestamp}.log"
+
+        # Extraire les infos du filtre actif pour l'en-tête
+        niveaux = []
+        if self._chk_error.isChecked():
+            niveaux.append("ERROR")
+        if self._chk_warning.isChecked():
+            niveaux.append("WARNING")
+        if self._chk_info.isChecked():
+            niveaux.append("INFO")
+        if self._chk_debug.isChecked():
+            niveaux.append("DEBUG")
+
+        services_actifs = [
+            name for name in self._STANDARD_LOGGERS
+            if self._logger_is_checked(name)
+        ]
+
+        limit_txt = self._log_limit.currentText()
+
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                ts = datetime.now()
+                f.write(f"# ================================================================================\n")
+                f.write(f"#  SESSION INSPECTOR — Export filtré de logs\n")
+                f.write(f"# ================================================================================\n")
+                f.write(f"#\n")
+                f.write(f"# QUI SUIS-JE ?\n")
+                f.write(f"#   Extraits ciblés de logs exportés depuis l'onglet « Flux des Logs »\n")
+                f.write(f"#   du Service & Connection Inspector. Seuls les logs correspondant\n")
+                f.write(f"#   aux filtres actifs au moment de l'export sont inclus.\n")
+                f.write(f"#\n")
+                f.write(f"# À QUOI JE SERS ?\n")
+                f.write(f"#   Partager avec un développeur un extrait précis et reproductible\n")
+                f.write(f"#   de logs pour diagnostiquer un problème spécifique. Les filtres\n")
+                f.write(f"#   appliqués sont documentés ci-dessous.\n")
+                f.write(f"#\n")
+                f.write(f"# QUE FAIRE AVEC CE FICHIER ?\n")
+                f.write(f"#   1. Ouvrir dans un éditeur de texte pour analyser les logs.\n")
+                f.write(f"#   2. Les filtres ci-dessous indiquent le contexte exact de l'export\n")
+                f.write(f"#      (niveaux, services, limite de nombre).\n")
+                f.write(f"#   3. Si le problème est reproductible, fournir aussi le fichier\n")
+                f.write(f"#      de session complet (inspector_*.log) pour corrélation.\n")
+                f.write(f"#\n")
+                f.write(f"# ================================================================================\n")
+                f.write(f"# Généré le    : {ts.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# Filtres niv. : {' '.join(niveaux) if niveaux else '(aucun)'}\n")
+                f.write(f"# Limite       : {limit_txt}\n")
+                if services_actifs:
+                    f.write(f"# Services     : {', '.join(sorted(services_actifs))}\n")
+                f.write(f"# Lignes       : {len(plain_text.splitlines())}\n")
+                f.write(f"#\n")
+                f.write(f"# --- Contexte système ---\n")
+                f.write(_get_system_context() + "\n")
+                f.write(f"# ================================================================================\n\n")
+                f.write(plain_text)
+                f.write("\n")
+
+            logger.info("Logs filtrés sauvegardés : %s", filepath)
+            # Feedback visuel : bouton passe en vert "✅ Sauvé !" 2s
+            self._btn_save_filtered.setText("✅ Sauvé !")
+            self._btn_save_filtered.setStyleSheet(
+                "background-color: #a6e3a1; color: #11111b; font-weight: bold; "
+                "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
+            )
+            QTimer.singleShot(2000, self._restore_save_btn_style)
+
+        except Exception as e:
+            logger.warning("Impossible de sauvegarder les logs filtrés : %s", e)
+            # Feedback visuel : bouton passe en rouge "❌ Erreur" 2s
+            self._btn_save_filtered.setText("❌ Erreur")
+            self._btn_save_filtered.setStyleSheet(
+                "background-color: #f38ba8; color: #11111b; font-weight: bold; "
+                "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
+            )
+            QTimer.singleShot(2000, self._restore_save_btn_style)
+
+    # ── Presets de filtres (sauvegarde/chargement) ──────────────────────
+
+    def _on_preset_selected(self, index: int) -> None:
+        """Charge le preset sélectionné dans le combo."""
+        if index <= 0:
+            return  # ignorer le placeholder "─ Presets ─"
+        name = self._preset_combo.currentText()
+        if name in self._presets:
+            self._load_preset(name)
+
+    @log_action("Sauvegarder un preset")
+    def _save_preset(self) -> None:
+        """Demande un nom et sauvegarde les filtres actuels comme preset."""
+        name, ok = QInputDialog.getText(
+            self, "Sauvegarder un preset",
+            "Nom du preset :", text=""
+        )
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+
+        # Capturer l'état actuel de tous les filtres via la QListWidget
+        services = {}
+        for i in range(self._logger_list.count()):
+            item = self._logger_list.item(i)
+            if item:
+                logger_name = item.data(Qt.ItemDataRole.UserRole)
+                services[logger_name] = (item.checkState() == Qt.CheckState.Checked)
+
+        preset: dict[str, Any] = {
+            "levels": {
+                "error": self._chk_error.isChecked(),
+                "warning": self._chk_warning.isChecked(),
+                "info": self._chk_info.isChecked(),
+                "debug": self._chk_debug.isChecked(),
+            },
+            "services": services,
+            "limit": self._log_limit.currentText(),
+        }
+
+        self._presets[name] = preset
+        self._rebuild_preset_combo(name)
+        self._save_presets_to_disk()
+        logger.info("Preset sauvegardé : %s", name)
+
+    def _load_preset(self, name: str) -> None:
+        """Restaure l'état des filtres depuis un preset."""
+        preset = self._presets.get(name)
+        if preset is None:
+            return
+
+        # Restaurer les niveaux
+        levels = preset.get("levels", {})
+        self._chk_error.setChecked(levels.get("error", True))
+        self._chk_warning.setChecked(levels.get("warning", True))
+        self._chk_info.setChecked(levels.get("info", True))
+        self._chk_debug.setChecked(levels.get("debug", True))
+
+        # Restaurer la limite
+        limit = preset.get("limit", "Tout")
+        idx = self._log_limit.findText(limit)
+        if idx >= 0:
+            self._log_limit.setCurrentIndex(idx)
+
+        # Restaurer les services via la QListWidget
+        services = preset.get("services", {})
+        for i in range(self._logger_list.count()):
+            item = self._logger_list.item(i)
+            if item:
+                logger_name = item.data(Qt.ItemDataRole.UserRole)
+                if logger_name and logger_name in services:
+                    checked = services[logger_name]
+                    item.setCheckState(
+                        Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+                    )
+
+        # Ré-appliquer le filtre
+        self._reapply_log_filter()
+        logger.info("Preset chargé : %s", name)
+
+    @log_action("Supprimer un preset")
+    def _delete_preset(self) -> None:
+        """Supprime le preset actuellement sélectionné."""
+        name = self._preset_combo.currentText()
+        if name in self._presets:
+            del self._presets[name]
+            self._rebuild_preset_combo()
+            self._save_presets_to_disk()
+            logger.info("Preset supprimé : %s", name)
+
+    def _rebuild_preset_combo(self, select_name: str | None = None) -> None:
+        """Reconstruit la liste déroulante des presets."""
+        self._preset_combo.blockSignals(True)
+        self._preset_combo.clear()
+        self._preset_combo.addItem("─ Presets ─")
+        for name in sorted(self._presets.keys()):
+            self._preset_combo.addItem(name)
+        self._preset_combo.blockSignals(False)
+
+        if select_name and select_name in self._presets:
+            idx = self._preset_combo.findText(select_name)
+            if idx >= 0:
+                self._preset_combo.setCurrentIndex(idx)
+
+    def _save_presets_to_disk(self) -> None:
+        """Persiste les presets dans ``data/logs/filter_presets.json``."""
+        try:
+            self._presets_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._presets_file, "w", encoding="utf-8") as f:
+                json.dump(self._presets, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.warning("Impossible de sauvegarder les presets : %s", e)
+
+    def _load_presets_from_disk(self) -> None:
+        """Charge les presets depuis ``data/logs/filter_presets.json``
+        et les fusionne avec les presets par défaut pré-installés.
+
+        Les presets utilisateur écrasent les defaults en cas de conflit de nom.
+        Les defaults absents du fichier sont quand même ajoutés au combo.
+        """
+        merged: dict[str, dict] = deepcopy(self._DEFAULT_PRESETS)
+
+        if self._presets_file.exists():
+            try:
+                with open(self._presets_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    merged.update(data)
+            except Exception as e:
+                logger.warning("Impossible de charger les presets : %s", e)
+
+        self._presets = merged
+        self._rebuild_preset_combo()
+        logger.debug("%d presets chargés (%d par défaut + utilisateur)",
+                     len(self._presets), len(self._DEFAULT_PRESETS))
+
+    # ── Loggers standards connus (pré-population des filtres) ──
+    _STANDARD_LOGGERS: list[str] = [
+        # Phase 1 — Core services
+        "[CONNEXION]", "[SOULSEEK]", "[EVENTBUS]",
+        # Phase 2 — Boucles et bots
+        "[ROOMS-LOOP]", "[CLIENTS-ACTIFS]", "[RECHERCHE]",
+        "[TELECHARGEMENT]", "[SURVEILLANCE]", "[WISHLIST]",
+        "[PLANIFICATEUR]", "[ACCUEIL]", "[OPTIMISEUR]",
+        # Phase 3 — Services secondaires
+        "[ROOMS-SERVICE]", "[BIBLIOTHEQUE]", "[WORKFLOW]",
+        # Phase 4a — Services / infrastructure
+        "[APP-CONFIG]", "[CONNEXION-WEB]", "[BIBLIOTHEQUE-DB]",
+        "[ORDONNANCEUR]", "[MAIN-WINDOW]", "[RECHERCHE-HIST]",
+        "[QSS-INSPECTOR]", "[SERVICE-INSPECTOR]", "[CENTER-ZONE]",
+        "[CLIENTS-ACTIFS-UI]", "[PLANIFICATEUR-SRV]", "[TOAST]",
+        "[TELECHARGEMENT-HIST]",
+        # Phase 4b — Widgets / diagnostics / bots restants
+        "[ASYNCIO-INSPECTOR]", "[ORDONNANCEUR-UI]", "[CONNEXION-MONITOR]",
+        "[TIMEOUT-CTRL]", "[SYSINTERNALS]", "[AIDE]",
+        "[ASSISTANT]", "[BIBLIOTHEQUE-UI]", "[RECHERCHE-MODES]",
+        # Actions utilisateur
+        "[ACTION-LOG]",
+        # Diagnostics
+        "[DIAG]",
+    ]
+
+    def _prepopulate_logger_filters(self) -> None:
+        """Crée les items de filtre pour tous les loggers standards.
+
+        Appelée une fois dans _setup_tab_logs() pour que les filtres
+        soient disponibles dès l'ouverture de l'onglet, sans attendre
+        qu'un premier log arrive.
+        """
+        for name in self._STANDARD_LOGGERS:
+            self._update_logger_filters(name)
+
+    def _update_logger_filters(self, logger_name: str) -> None:
+        """Ajoute une entrée dans la QListWidget pour un nouveau logger.
+
+        Crée un QListWidgetItem checkable avec le nom court du logger
         et le nom complet en tooltip. Tous les nouveaux loggers sont
         cochés par défaut.
         """
-        if logger_name in self._chk_loggers:
-            return
+        # Vérifier si déjà présent
+        for i in range(self._logger_list.count()):
+            item = self._logger_list.item(i)
+            if item and item.data(Qt.ItemDataRole.UserRole) == logger_name:
+                return
 
-        # Nom d'affichage : dernier segment du namespace
-        display_name = logger_name.split(".")[-1]
+        # Nom d'affichage : retirer les crochets pour plus de lisibilité
+        display_name = logger_name.strip("[]")
 
-        chk = QCheckBox(display_name)
-        chk.setChecked(True)
-        chk.setToolTip(logger_name)
-        chk.toggled.connect(self._reapply_log_filter)
-        chk.setStyleSheet("color: #a6adc8; font-size: 9px;")
+        list_item = QListWidgetItem(display_name)
+        list_item.setFlags(list_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+        list_item.setCheckState(Qt.CheckState.Checked)
+        list_item.setToolTip(logger_name)
+        list_item.setData(Qt.ItemDataRole.UserRole, logger_name)
 
-        self._chk_loggers[logger_name] = chk
-        self._loggers_layout.addWidget(chk)
+        self._logger_list.addItem(list_item)
 
     def _select_all_loggers(self) -> None:
         """Coche tous les filtres de service."""
-        for chk in self._chk_loggers.values():
-            chk.setChecked(True)
+        for i in range(self._logger_list.count()):
+            item = self._logger_list.item(i)
+            if item:
+                item.setCheckState(Qt.CheckState.Checked)
 
     def _deselect_all_loggers(self) -> None:
         """Décoche tous les filtres de service."""
-        for chk in self._chk_loggers.values():
-            chk.setChecked(False)
+        for i in range(self._logger_list.count()):
+            item = self._logger_list.item(i)
+            if item:
+                item.setCheckState(Qt.CheckState.Unchecked)
 
     def append_log(self, level: str, logger_name: str, msg: str) -> None:
         """Append services logs inside scrollable console tab."""
         if not self._logs_text:
             return
 
-        # Restrict captured logs to system scope packages for clarity
-        if not any(pkg in msg for pkg in ("src.services", "aioslsk", "src.gui")):
-            return
-
-        # Ajouter la checkbox pour ce logger si nouveau
+        # Ajouter la checkbox pour ce logger si nouveau (dynamique)
         self._update_logger_filters(logger_name)
 
         color = "#cdd6f4"
@@ -1191,11 +1624,39 @@ class ServiceInspector(QDockWidget):
         # Stocker pour re-filtrage futur
         self._log_entries.append((level, logger_name, html_msg))
 
+        # Vérifier si une limite est active → ré-appliquer le filtre complet
+        limit_txt = self._log_limit.currentText()
+        if limit_txt != "Tout":
+            limit = int(limit_txt)
+            # Compter le nombre actuel de logs visibles
+            visible = sum(1 for lv, ln, _ in self._log_entries
+                         if self._should_show_log(lv, ln))
+            if visible > limit:
+                self._reapply_log_filter()
+                return
+
         # N'afficher que si le filtre le permet
         if self._should_show_log(level, logger_name):
             self._logs_text.append(html_msg)
             # pyrefly: ignore [missing-attribute]
             self._logs_text.moveCursor(QTextCursor.End)
+
+    def showEvent(self, event) -> None:
+        """L'inspecteur devient visible → relance le timer de rafraîchissement."""
+        if hasattr(self, "_poll_timer") and not self._poll_timer.isActive():
+            self._poll_timer.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event) -> None:
+        """L'inspecteur est masqué → arrête le timer pour ne pas spam la boucle asyncio.
+
+        Le ServiceInspector spamme la boucle asyncio toutes les 1,5 s via
+        ``asyncio.run_coroutine_threadsafe()``. Quand le dock est fermé/caché,
+        on coupe le timer pour éviter de noyer la boucle et causer un crash.
+        """
+        if hasattr(self, "_poll_timer") and self._poll_timer.isActive():
+            self._poll_timer.stop()
+        super().hideEvent(event)
 
     def closeEvent(self, event) -> None:
         """Ferme l'inspecteur et sauvegarde tous les logs collectés dans un fichier."""
@@ -1203,6 +1664,83 @@ class ServiceInspector(QDockWidget):
         logging.getLogger().removeHandler(self._log_handler)
         self._poll_timer.stop()
         super().closeEvent(event)
+
+    def _write_log_file(self, filepath: Path, entries: list, is_crash: bool = False) -> None:
+        """Écrit les entrées de log dans un fichier avec l'en-tête approprié.
+
+        Méthode partagée par ``_save_logs()`` et ``_save_logs_on_crash()``
+        pour éviter la duplication de code.
+
+        Paramètres
+        ----------
+        filepath : Path
+            Chemin complet du fichier à écrire.
+        entries : list
+            Liste des entrées (level, logger_name, html_msg).
+        is_crash : bool
+            Si True, en-tête "CRASH" avec message explicite.
+        """
+        ts = datetime.now()
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(f"# ================================================================================\n")
+            if is_crash:
+                f.write(f"#  SESSION INSPECTOR — CRASH — Arrêt brutal de l'application\n")
+                f.write(f"# ================================================================================\n")
+                f.write(f"#\n")
+                f.write(f"# ❌ JE VIENS DE PLANTER !\n")
+                f.write(f"#    Vérifier les logs et lancer un 'code-review' sur le code\n")
+                f.write(f"#    pour identifier la cause racine.\n")
+                f.write(f"#    Corréler avec le crash report 'security/crash_*.log'.\n")
+                f.write(f"#\n")
+                f.write(f"# QUI SUIS-JE ?\n")
+                f.write(f"#   Archive intégrale de logs sauvegardée automatiquement lors\n")
+                f.write(f"#   de l'arrêt brutal de l'application (crash).\n")
+                f.write(f"#\n")
+                f.write(f"# À QUOI JE SERS ?\n")
+                f.write(f"#   Permettre une analyse rétrospective immédiate de la session\n")
+                f.write(f"#   qui a précédé le crash, sans perte d'information.\n")
+                f.write(f"#\n")
+                f.write(f"# QUE FAIRE AVEC CE FICHIER ?\n")
+                f.write(f"#   1. Ouvrir ce fichier en même temps que le crash report\n")
+                f.write(f"#      (security/crash_*.log) pour une corrélation temporelle.\n")
+                f.write(f"#   2. Chercher les dernières entrées avant le crash pour\n")
+                f.write(f"#      identifier le contexte de l'erreur.\n")
+                f.write(f"#   3. Transmettre les deux fichiers au développeur.\n")
+                f.write(f"#\n")
+            else:
+                f.write(f"#  SESSION INSPECTOR — Journal complet de session\n")
+                f.write(f"# ================================================================================\n")
+                f.write(f"#\n")
+                f.write(f"# QUI SUIS-JE ?\n")
+                f.write(f"#   Archive intégrale de tous les logs émis par l'application aioslsk\n")
+                f.write(f"#   pendant la session de l'outil Service & Connection Inspector.\n")
+                f.write(f"#\n")
+                f.write(f"# À QUOI JE SERS ?\n")
+                f.write(f"#   Permettre une analyse rétrospective complète du comportement de\n")
+                f.write(f"#   l'application : tous les niveaux (ERROR, WARNING, INFO, DEBUG)\n")
+                f.write(f"#   et tous les services (aioslsk, src.services, src.gui, boucle_rooms)\n")
+                f.write(f"#   sont enregistrés sans filtre pour ne rien perdre.\n")
+                f.write(f"#\n")
+                f.write(f"# QUE FAIRE AVEC CE FICHIER ?\n")
+                f.write(f"#   1. Ouvrir dans un éditeur de texte ou un outil d'analyse de logs.\n")
+                f.write(f"#   2. Filtrer par niveau ([ERROR], [WARNING], [INFO], [DEBUG]) pour\n")
+                f.write(f"#      isoler les événements importants.\n")
+                f.write(f"#   3. Filtrer par service ((aioslsk.events), (boucle_rooms), …) pour\n")
+                f.write(f"#      cibler un module spécifique.\n")
+                f.write(f"#   4. Corréler avec un éventuel crash report (security/crash_*.log)\n")
+                f.write(f"#      survenu au même moment.\n")
+                f.write(f"#\n")
+            f.write(f"# ================================================================================\n")
+            ctx = _get_system_context()
+            f.write(f"# Généré le  : {ts.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"# Entrées    : {len(entries)}\n")
+            f.write(f"#\n")
+            f.write(f"# --- Contexte système ---\n")
+            f.write(ctx + "\n")
+            f.write(f"# ================================================================================\n\n")
+            for level, logger_name, html_msg in entries:
+                text = re.sub(r"<[^>]+>", "", html_msg).strip()
+                f.write(f"[{level}] ({logger_name}) {text}\n")
 
     def _save_logs(self) -> None:
         """Sauvegarde la totalité des logs bruts dans ``data/logs/``.
@@ -1222,17 +1760,37 @@ class ServiceInspector(QDockWidget):
         filepath = log_dir / f"inspector_{timestamp}.log"
 
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                # En-tête du fichier
-                f.write(f"# Session Inspector — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"# {len(self._log_entries)} entrées de log\n\n")
-
-                for level, logger_name, html_msg in self._log_entries:
-                    # Nettoyer le HTML pour obtenir du texte brut
-                    text = re.sub(r"<[^>]+>", "", html_msg).strip()
-                    f.write(f"[{level}] ({logger_name}) {text}\n")
-
+            self._write_log_file(filepath, self._log_entries, is_crash=False)
             logger.info("Logs sauvegardés : %s (%d entrées)", filepath, len(self._log_entries))
-
         except Exception as e:
             logger.warning("Impossible de sauvegarder les logs : %s", e)
+
+    def _save_logs_on_crash(self) -> None:
+        """Hook appelé par le Crash Reporter avant ``os._exit(1)``.
+
+        Sauvegarde les logs avec un indicateur "CRASH" dans le fichier
+        et dans l'en-tête. Cette méthode est thread-safe (pas de Qt)
+        et n'utilise pas ``logging`` pour éviter les re-entrées.
+        """
+        # Copier la liste pour éviter les modifications concurrentes
+        entries = list(self._log_entries)
+        if not entries:
+            return
+        log_dir = Path("data/logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = log_dir / f"inspector_{timestamp}_crash.log"
+        try:
+            self._write_log_file(filepath, entries, is_crash=True)
+        except Exception:
+            pass  # on ne peut plus rien faire
+
+    def _restore_save_btn_style(self) -> None:
+        """Restaure le style par défaut du bouton Enregistrer après le feedback visuel."""
+        self._btn_save_filtered.setText("\U0001f4be Enregistrer")
+        self._btn_save_filtered.setStyleSheet(
+            "background-color: #45475a; color: #cdd6f4; "
+            "padding: 3px 8px; font-size: 9px; border-radius: 3px;"
+        )
+        logger.debug("ServiceInspector: bouton Enregistrer restauré")
+

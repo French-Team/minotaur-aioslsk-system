@@ -34,7 +34,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[EVENTBUS]")
 
 # ── Chemins ──────────────────────────────────────────────────────────────
 _DATA_DIR = Path("data")
@@ -129,19 +129,19 @@ class EventBus(QObject):
         self._ensure_schema()
         self._start_purge_timer()
 
-        logger.info("EventBus initialisé — %s", _DB_PATH)
+        logger.info("[EVENTBUS] EventBus initialisé — %s", _DB_PATH)
 
     # ── Pause / Resume ────────────────────────────────────────────────
 
     def pause(self) -> None:
         """Suspend la collecte des événements (pause totale)."""
         self._paused = True
-        logger.info("EventBus en pause")
+        logger.info("[EVENTBUS] EventBus en pause")
 
     def resume(self) -> None:
         """Reprend la collecte des événements."""
         self._paused = False
-        logger.info("EventBus repris")
+        logger.info("[EVENTBUS] EventBus repris")
 
     # ── Initialisation ──────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ class EventBus(QObject):
                 self._db.execute(pragma)
             self._db.commit()
         except sqlite3.Error as exc:
-            logger.critical("Impossible d'ouvrir la base SQLite %s : %s", _DB_PATH, exc)
+            logger.critical("[EVENTBUS] Impossible d'ouvrir la base SQLite %s : %s", _DB_PATH, exc)
             raise
 
     def _ensure_schema(self) -> None:
@@ -222,7 +222,7 @@ class EventBus(QObject):
         Retourne None si le bus est en pause.
         """
         if self._paused:
-            logger.debug("EventBus en pause — événement ignoré")
+            logger.debug("[EVENTBUS] EventBus en pause — événement ignoré")
             return None
 
         event = SurveillanceEvent(
@@ -240,7 +240,7 @@ class EventBus(QObject):
         # Émission Qt
         self.event_emitted.emit(event)
 
-        logger.debug("Événement émis : [%s] %s — %s", event.severity, event.category, event.title)
+        logger.debug("[EVENTBUS] Événement émis : [%s] %s — %s", event.severity, event.category, event.title)
         return event
 
     def query(
@@ -362,7 +362,7 @@ class EventBus(QObject):
         cursor = self._db.execute("DELETE FROM events WHERE timestamp < ?", (cutoff,))
         self._db.commit()
         if cursor.rowcount > 0:
-            logger.info("Purge : %d événements supprimés (avant %s)", cursor.rowcount, cutoff)
+            logger.info("[EVENTBUS] Purge : %d événements supprimés (avant %s)", cursor.rowcount, cutoff)
         return cursor.rowcount
 
     def delete_events(self, event_ids: list[int]) -> int:
@@ -435,10 +435,10 @@ class EventBus(QObject):
             try:
                 self._db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
             except sqlite3.Error as exc:
-                logger.warning("Échec du checkpoint WAL au shutdown : %s", exc)
+                logger.warning("[EVENTBUS] Échec du checkpoint WAL au shutdown : %s", exc)
             try:
                 self._db.close()
             except sqlite3.Error as exc:
-                logger.warning("Échec de la fermeture de la base au shutdown : %s", exc)
+                logger.warning("[EVENTBUS] Échec de la fermeture de la base au shutdown : %s", exc)
             self._db = None
-            logger.info("EventBus fermé")
+            logger.info("[EVENTBUS] EventBus fermé")

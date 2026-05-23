@@ -12,8 +12,9 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QColor, QFont
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QDialog,
@@ -30,26 +31,31 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSlider,
     QSpinBox,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
 from src.gui.theme_fragments.colors import COLORS
+from src.gui.widgets.bots.bot_recherche_modes import ModesPanel
 from src.services.event_bus import EventBus
 from src.services.search_history import SearchHistory
+from src.utils.log_action import log_action
 
 if TYPE_CHECKING:
     from src.services.clients_actifs_service import ClientsActifsService
     from src.services.connexion_manager import ConnexionManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[RECHERCHE]")
 
 # ── Constantes ─────────────────────────────────────────────────
 
-EXTENSIONS_AUDIO = {".mp3", ".flac", ".ogg"}
-"""Extensions autorisées (filtre automatique à la réception)."""
+EXTENSIONS_AUDIO = {"mp3", "flac", "ogg"}
+"""Extensions autorisées (sans le point, car extraites du filename)."""
 
 MAX_RESULTS = 200
 """Nombre maximum de lignes affichées simultanément (FIFO)."""
@@ -124,6 +130,32 @@ def _get_attr(attributes: list, key: int) -> int | None:
         if attr.key == key:
             return attr.value
     return None
+
+
+def _extraire_extension(filename: str) -> str:
+    """Extrait l'extension d'un fichier depuis son chemin complet.
+
+    Utilise le filename (chemin) plutôt que les métadonnées du protocole
+    Soulseek, car ``file_data.extension`` est souvent vide même quand
+    le fichier a une vraie extension.
+
+    Paramètres
+    ----------
+    filename : str
+        Chemin complet du fichier (ex: ``Music/Artist/Album/track.mp3``).
+
+    Retourne
+    -------
+    str
+        L'extension en minuscules sans le point, ou ``""`` si absente.
+    """
+    if not filename:
+        return ""
+    # Normaliser les séparateurs et prendre le basename
+    basename = filename.replace("\\", "/").rstrip("/").split("/")[-1]
+    if "." in basename:
+        return basename.rsplit(".", 1)[-1].lower()
+    return ""
 
 
 def _is_audio(extension: str) -> bool:
@@ -426,6 +458,7 @@ class FiltresRechercheModal(QDialog):
         self.result_state["username"] = self._username_input.text().strip()
         self.result_state["slots_libres_only"] = self._slots_check.isChecked()
 
+    @log_action("Appliquer les filtres de recherche")
     def _on_apply(self) -> None:
         """Applique les filtres et ferme la modal."""
         self._save_state()
@@ -595,6 +628,7 @@ class HistoryPopup(QDialog):
             # pyrefly: ignore [missing-attribute]
             self._list_layout.addWidget(row)
 
+    @log_action("Supprimer une entrée d'historique")
     def _on_remove_entry(self, entry: dict) -> None:
         """Supprime une entrée de l'historique et rafraîchit la popup."""
         if self._history is None:
@@ -688,14 +722,297 @@ class HistoryPopup(QDialog):
         row.addWidget(btn)
         layout.addLayout(row)
 
+    @log_action("Sélectionner une entrée d'historique")
     def _on_select(self, entry: dict) -> None:
         self.selected_entry = entry
         self.accept()
 
+    @log_action("Tout effacer l'historique")
     def _on_clear(self) -> None:
         """Émet le signal pour vider l'historique et ferme la popup."""
         self.clear_requested.emit()
         self.accept()
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Arbre de navigation par dossiers
+# ═════════════════════════════════════════════════════════════════
+
+
+class DossierTreeWidget(QTreeWidget):
+    """Arbre de résultats de recherche groupés par dossier parent.
+
+    Remplace le tableau plat par une vue explorateur avec dossiers
+    expandables. Les fichiers individuels sont affichés sous leur
+    dossier parent respectif avec les mêmes colonnes.
+    """
+
+    COL_NOM = 0
+    COL_TAILLE = 1
+    COL_BITRATE = 2
+    COL_DUREE = 3
+    COL_UTILISATEUR = 4
+    COL_SLOTS = 5
+    COL_VITESSE = 6
+
+    COLUMNS = [
+        "📁 Fichier / Dossier",
+        "Taille",
+        "Bitrate",
+        "Durée",
+        "Utilisateur",
+        "Slots",
+        "Vitesse",
+    ]
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("dossierTree")
+        self.setColumnCount(len(self.COLUMNS))
+        self.setHeaderLabels(self.COLUMNS)
+        self.setAlternatingRowColors(True)
+        # pyrefly: ignore [missing-attribute]
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        # pyrefly: ignore [missing-attribute]
+        # pyrefly: ignore [missing-attribute]
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        # pyrefly: ignore [missing-attribute]
+        self.setAnimated(True)
+        self.setIndentation(20)
+        self.setRootIsDecorated(True)
+        self.header().setStretchLastSection(False)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_NOM, QHeaderView.Stretch)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_TAILLE, QHeaderView.Fixed)
+        self.setColumnWidth(self.COL_TAILLE, 90)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_BITRATE, QHeaderView.Fixed)
+        self.setColumnWidth(self.COL_BITRATE, 100)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_DUREE, QHeaderView.Fixed)
+        self.setColumnWidth(self.COL_DUREE, 80)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_UTILISATEUR, QHeaderView.Fixed)
+        self.setColumnWidth(self.COL_UTILISATEUR, 140)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_SLOTS, QHeaderView.Fixed)
+        self.setColumnWidth(self.COL_SLOTS, 50)
+        # pyrefly: ignore [missing-attribute]
+        self.header().setSectionResizeMode(self.COL_VITESSE, QHeaderView.Fixed)
+        self.setColumnWidth(self.COL_VITESSE, 90)
+
+        self.setStyleSheet(
+            f"""
+            #dossierTree {{
+                background: {COLORS["BG_SURFACE"]};
+                alternate-background-color: {COLORS.get("BG_SURFACE2", "#2a2a3a")};
+                border: 1px solid {COLORS["BORDER"]};
+                border-radius: 6px;
+                font-size: 12px;
+            }}
+            #dossierTree::item {{
+                padding: 4px 8px;
+                color: {COLORS["TEXT_PRIMARY"]};
+            }}
+            #dossierTree::item:selected {{
+                background: rgba(COLORS['ACCENT'], '50');
+                color: {COLORS["TEXT_PRIMARY"]};
+            }}
+            #dossierTree::branch:has-children:!has-siblings:closed,
+            #dossierTree::branch:closed:has-children:has-siblings {{
+                border-image: none;
+            }}
+            #dossierTree::branch:open:has-children:!has-siblings,
+            #dossierTree::branch:open:has-children:has-siblings {{
+                border-image: none;
+            }}
+            QHeaderView::section {{
+                background: {COLORS.get("BG_HEADER", COLORS["BG_SURFACE2"])};
+                color: {COLORS["TEXT_PRIMARY"]};
+                border: none;
+                border-bottom: 1px solid {COLORS["BORDER"]};
+                border-right: 1px solid {COLORS["BORDER"]};
+                padding: 6px 8px;
+                font-weight: 700;
+                font-size: 11px;
+            }}
+            QHeaderView::section:hover {{
+                background: {COLORS["BG_HOVER"]};
+            }}
+            QHeaderView::down-arrow {{
+                subcontrol-position: center right;
+                padding-right: 4px;
+            }}
+            QHeaderView::up-arrow {{
+                subcontrol-position: center right;
+                padding-right: 4px;
+            }}
+            """
+        )
+
+    # ── Construction de l'arbre ─────────────────────────────────
+
+    def build_from_cache(self, cache: list[dict]) -> None:
+        """Construit ou reconstruit l'arbre à partir du cache de résultats.
+
+        Paramètres
+        ----------
+        cache : list[dict]
+            Liste des données brutes de chaque résultat (contenant
+            ``full_path``, ``filename``, ``filesize``, etc.).
+        """
+        self.clear()
+
+        if not cache:
+            return
+
+        # Construire une structure arborescente : dict imbriqué
+        tree: dict[str, object] = {}
+        for data in cache:
+            full_path = data.get("full_path", "")
+            if not full_path:
+                continue
+
+            # Découper le chemin en segments
+            parts = [p for p in full_path.replace("\\", "/").split("/") if p]
+            if not parts:
+                continue
+
+            # Parcourir / créer les dossiers
+            current = tree
+            for i, part in enumerate(parts[:-1]):
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+
+            # Dernier segment = fichier
+            filename = parts[-1]
+            if filename not in current:
+                current[filename] = data
+
+        # Remplir le QTreeWidget
+        self._add_tree_items(tree, self.invisibleRootItem())
+
+        # Expand le premier niveau
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            item.setExpanded(True)
+
+    def _add_tree_items(self, tree: dict, parent_item: QTreeWidgetItem) -> None:
+        """Ajoute récursivement les dossiers/fichiers dans le QTreeWidget.
+
+        Les dossiers sont triés alphabétiquement et apparaissent avant
+        les fichiers (dossiers first).
+
+        La distinction dossier/fichier se fait par la présence d'une
+        clé ``filename`` dans le dict valeur — si présente, c'est une
+        feuille (fichier), sinon c'est un dossier.
+        """
+        # Séparer dossiers et fichiers pour tri "dossiers first"
+        dirs: dict[str, dict] = {}
+        files: dict[str, dict] = {}
+
+        for name, value in tree.items():
+            if isinstance(value, dict):
+                # Un dict qui contient "filename" est une feuille (fichier)
+                # Sinon c'est un dossier contenant d'autres entrées
+                if "filename" in value:
+                    files[name] = value
+                else:
+                    dirs[name] = value
+            else:
+                files[name] = value
+
+        # Trier les dossiers par nom
+        for dirname in sorted(dirs.keys()):
+            sub_tree = dirs[dirname]
+            file_count = self._count_files(sub_tree)
+
+            dir_item = QTreeWidgetItem()
+            dir_item.setText(self.COL_NOM, f"📁  {dirname}")
+            dir_item.setForeground(self.COL_NOM, QColor(COLORS["ACCENT"]))
+            font = dir_item.font(self.COL_NOM)
+            font.setBold(True)
+            dir_item.setFont(self.COL_NOM, font)
+            dir_item.setText(
+                self.COL_TAILLE,
+                f"{file_count} fichier{'s' if file_count > 1 else ''}",
+            )
+            dir_item.setToolTip(
+                self.COL_NOM,
+                f"📁 {dirname} — {file_count} fichier{'s' if file_count > 1 else ''}",
+            )
+            dir_item.setData(self.COL_NOM, Qt.UserRole, {"type": "directory", "path": dirname})
+
+            self._add_tree_items(sub_tree, dir_item)
+            parent_item.addChild(dir_item)
+
+        # Trier les fichiers par nom
+        for fname in sorted(files.keys()):
+            data = files[fname]
+            file_item = self._build_file_item(data)
+            parent_item.addChild(file_item)
+
+    def _build_file_item(self, data: dict) -> QTreeWidgetItem:
+        """Crée un QTreeWidgetItem pour un fichier avec toutes ses colonnes."""
+        item = QTreeWidgetItem()
+
+        filename = data.get("filename", "?")
+        item.setText(self.COL_NOM, f"📄  {filename}")
+        item.setData(self.COL_NOM, Qt.UserRole, {"type": "file", "data": data})
+
+        # Taille
+        filesize = data.get("filesize", 0)
+        item.setText(self.COL_TAILLE, _format_size(filesize))
+        item.setTextAlignment(self.COL_TAILLE, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        item.setData(self.COL_TAILLE, Qt.UserRole, filesize)
+
+        # Bitrate
+        bitrate = data.get("bitrate", 0)
+        item.setText(self.COL_BITRATE, _format_bitrate(bitrate))
+        item.setTextAlignment(self.COL_BITRATE, Qt.AlignmentFlag.AlignCenter)
+        item.setData(self.COL_BITRATE, Qt.UserRole, bitrate)
+
+        # Durée
+        duration = data.get("duration", 0)
+        duree_str = _format_duration(duration) if duration > 0 else "—"
+        item.setText(self.COL_DUREE, duree_str)
+        item.setTextAlignment(self.COL_DUREE, Qt.AlignmentFlag.AlignCenter)
+        item.setData(self.COL_DUREE, Qt.UserRole, duration)
+
+        # Utilisateur
+        username = data.get("username", "")
+        item.setText(self.COL_UTILISATEUR, username)
+        item.setToolTip(self.COL_UTILISATEUR, f"👤 {username}")
+
+        # Slots
+        has_free_slots = data.get("has_free_slots", False)
+        item.setText(self.COL_SLOTS, "🟢" if has_free_slots else "🔴")
+        item.setTextAlignment(self.COL_SLOTS, Qt.AlignmentFlag.AlignCenter)
+        item.setToolTip(self.COL_SLOTS, "Slots libres" if has_free_slots else "File d'attente")
+
+        # Vitesse
+        avg_speed = data.get("avg_speed", 0)
+        speed_str = _format_speed(avg_speed) if avg_speed > 0 else "—"
+        item.setText(self.COL_VITESSE, speed_str)
+        item.setTextAlignment(self.COL_VITESSE, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        item.setData(self.COL_VITESSE, Qt.UserRole, avg_speed)
+
+        return item
+
+    def _count_files(self, tree: dict) -> int:
+        """Compte récursivement le nombre de fichiers dans une branche de l'arbre."""
+        count = 0
+        for v in tree.values():
+            if isinstance(v, dict):
+                if "filename" in v:
+                    # Feuille : un fichier = 1
+                    count += 1
+                else:
+                    # Nœud interne : récursion dans le sous-dossier
+                    count += self._count_files(v)
+        return count
 
 
 class BotRecherche(QFrame):
@@ -724,6 +1041,7 @@ class BotRecherche(QFrame):
         self._loop_timer.timeout.connect(self._on_loop_tick)
 
         self._result_count = 0
+        self._total_received = 0
         self._audio_filter_enabled = True
         self._mode_dispo_enabled = False
         self._browse_username: str | None = None
@@ -742,6 +1060,11 @@ class BotRecherche(QFrame):
         self._filtres_compte = 0
         self._filtres_badge: QLabel | None = None
         self._search_history = SearchHistory()
+        self._selected_client_username: str | None = None
+
+        # Cache des résultats bruts pour reconstruction table/arbre
+        self._result_data: list[dict] = []
+        self._folder_view: bool = False
 
         self._setup_ui()
         self._update_connected_state()
@@ -779,6 +1102,13 @@ class BotRecherche(QFrame):
     def setup(self, clients_actifs_service: ClientsActifsService) -> None:
         """Injecte le service clients actifs pour la recherche ciblée."""
         self._clients_actifs_service = clients_actifs_service
+        self._update_ares_clients()
+
+        # État initial du système
+        self._push_system_status()
+
+        # Mise à jour automatique quand les clients changent
+        clients_actifs_service.clients_synchronises.connect(self._on_clients_synchronises)
 
     # ── Construction de l'interface ─────────────────────────────
 
@@ -903,6 +1233,37 @@ class BotRecherche(QFrame):
         self._mode_dispo_btn.toggled.connect(self._on_mode_dispo_toggled)
         title_row.addWidget(self._mode_dispo_btn)
 
+        # Toggle vue fichiers / dossiers
+        self._view_toggle_btn = QPushButton("📁 Vue dossiers")
+        self._view_toggle_btn.setObjectName("viewToggleBtn")
+        self._view_toggle_btn.setCheckable(True)
+        self._view_toggle_btn.setChecked(False)
+        self._view_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._view_toggle_btn.setStyleSheet(
+            f"""
+            #viewToggleBtn {{
+                background: transparent;
+                color: {COLORS["TEXT_SECONDARY"]};
+                border: 1px solid {COLORS["BORDER"]};
+                border-radius: 6px;
+                padding: 3px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            #viewToggleBtn:checked {{
+                background: rgba(COLORS['ACCENT'], '20');
+                border-color: {COLORS["ACCENT"]};
+                color: {COLORS["ACCENT"]};
+            }}
+            #viewToggleBtn:hover {{
+                border-color: {COLORS["ACCENT"]};
+                color: {COLORS["ACCENT"]};
+            }}
+            """
+        )
+        self._view_toggle_btn.toggled.connect(self._toggle_view)
+        title_row.addWidget(self._view_toggle_btn)
+
         title_row.addStretch(1)
         outer.addLayout(title_row)
 
@@ -1014,147 +1375,13 @@ class BotRecherche(QFrame):
 
         outer.addWidget(self._room_banner)
 
-        # ── Barre de recherche ──
-        search_row = QHBoxLayout()
-        search_row.setSpacing(8)
-
-        # Champ salon
-        room_prefix = QLabel("#")
-        room_prefix.setStyleSheet(
-            f"color: {COLORS['WARNING']}; font-size: 13px; font-weight: 700; "
-            f"background: transparent; border: none; padding: 0;"
-        )
-        search_row.addWidget(room_prefix)
-
-        self._room_input = QLineEdit()
-        self._room_input.setObjectName("roomInput")
-        self._room_input.setPlaceholderText("salon")
-        self._room_input.setFixedWidth(100)
-        self._room_input.setStyleSheet(
-            f"""
-            #roomInput {{
-                background: {COLORS["BG_SURFACE"]};
-                color: {COLORS["WARNING"]};
-                border: 1px solid {COLORS["BORDER"]};
-                border-radius: 6px;
-                padding: 8px 8px;
-                font-size: 12px;
-            }}
-            #roomInput:focus {{
-                border-color: {COLORS["WARNING"]};
-            }}
-            #roomInput:disabled {{
-                color: {COLORS["TEXT_DISABLED"]};
-            }}
-            """
-        )
-        search_row.addWidget(self._room_input)
-
-        self._search_input = QLineEdit()
-        self._search_input.setObjectName("rechercheInput")
-        self._search_input.setPlaceholderText("Rechercher des fichiers audio sur Soulseek…")
-        self._search_input.setStyleSheet(
-            f"""
-            #rechercheInput {{
-                background: {COLORS["BG_SURFACE"]};
-                color: {COLORS["TEXT_PRIMARY"]};
-                border: 1px solid {COLORS["BORDER"]};
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 14px;
-            }}
-            #rechercheInput:focus {{
-                border-color: {COLORS["PRIMARY"]};
-            }}
-            #rechercheInput:disabled {{
-                color: {COLORS["TEXT_DISABLED"]};
-            }}
-            """
-        )
-        self._search_input.returnPressed.connect(self._on_search)
-        search_row.addWidget(self._search_input, 1)
-
-        self._search_btn = QPushButton("Rechercher")
-        self._search_btn.setObjectName("rechercheBtn")
-        self._search_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._search_btn.setStyleSheet(
-            f"""
-            #rechercheBtn {{
-                background: {COLORS["PRIMARY"]};
-                color: {COLORS["TEXT_WHITE"]};
-                border: none;
-                border-radius: 6px;
-                padding: 8px 20px;
-                font-size: 14px;
-                font-weight: 600;
-            }}
-            #rechercheBtn:hover {{
-                background: {COLORS["PRIMARY_HOVER"]};
-            }}
-            #rechercheBtn:disabled {{
-                background: {COLORS["BG_BTN_DISABLED"]};
-                color: {COLORS["TEXT_DISABLED"]};
-            }}
-            """
-        )
-        self._search_btn.clicked.connect(self._on_search)
-        search_row.addWidget(self._search_btn)
-
-        self._stop_btn = QPushButton("⏹ Stop")
-        self._stop_btn.setObjectName("stopBtn")
-        self._stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._stop_btn.setVisible(False)
-        self._stop_btn.setStyleSheet(
-            f"""
-            #stopBtn {{
-                background: {COLORS["DANGER_BTN"]};
-                color: {COLORS["TEXT_WHITE"]};
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-size: 14px;
-                font-weight: 600;
-            }}
-            #stopBtn:hover {{
-                background: {COLORS["DANGER_BTN_HOVER"]};
-            }}
-            """
-        )
-        self._stop_btn.clicked.connect(self._on_stop)
-        search_row.addWidget(self._stop_btn)
-
-        # ── Checkbox clients actifs ──
-        self._clients_actifs_cb = QCheckBox("🔒 Actifs")
-        self._clients_actifs_cb.setToolTip(
-            "Limiter la recherche aux clients actifs connus (plus rapide, moins de bruit)"
-        )
-        self._clients_actifs_cb.setStyleSheet(
-            f"""
-            QCheckBox {{
-                color: {COLORS["TEXT_SECONDARY"]};
-                font-size: 12px;
-                font-weight: 500;
-                spacing: 4px;
-            }}
-            QCheckBox::indicator {{
-                width: 16px;
-                height: 16px;
-                border: 1px solid {COLORS["BORDER"]};
-                border-radius: 3px;
-                background: {COLORS["BG_SURFACE"]};
-            }}
-            QCheckBox::indicator:checked {{
-                background: {COLORS["SUCCESS"]};
-                border-color: {COLORS["SUCCESS"]};
-            }}
-            QCheckBox:hover {{
-                color: {COLORS["TEXT_PRIMARY"]};
-            }}
-            """
-        )
-        search_row.addWidget(self._clients_actifs_cb)
-
-        outer.addLayout(search_row)
+        # ── Panneau des modes de recherche (remplace la barre de recherche v1) ──
+        self._modes_panel = ModesPanel()
+        self._modes_panel.search_requested.connect(self._on_search)
+        self._modes_panel.search_stopped.connect(self._on_stop)
+        self._modes_panel.mode_changed.connect(self._on_mode_changed)
+        self._modes_panel.client_ares_selected.connect(self._on_client_ares_changed)
+        outer.addWidget(self._modes_panel)
 
         # ── Barre d'état / compteur ──
         self._status_label = QLabel("")
@@ -1192,6 +1419,15 @@ class BotRecherche(QFrame):
 
         self._rebuild_suggestions()
         outer.addWidget(self._suggestions_row)
+
+        # ── Arbre de navigation par dossiers ──
+        self._dossier_tree = DossierTreeWidget()
+        # pyrefly: ignore [missing-attribute]
+        self._dossier_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._dossier_tree.customContextMenuRequested.connect(self._on_tree_context_menu)
+
+        # ── Stack : page 0 = tableau, page 1 = arbre ──
+        self._view_stack = QStackedWidget()
 
         # ── Tableau de résultats ──
         self._table = QTableWidget()
@@ -1281,7 +1517,12 @@ class BotRecherche(QFrame):
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_context_menu)
 
-        outer.addWidget(self._table, 1)
+        # Ajouter table (0) et arbre (1) au stack
+        self._view_stack.addWidget(self._table)        # page 0
+        self._view_stack.addWidget(self._dossier_tree)  # page 1
+        self._view_stack.setCurrentIndex(0)
+
+        outer.addWidget(self._view_stack, 1)
 
     # ── API publique ────────────────────────────────────────────
 
@@ -1296,87 +1537,192 @@ class BotRecherche(QFrame):
 
         self._update_connected_state()
 
-    # ── État de connexion ───────────────────────────────────────
+        # Alimenter le sélecteur de clients Arès dès que disponible
+        self._update_ares_clients()
+
+    def _on_mode_changed(self, mode: str) -> None:
+        """Le mode de recherche a changé dans le ModesPanel."""
+        logger.debug("BotRecherche: mode changé → %s", mode)
+        self._clear_results()
+        self._status_label.setText("")
+
+    def _on_client_ares_changed(self, username: str) -> None:
+        """Un client Arès a été sélectionné dans le ModesPanel."""
+        self._selected_client_username = username
+        logger.debug("BotRecherche: client Arès sélectionné → %s", username)
+        if username:
+            self._modes_panel.status_console.push_info(f"🎯 Client ciblé : {username}")
+        else:
+            self._modes_panel.status_console.push_info("🌐 Recherche globale — tous les clients")
+
+    def _on_clients_synchronises(self, clients: list) -> None:
+        """La liste des clients a été mise à jour → rafraîchir le sélecteur + statut."""
+        self._update_ares_clients()
+        self._push_system_status()
+
+    def _push_system_status(self) -> None:
+        """Pousse l'état actuel du système dans la console d'information.
+
+        Vérifie la connexion, les rooms, les clients actifs,
+        et affiche un résumé clair pour l'utilisateur.
+        """
+        console = self._modes_panel.status_console
+
+        # ── Connexion ──
+        if self._connexion_manager is None:
+            console.push_warning("🔌 En attente du gestionnaire de connexion…")
+            return
+
+        if not self._connexion_manager.is_connected:
+            console.push_error("🔌 Non connecté à Soulseek — connectez-vous d'abord")
+            return
+
+        console.push_success(f"🔌 Connecté à Soulseek ({self._connexion_manager.username})")
+
+        # ── Clients actifs ──
+        if self._clients_actifs_service is None:
+            console.push_warning("👥 Service clients actifs pas encore initialisé…")
+            return
+
+        actifs = self._clients_actifs_service.clients_actifs()
+        valides = len(actifs)
+
+        if valides == 0:
+            console.push_warning("👥 Aucun client actif détecté — les rooms sont peut-être encore en cours de chargement")
+        else:
+            console.push_success(f"👥 {valides} client{'s' if valides > 1 else ''} actif{'s' if valides > 1 else ''} détecté{'s' if valides > 1 else ''}")
+            client_count = 0
+            if self._modes_panel._client_combo is not None:
+                client_count = self._modes_panel._client_combo.count() - 1
+            console.push_muted(f"   → {client_count} client(s) dans le sélecteur Arès")
+
+    def _update_ares_clients(self) -> None:
+        """Met à jour la liste des clients Arès dans le ModesPanel."""
+        if self._clients_actifs_service is not None and hasattr(self, "_modes_panel"):
+            clients = self._clients_actifs_service.clients_actifs()
+            self._modes_panel.update_clients_ares(clients)
+            logger.debug("BotRecherche: %d clients Arès envoyés au ModesPanel", len(clients))
+
+    # ── Gestion des modes ────────────────────────────────────────
 
     def _update_connected_state(self) -> None:
         """Met à jour l'interface selon l'état de connexion."""
         connected = self._connexion_manager is not None and self._connexion_manager.is_connected
-        self._search_input.setEnabled(connected)
-        self._search_btn.setEnabled(connected and not self._searching)
-
-    def _on_connected(self, username: str) -> None:
-        self._update_connected_state()
-
-    def _on_disconnected(self) -> None:
-        self._reset_search_state()
-        self._update_connected_state()
+        if hasattr(self, "_modes_panel"):
+            self._modes_panel.setEnabled(connected)
 
     # ── Recherche ───────────────────────────────────────────────
 
-    def _on_search(self) -> None:
-        """Lance une recherche sur Soulseek."""
-        query = self._search_input.text().strip()
-        if len(query) < 2:
+    def _on_search(self, query: str | None = None) -> None:
+        """Lance une recherche sur Soulseek avec validation d'état préalable.
+
+        Vérifie la connexion, la disponibilité des rooms et des clients
+        avant de lancer la recherche. Chaque état est affiché dans la
+        console d'information pour que l'utilisateur sache toujours
+        où on en est.
+
+        Paramètres
+        ----------
+        query : str | None
+            Texte de recherche. Si None, lit depuis ModesPanel.
+        """
+        if query is None:
+            query = self._modes_panel.query
+        if not query or len(query) < 2:
             self._status_label.setText("📝 Minimum 2 caractères pour lancer une recherche")
             return
 
-        if self._connexion_manager is None or not self._connexion_manager.is_connected:
-            self._status_label.setText("❌ Connexion perdue")
+        console = self._modes_panel.status_console
+
+        # ── Vérification 1 : Connexion ──
+        if self._connexion_manager is None:
+            console.push_error("🔌 Pas de gestionnaire de connexion — impossible de lancer la recherche")
+            self._status_label.setText("❌ Gestionnaire de connexion non initialisé")
             return
 
-        # Vérifier si un salon a été saisi dans le champ #
-        room_text = self._room_input.text().strip()
-        if room_text and not self._room_name:
-            # Premier usage du salon : entrer en mode salon
-            self._enter_room_mode(room_text)
-        elif not room_text and self._room_name:
-            # Salon vidé : retour en mode global et lance la recherche libre
-            self._exit_room_mode()
+        if not self._connexion_manager.is_connected:
+            console.push_error(f"🔌 Non connecté à Soulseek — la recherche « {query} » ne peut pas être lancée")
+            console.push_warning("💡 Connectez-vous d'abord via la page de connexion")
+            self._status_label.setText("❌ Non connecté à Soulseek")
+            return
+
+        # ── Vérification 2 : Rooms chargées (si pas déjà fait) ──
+        if self._clients_actifs_service is not None:
+            actifs = self._clients_actifs_service.clients_actifs()
+            if len(actifs) == 0:
+                console.push_warning("⏳ Rooms en cours de chargement — aucun client actif pour l'instant")
+                console.push_info("💡 La recherche sera lancée quand même, mais les résultats pourraient arriver plus tard")
+                # On continue quand même, la recherche peut fonctionner sans clients Arès
+            else:
+                console.push_success(f"👥 {len(actifs)} client(s) actif(s) disponible(s) — recherche lancée")
+
+        # ── Vérification 3 : Client ciblé existe-t-il ? ──
+        if self._selected_client_username and self._clients_actifs_service is not None:
+            client_info = self._clients_actifs_service.obtenir_client(self._selected_client_username)
+            if client_info is None:
+                console.push_warning(f"⚠️ Le client {self._selected_client_username} n'est plus dans la liste active")
+                self._selected_client_username = None
 
         if self._search_timer is not None:
             self._search_timer.stop()
 
         self._clear_results()
         self._result_count = 0
+        self._total_received = 0
         self._searching = True
-        self._search_btn.setEnabled(False)
-        self._search_btn.setVisible(False)
-        self._stop_btn.setVisible(True)
+        self._modes_panel.set_searching(True)
 
         if self._room_name:
             # Mode salon : recherche dans un salon spécifique
-            self._status_label.setText(f"🔍 Recherche de « {query} » dans #{self._room_name}…")
+            console.push_info(f"🔍 Recherche de « {query} » dans #{self._room_name}…")
             self._connexion_manager.search_room(self._room_name, query)
-            self._search_history.add(
-                query,
-                type_="room",
-                username=self._room_name,
-            )
+            self._search_history.add(query, type_="room", username=self._room_name)
         elif self._browse_username:
             # Mode utilisateur : recherche chez un utilisateur spécifique
-            self._status_label.setText(f"🔍 Recherche de « {query} » chez {self._browse_username}…")
+            console.push_info(f"🔍 Recherche de « {query} » chez {self._browse_username}…")
             self._connexion_manager.search_user(self._browse_username, query)
-            self._search_history.add(
-                query,
-                type_="user",
-                username=self._browse_username,
-            )
-        elif self._clients_actifs_cb.isChecked() and self._clients_actifs_service is not None:
-            # Mode clients actifs : recherche chez chaque client connu
-            actifs = [c for c in self._clients_actifs_service.clients_actifs() if c.statut.name in ("ONLINE", "AWAY")]
-            if not actifs:
-                self._status_label.setText("⚠️ Aucun client actif connu — bascule en recherche globale")
-                self._connexion_manager.search(query)
-                self._search_history.add(query, type_="global")
-            else:
-                self._status_label.setText(f"🔍 Recherche de « {query} » chez {len(actifs)} client(s) actif(s)…")
-                for client in actifs:
-                    self._connexion_manager.search_user(client.username, query)
-                self._search_history.add(query, type_="clients_actifs")
+            self._search_history.add(query, type_="user", username=self._browse_username)
+        elif self._selected_client_username and self._clients_actifs_service is not None:
+            # Mode client ciblé : recherche chez le client Arès sélectionné
+            console.push_info(f"🔍 Recherche de « {query} » chez {self._selected_client_username}…")
+            self._connexion_manager.search_user(self._selected_client_username, query)
+            self._search_history.add(query, type_="user", username=self._selected_client_username)
         else:
-            # Mode global : recherche standard
-            self._status_label.setText(f"🔍 Recherche de « {query} » en cours…")
-            self._connexion_manager.search(query)
+            # Mode global : dénichage par lots de clients actifs
+            # (évite le broadcast réseau qui sature les connexions P2P)
+            if self._clients_actifs_service is not None:
+                actifs = self._clients_actifs_service.clients_actifs()
+                if actifs:
+                    usernames = [c.username for c in actifs]
+                    nb = len(usernames)
+                    lots = (nb - 1) // 5 + 1
+                    console.push_info(
+                        f"🔍 Dénichage de « {query} » chez {nb} client(s) "
+                        f"actifs ({lots} lot(s) de 5)…"
+                    )
+                    self._connexion_manager.batched_search(query, usernames)
+                else:
+                    console.push_warning(
+                        "⚠️ Aucun client actif disponible pour le dénichage"
+                    )
+                    console.push_info(
+                        "💡 Attendez que les rooms soient chargées "
+                        "(le service clients actifs détectera les pairs)"
+                    )
+                    self._status_label.setText(
+                        "⏳ Aucun client actif — attendez le chargement des rooms"
+                    )
+                    self._reset_search_state()
+                    return
+            else:
+                console.push_error(
+                    "❌ Service clients actifs non disponible — dénichage impossible"
+                )
+                self._status_label.setText(
+                    "❌ Service clients actifs non initialisé"
+                )
+                self._reset_search_state()
+                return
             self._search_history.add(query, type_="global")
 
         self._rebuild_suggestions()
@@ -1385,7 +1731,6 @@ class BotRecherche(QFrame):
         self._search_timer.timeout.connect(self._on_search_timeout)
         self._search_timer.start(30000)
 
-        # Notifier l'EventBus
         EventBus().emit_event(
             severity="INFO",
             category="recherche",
@@ -1399,9 +1744,9 @@ class BotRecherche(QFrame):
         if self._connexion_manager is not None:
             self._connexion_manager.stop_search()
         self._reset_search_state()
+        self._modes_panel.status_console.push_warning(f"⏹ Recherche arrêtée — {self._result_count} résultat(s) affiché(s)")
         self._status_label.setText(f"⏹ Recherche arrêtée — {self._result_count} résultat(s) affiché(s)")
 
-        # Notifier l'EventBus
         EventBus().emit_event(
             severity="INFO",
             category="recherche",
@@ -1410,12 +1755,14 @@ class BotRecherche(QFrame):
             source="BotRecherche",
         )
 
+    @log_action("Basculer le filtre audio")
     def _on_audio_filter_toggled(self, checked: bool) -> None:
         """Bascule le filtre audio automatique mp3/flac/ogg."""
         self._audio_filter_enabled = checked
         self._audio_filter_btn.setText("🔊 Audio seulement" if checked else "🔊 Tous les fichiers")
         self._apply_filters()
 
+    @log_action("Basculer le mode disponibilité")
     def _on_mode_dispo_toggled(self, checked: bool) -> None:
         """Bascule le mode disponibilité (slots libres uniquement)."""
         self._mode_dispo_enabled = checked
@@ -1439,11 +1786,25 @@ class BotRecherche(QFrame):
         except AttributeError:
             pass
 
+        total_received = len(result.shared_items)
+        if total_received > 0:
+            logger.info(
+                "_on_search_result: reçu %d fichiers (filtre audio=%s) pour « %s » de %s",
+                total_received,
+                self._audio_filter_enabled,
+                query_text or "?",
+                result.username,
+            )
+
         self._table.setSortingEnabled(False)
         added = 0
 
+        extensions_vues: set[str] = set()
         for file_data in result.shared_items:
-            if self._audio_filter_enabled and not _is_audio(file_data.extension):
+            ext = _extraire_extension(file_data.filename)
+            extensions_vues.add(ext if ext else "(sans ext)")
+
+            if self._audio_filter_enabled and not _is_audio(ext):
                 continue
 
             self._add_result_row(
@@ -1454,10 +1815,26 @@ class BotRecherche(QFrame):
             )
             added += 1
 
+        if added == 0 and total_received > 0:
+            logger.info(
+                "_on_search_result: 0 ajouté sur %d reçus — extensions vues : %s",
+                total_received,
+                sorted(extensions_vues),
+            )
+            self._modes_panel.status_console.push_warning(
+                f"⚠️ {total_received} résultat(s) reçu(s) mais tous filtrés "
+                f"(extensions : {', '.join(sorted(extensions_vues)[:8])})"
+            )
+
+        # Incrémenter le compteur total reçu (filtrés ou pas)
+        self._total_received += total_received
+
         self._table.setSortingEnabled(True)
 
         if added > 0:
             self._result_count += added
+
+            self._push_result_counter()
 
             if self._result_count >= MAX_RESULTS:
                 if self._room_name:
@@ -1476,6 +1853,14 @@ class BotRecherche(QFrame):
                     else:
                         status += f" — recherche « {query_text} »"
             self._status_label.setText(status)
+
+            # Premiers résultats → notification console
+            if self._result_count <= added:
+                source = self._room_name or self._browse_username or self._selected_client_username or ""
+                if source:
+                    self._modes_panel.status_console.push_success(f"📥 {added} résultat(s) reçu(s) de {source}")
+                else:
+                    self._modes_panel.status_console.push_success(f"📥 {added} résultat(s) reçu(s)")
 
         # Mettre à jour le compteur dans l'historique
         if query_text and self._result_count > 0:
@@ -1502,10 +1887,9 @@ class BotRecherche(QFrame):
 
         if self._searching:
             self._searching = False
-            self._stop_btn.setVisible(False)
-            self._search_btn.setVisible(True)
-            self._search_btn.setEnabled(True)
-            self._search_btn.setText("Rechercher")
+            self._modes_panel.set_searching(False)
+            self._push_result_counter()
+            self._modes_panel.status_console.push_success("✅ Recherche terminée — tous les résultats reçus")
             # Appliquer les filtres sur les nouveaux résultats
             if self._mode_dispo_enabled or any(v for v in self._filter_state.values()):
                 self._apply_filters()
@@ -1513,6 +1897,7 @@ class BotRecherche(QFrame):
     def _on_search_error(self, msg: str) -> None:
         if self._searching:
             self._reset_search_state()
+            self._modes_panel.status_console.push_error(f"❌ Erreur : {msg}")
             self._status_label.setText(f"❌ Erreur : {msg}")
             EventBus().emit_event(
                 severity="ERROR",
@@ -1525,14 +1910,14 @@ class BotRecherche(QFrame):
     def _on_search_timeout(self) -> None:
         if self._searching:
             self._searching = False
-            self._stop_btn.setVisible(False)
-            self._search_btn.setVisible(True)
-            self._search_btn.setEnabled(True)
-            self._search_btn.setText("Rechercher")
+            self._modes_panel.set_searching(False)
+            self._modes_panel.status_console.push_warning("⏱️ 30s écoulées — la recherche continue en arrière-plan")
+            self._modes_panel.status_console.push_info("💡 Les résultats arrivent au fur et à mesure, le tableau se remplit automatiquement")
             self._status_label.setText("⏱️ La recherche continue en arrière-plan…")
 
     # ── Filtres avancés ─────────────────────────────────────────
 
+    @log_action("Ouvrir les filtres avancés")
     def _open_filtres_modal(self) -> None:
         """Ouvre la modal de filtres avancés."""
         modal = FiltresRechercheModal(
@@ -1543,6 +1928,15 @@ class BotRecherche(QFrame):
         if modal.exec() == QDialog.Accepted:
             self._filter_state = dict(modal.result_state)
             self._apply_filters()
+
+    def _on_connected(self, username: str) -> None:
+        self._update_connected_state()
+        self._push_system_status()
+
+    def _on_disconnected(self) -> None:
+        self._reset_search_state()
+        self._update_connected_state()
+        self._modes_panel.status_console.push_error("🔌 Déconnecté de Soulseek")
 
     def _update_filtres_badge(self) -> None:
         """Met à jour le badge du nombre de filtres actifs."""
@@ -1656,6 +2050,10 @@ class BotRecherche(QFrame):
             if matches:
                 visible_count += 1
 
+        # Pousser le compteur mis à jour après filtrage
+        self._result_count = visible_count
+        self._push_result_counter()
+
         # Mettre à jour le statut pour refléter le filtrage
         total = self._table.rowCount()
         if total > 0:
@@ -1759,13 +2157,13 @@ class BotRecherche(QFrame):
         self._browse_username = username
         self._browse_label.setText(f"Fichiers de {username}")
         self._browse_banner.setVisible(True)
-        self._search_input.setPlaceholderText(f"Rechercher des fichiers partagés par {username}…")
+        self._modes_panel.focus_search()
 
+    @log_action("Quitter le mode navigation utilisateur")
     def _exit_browse_mode(self) -> None:
         """Quitte le mode navigation utilisateur."""
         self._browse_username = None
         self._browse_banner.setVisible(False)
-        self._search_input.setPlaceholderText("Rechercher des fichiers audio sur Soulseek…")
         self._reset_search_state()
         self._clear_results()
         self._status_label.setText("")
@@ -1778,22 +2176,21 @@ class BotRecherche(QFrame):
         self._room_name = room
         self._room_label.setText(f"Salon : #{room}")
         self._room_banner.setVisible(True)
-        self._room_input.setText(room)
-        self._search_input.setPlaceholderText(f"Rechercher dans #{room}…")
+        self._modes_panel.focus_search()
 
+    @log_action("Quitter le mode recherche salon")
     def _exit_room_mode(self) -> None:
         """Quitte le mode recherche dans un salon."""
         self._room_name = None
         self._room_banner.setVisible(False)
-        self._room_input.clear()
-        self._search_input.setPlaceholderText("Rechercher des fichiers audio sur Soulseek…")
         self._reset_search_state()
         self._clear_results()
         self._status_label.setText("")
 
+    @log_action("Parcourir les fichiers d'un utilisateur")
     def _on_browse_user(self, username: str) -> None:
         """Lance une recherche des fichiers d'un utilisateur."""
-        query = self._search_input.text().strip()
+        query = self._modes_panel.query
         if not query:
             self._status_label.setText("📝 Entrez un terme de recherche avant de parcourir un utilisateur")
             return
@@ -1808,15 +2205,206 @@ class BotRecherche(QFrame):
         self._clear_results()
         self._result_count = 0
         self._searching = True
-        self._stop_btn.setVisible(True)
+        self._modes_panel.set_searching(True)
         self._status_label.setText(f"🔍 Recherche de « {query} » chez {username}…")
         self._connexion_manager.search_user(username, query)
 
+    @log_action("Bloquer un utilisateur")
     def _on_block_user(self, username: str) -> None:
         """Ajoute un utilisateur à la liste noire."""
         if self._connexion_manager is not None:
             self._connexion_manager.block_user(username)
         self._status_label.setText(f"🚫 Utilisateur {username} bloqué")
+
+    # ── Basculement table / arbre ────────────────────────────────
+
+    @log_action("Basculer la vue table/arbre")
+    def _toggle_view(self, checked: bool) -> None:
+        """Bascule entre la vue tableau (plate) et la vue arbre (dossiers).
+
+        Paramètres
+        ----------
+        checked : bool
+            True → vue arbre, False → vue tableau.
+        """
+        self._folder_view = checked
+        self._view_toggle_btn.setText("📋 Vue fichiers" if checked else "📁 Vue dossiers")
+
+        if checked:
+            # Basculer vers la vue arbre
+            self._view_stack.setCurrentIndex(1)
+            self._rebuild_tree_view()
+            self._modes_panel.status_console.push_info("📁 Passage en vue dossiers — résultats groupés par répertoire")
+        else:
+            # Basculer vers la vue tableau
+            self._view_stack.setCurrentIndex(0)
+            self._rebuild_table_view()
+            self._modes_panel.status_console.push_info("📋 Passage en vue fichiers — résultats plats")
+
+    def _rebuild_tree_view(self) -> None:
+        """Reconstruit la vue arbre à partir du cache de résultats."""
+        self._dossier_tree.build_from_cache(self._result_data)
+
+        total = len(self._result_data)
+        if total > 0:
+            self._status_label.setText(f"✅ {total} résultat{'s' if total > 1 else ''} — Vue dossiers")
+        else:
+            self._status_label.setText("")
+
+    def _rebuild_table_view(self) -> None:
+        """Reconstruit la vue tableau à partir du cache de résultats.
+
+        Vide le tableau et le re-remplit depuis le cache pour
+        assurer la cohérence après un basculement.
+        """
+        self._table.setSortingEnabled(False)
+        self._table.setRowCount(0)
+        self._table.setSortingEnabled(True)
+
+        if not self._result_data:
+            return
+
+        # Re-peupler le tableau depuis le cache
+        # Note : on perd les widgets DL (boutons) car QTableWidget
+        # ne les sérialise pas — ce n'est pas grave car ils sont
+        # désactivés de toute façon.
+        self._table.setSortingEnabled(False)
+        for data in self._result_data:
+            # On ne peut pas reconstruire exactement les mêmes widgets,
+            # donc on réutilise _add_result_row... mais ça re-ajouterait
+            # au cache. On le fait directement ici.
+            row = self._table.rowCount()
+            self._table.insertRow(row)
+            self._table.setRowHeight(row, 36)
+
+            ext = data.get("extension", "").upper()
+            filename = data.get("filename", "?")
+            filesize = data.get("filesize", 0)
+            bitrate = data.get("bitrate", 0)
+            duration = data.get("duration", 0)
+            username = data.get("username", "")
+            has_free_slots = data.get("has_free_slots", False)
+            avg_speed = data.get("avg_speed", 0)
+
+            # Extension
+            ext_text = f"[{ext}]" if ext else "[?]"
+            ext_item = TableItem(ext_text)
+            ext_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._table.setItem(row, COL_EXTENSION, ext_item)
+
+            # Fichier
+            fichier_item = TableItem(filename, filename.lower())
+            fichier_item.setData(Qt.UserRole + 1, data)
+            self._table.setItem(row, COL_FICHIER, fichier_item)
+
+            # Taille
+            size_str = _format_size(filesize)
+            size_item = TableItem(size_str, filesize)
+            size_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self._table.setItem(row, COL_TAILLE, size_item)
+
+            # Bitrate
+            bitrate_str = _format_bitrate(bitrate)
+            bitrate_item = TableItem(bitrate_str, bitrate)
+            bitrate_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._table.setItem(row, COL_BITRATE, bitrate_item)
+
+            # Durée
+            duree_str = _format_duration(duration) if duration > 0 else "—"
+            duree_item = TableItem(duree_str, duration)
+            duree_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._table.setItem(row, COL_DUREE, duree_item)
+
+            # Utilisateur
+            user_item = TableItem(username, username.lower())
+            user_item.setToolTip(f"👤 {username}")
+            self._table.setItem(row, COL_UTILISATEUR, user_item)
+
+            # Slots
+            slots_text = "🟢" if has_free_slots else "🔴"
+            slots_item = TableItem(slots_text)
+            slots_item.setToolTip("Slots libres" if has_free_slots else "File d'attente")
+            slots_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._table.setItem(row, COL_SLOTS, slots_item)
+
+            # Vitesse
+            speed_str = _format_speed(avg_speed) if avg_speed > 0 else "—"
+            speed_item = TableItem(speed_str, avg_speed)
+            speed_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self._table.setItem(row, COL_VITESSE, speed_item)
+
+        self._table.setSortingEnabled(True)
+
+        # Appliquer les filtres si actifs
+        if self._mode_dispo_enabled or self._filtres_compte > 0:
+            self._apply_filters()
+
+    # ── Menu contextuel de l'arbre ───────────────────────────────
+
+    def _on_tree_context_menu(self, pos) -> None:
+        """Affiche le menu contextuel pour un élément de l'arbre."""
+        item = self._dossier_tree.itemAt(pos)
+        if item is None:
+            return
+
+        # Récupérer les données stockées
+        item_data = item.data(DossierTreeWidget.COL_NOM, Qt.UserRole)
+        if item_data is None:
+            return
+
+        data = item_data.get("data")
+        if data is None:
+            return
+
+        filename = data.get("filename", "Inconnu")
+        username = data.get("username", "Inconnu")
+
+        menu = QMenu(self)
+        menu.setStyleSheet(
+            f"""
+            QMenu {{
+                background: {COLORS["BG_SURFACE"]};
+                border: 1px solid {COLORS["BORDER"]};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                color: {COLORS["TEXT_PRIMARY"]};
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+            }}
+            QMenu::item:selected {{
+                background: rgba(COLORS['PRIMARY'], '30');
+                color: {COLORS["PRIMARY"]};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background: {COLORS["BORDER"]};
+                margin: 4px 8px;
+            }}
+            """
+        )
+
+        dl_action = QAction(f"⬇ Télécharger « {filename} »", self)
+        dl_action.triggered.connect(lambda: self.page_changed.emit("Téléchargement"))
+        menu.addAction(dl_action)
+
+        browse_action = QAction(f"👤 Voir les fichiers de {username}", self)
+        browse_action.triggered.connect(lambda: self._on_browse_user(username))
+        menu.addAction(browse_action)
+
+        menu.addSeparator()
+
+        copy_action = QAction("📋 Copier le nom du fichier", self)
+        copy_action.triggered.connect(lambda: QApplication.clipboard().setText(filename))
+        menu.addAction(copy_action)
+
+        block_action = QAction(f"🚫 Bloquer {username}", self)
+        block_action.triggered.connect(lambda: self._on_block_user(username))
+        menu.addAction(block_action)
+
+        menu.exec(self._dossier_tree.viewport().mapToGlobal(pos))
 
     # ── Gestion du tableau ──────────────────────────────────────
 
@@ -1848,13 +2436,17 @@ class BotRecherche(QFrame):
         # pyrefly: ignore [missing-attribute]
         filename = file_data.filename.split("\\")[-1].split("/")[-1]
         # pyrefly: ignore [missing-attribute]
-        ext = file_data.extension.upper()
+        # Extraire l'extension depuis le filename (fiable) plutôt que file_data.extension (métadonnées souvent vides)
+        ext = _extraire_extension(file_data.filename).upper()
 
-        # Données brutes pour le re-filtrage
+        # Données brutes pour le re-filtrage + vue dossiers
+        # pyrefly: ignore [missing-attribute]
+        full_path = file_data.filename
         row_data = {
             # pyrefly: ignore [missing-attribute]
-            "extension": file_data.extension.lower(),
+            "extension": _extraire_extension(file_data.filename),
             "filename": filename,
+            "full_path": full_path,
             # pyrefly: ignore [missing-attribute]
             "filesize": file_data.filesize,
             "bitrate": bitrate,
@@ -1941,14 +2533,28 @@ class BotRecherche(QFrame):
         dl_btn.setEnabled(False)
         self._table.setCellWidget(row, COL_DL, dl_btn)
 
+        # Mettre en cache pour reconstruction de la vue dossiers
+        self._result_data.append(row_data)
+        if len(self._result_data) > MAX_RESULTS:
+            self._result_data.pop(0)
+
+    # ── Compteur console ────────────────────────────────────────
+
+    def _push_result_counter(self) -> None:
+        """Pousse le compteur résultats affichés/reçus dans la console de suivi."""
+        if self._total_received == 0:
+            return
+        console = self._modes_panel.status_console
+        console.push_muted(
+            f"📊 {self._result_count} résultat(s) affiché(s) sur {self._total_received} reçu(s)"
+        )
+
     # ── Nettoyage ───────────────────────────────────────────────
 
     def _reset_search_state(self) -> None:
         self._searching = False
-        self._stop_btn.setVisible(False)
-        self._search_btn.setVisible(True)
-        self._search_btn.setEnabled(True)
-        self._search_btn.setText("Rechercher")
+        if hasattr(self, "_modes_panel"):
+            self._modes_panel.set_searching(False)
         if self._search_timer is not None:
             self._search_timer.stop()
 
@@ -1956,6 +2562,9 @@ class BotRecherche(QFrame):
         self._table.setSortingEnabled(False)
         self._table.setRowCount(0)
         self._table.setSortingEnabled(True)
+        self._dossier_tree.clear()
+        self._result_data.clear()
+        self._total_received = 0
 
     # ── Historique des recherches ──────────────────────────────
 
@@ -2009,6 +2618,7 @@ class BotRecherche(QFrame):
         self._suggestions_row.layout().addStretch(1)
         self._suggestions_row.setVisible(bool(recent))
 
+    @log_action("Cliquer sur une suggestion de recherche")
     def _on_suggestion_clicked(self, entry: dict) -> None:
         """Clique sur une suggestion d'historique : lance la recherche."""
         query = entry["query"]
@@ -2027,10 +2637,11 @@ class BotRecherche(QFrame):
             if self._browse_username:
                 self._exit_browse_mode()
 
-        # Remplir le champ de recherche et lancer
-        self._search_input.setText(query)
+        # Remplir le champ de recherche via le panneau et lancer
+        self._modes_panel.set_query(query)
         self._on_search()
 
+    @log_action("Ouvrir l'historique des recherches")
     def _open_history_popup(self) -> None:
         """Ouvre la popup d'historique complet."""
         dialog = HistoryPopup(
@@ -2045,6 +2656,7 @@ class BotRecherche(QFrame):
             if selected:
                 self._on_suggestion_clicked(selected)
 
+    @log_action("Vider tout l'historique")
     def _on_history_clear(self) -> None:
         """Vide tout l'historique et rafraîchit les suggestions."""
         self._search_history.clear()

@@ -28,8 +28,9 @@ from PySide6.QtWidgets import (
 
 from src.services.app_config import get as cfg_get, set as cfg_set
 from src.services.soulseek_client import soulseek_service
+from src.utils.log_action import log_action
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[TIMEOUT-CTRL]")
 
 
 class TimeoutControllerWidget(QFrame):
@@ -157,7 +158,7 @@ class TimeoutControllerWidget(QFrame):
         self._btn_refresh_cfg = QPushButton("🔄 Recharger config")
         self._btn_refresh_cfg.setToolTip("Re-affiche les valeurs actuelles de la config")
         self._btn_refresh_cfg.setStyleSheet("background-color: #45475a;")
-        self._btn_refresh_cfg.clicked.connect(self.refresh)
+        self._btn_refresh_cfg.clicked.connect(self._on_refresh)
         btn_grid.addWidget(self._btn_refresh_cfg, 2, 2, 1, 2)
 
         actions_layout.addLayout(btn_grid)
@@ -230,6 +231,7 @@ class TimeoutControllerWidget(QFrame):
             return None
         return getattr(self._main_window, "_connexion_manager", None)
 
+    @log_action("Réinitialiser _connecting")
     def _on_reset_connecting(self) -> None:
         """Force _connecting = False sur le ConnexionManager."""
         mgr = self._get_mgr()
@@ -247,6 +249,7 @@ class TimeoutControllerWidget(QFrame):
             self._lbl_direct_state.setText(f"❌ Erreur: {e}")
             self._lbl_direct_state.setStyleSheet("color: #f38ba8; font-size: 10px;")
 
+    @log_action("Annuler connexion")
     def _on_cancel(self) -> None:
         """Appelle disconnect() sur le ConnexionManager."""
         mgr = self._get_mgr()
@@ -263,6 +266,7 @@ class TimeoutControllerWidget(QFrame):
             self._lbl_direct_state.setText(f"❌ Erreur: {e}")
             self._lbl_direct_state.setStyleSheet("color: #f38ba8; font-size: 10px;")
 
+    @log_action("Simuler timeout")
     def _on_simulate_timeout(self) -> None:
         """Simule un timeout en forçant _connecting=True puis le réinitialise après 5s."""
         mgr = self._get_mgr()
@@ -293,6 +297,7 @@ class TimeoutControllerWidget(QFrame):
             self._lbl_direct_state.setText(f"❌ Erreur reset: {e}")
             self._lbl_direct_state.setStyleSheet("color: #f38ba8; font-size: 10px;")
 
+    @log_action("Arrêter thread asyncio")
     def _on_stop_thread(self) -> None:
         """Arrête le thread asyncio (cas extrême — peut casser l'app)."""
         mgr = self._get_mgr()
@@ -314,6 +319,7 @@ class TimeoutControllerWidget(QFrame):
             self._lbl_direct_state.setText(f"❌ Erreur: {e}")
             self._lbl_direct_state.setStyleSheet("color: #f38ba8; font-size: 10px;")
 
+    @log_action("Forcer déconnexion")
     def _on_force_disconnect(self) -> None:
         """Appelle disconnect() directement sur le service (bypass ConnexionManager)."""
         try:
@@ -333,6 +339,7 @@ class TimeoutControllerWidget(QFrame):
 
     # ── Gestion des threads bloqués ────────────────────────────────────
 
+    @log_action("Tuer workers bloqués")
     def _on_kill_workers(self) -> None:
         """Scan et termine tous les workers QThread bloqués + asyncio thread.
 
@@ -388,6 +395,7 @@ class TimeoutControllerWidget(QFrame):
         else:
             self._set_status("✅ Aucun thread bloqué détecté", "#a6e3a1")
 
+    @log_action("Lister threads")
     def _on_list_threads(self) -> None:
         """Liste tous les threads Python actifs — tronqué à 20 lignes dans l'UI, complet dans les logs."""
         lignes: list[str] = []
@@ -424,6 +432,7 @@ class TimeoutControllerWidget(QFrame):
             "white-space: pre;"
         )
 
+    @log_action("Nettoyer les workers")
     def _on_cleanup_workers(self) -> None:
         """Nettoie les références aux workers non nettoyés dans les widgets."""
         nettoye = 0
@@ -444,6 +453,7 @@ class TimeoutControllerWidget(QFrame):
         else:
             self._set_status("✅ Aucune référence à nettoyer", "#a6adc8")
 
+    @log_action("Afficher la stack trace")
     def _on_stack_trace(self) -> None:
         """Affiche les traces d'appels de tous les threads Python.
 
@@ -526,8 +536,14 @@ class TimeoutControllerWidget(QFrame):
 
     # ── Rafraîchissement ───────────────────────────────────────────────
 
+    @log_action("Recharger config")
+    def _on_refresh(self) -> None:
+        """Handler bouton — recharge la config avec log d'action."""
+        self.refresh()
+
     def refresh(self) -> None:
-        """Met à jour l'affichage des valeurs de timeout depuis la config."""
+        """Met à jour l'affichage des valeurs de timeout depuis la config (appelé par le timer)."""
+        # Pas de @log_action ici car appelé toutes les 1,5s par le timer de l'inspector
         try:
             port = cfg_get("reseau.port_serveur", "2242")
             host = cfg_get("reseau.hote_serveur", "server.slsknet.org")

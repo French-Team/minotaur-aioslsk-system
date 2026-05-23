@@ -48,7 +48,7 @@ from src.services.boucle_rooms import BoucleRooms
 from src.services.clients_actifs_service import ClientsActifsService
 from src.services.soulseek_client import soulseek_service
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[CENTER-ZONE]")
 
 
 # ── Helpers de formatage ─────────────────────────────────────────

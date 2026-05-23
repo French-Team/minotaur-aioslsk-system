@@ -31,8 +31,9 @@ from PySide6.QtWidgets import (
 from src.gui.theme_fragments.colors import COLORS
 from src.services.ordonnanceur_service import OrdonnanceurService
 from src.services.planificateur_service import planificateur_service
+from src.utils.log_action import log_action
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[ORDONNANCEUR-UI]")
 
 
 # ── Intégration Planificateur ───────────────────────────────────────────
@@ -1105,6 +1106,7 @@ class BotOrdonnanceur(QFrame):
         else:
             return f"{octets / 1024**3:.1f} Go"
 
+    @log_action("Copier le rapport d'exécution")
     def _copier_rapport(self, resultat: dict) -> None:
         """Copie un résumé texte du rapport dans le presse-papier."""
         simulation = resultat.get("simulation", True)
@@ -1198,10 +1200,12 @@ class BotOrdonnanceur(QFrame):
 
     # ── Callbacks ─────────────────────────────────────────────────
 
+    @log_action("Basculer mode exécution réelle / simulation")
     def _on_executer_toggle(self, checked: int) -> None:
         """Met à jour le flag d'exécution réelle."""
         self._executer_reel = bool(checked)
 
+    @log_action("Parcourir le dossier à organiser")
     def _on_browse_folder(self) -> None:
         """Ouvre un QFileDialog pour choisir le dossier à organiser."""
         dossier = QFileDialog.getExistingDirectory(self, "Choisir le dossier à organiser")
@@ -1222,6 +1226,7 @@ class BotOrdonnanceur(QFrame):
         # pyrefly: ignore [missing-attribute]
         self._next_btn.setEnabled(has_selection and self._dossier is not None)
 
+    @log_action("Passer à l'étape suivante / Lancer l'organisation")
     def _on_next(self) -> None:
         """Passe à l'étape suivante."""
         if self._step == 3:
@@ -1385,6 +1390,7 @@ class BotOrdonnanceur(QFrame):
         }
         self._show_step(3)
 
+    @log_action("Revenir à l'étape précédente")
     def _on_previous(self) -> None:
         """Revient à l'étape précédente."""
         if self._step == 2:
@@ -1399,6 +1405,7 @@ class BotOrdonnanceur(QFrame):
         if self._step > 0:
             self._show_step(self._step - 1)
 
+    @log_action("Annuler et retourner à l'accueil")
     def _on_cancel(self) -> None:
         """Annule, nettoie les threads et retourne à l'accueil."""
         self._cleanup_thread()

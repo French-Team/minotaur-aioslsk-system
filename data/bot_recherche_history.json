@@ -1,11 +1,39 @@
 {
   "searches": [
     {
+      "query": "house",
+      "type": "global",
+      "username": null,
+      "count": 17833,
+      "timestamp": "2026-05-23T09:47:46+00:00"
+    },
+    {
+      "query": "trance",
+      "type": "global",
+      "username": null,
+      "count": 1,
+      "timestamp": "2026-05-23T09:05:47+00:00"
+    },
+    {
+      "query": "techno",
+      "type": "user",
+      "username": "( *   )  (   * )",
+      "count": 0,
+      "timestamp": "2026-05-22T20:09:33+00:00"
+    },
+    {
       "query": "techno",
       "type": "global",
       "username": null,
       "count": 0,
-      "timestamp": "2026-05-16T10:13:18+00:00"
+      "timestamp": "2026-05-22T20:05:09+00:00"
+    },
+    {
+      "query": "la rocca",
+      "type": "global",
+      "username": null,
+      "count": 0,
+      "timestamp": "2026-05-22T07:45:57+00:00"
     }
   ]
 }

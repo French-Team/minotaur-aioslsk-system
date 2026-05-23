@@ -13,7 +13,9 @@ import logging
 
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
 
-logger = logging.getLogger(__name__)
+from src.utils.log_action import log_action
+
+logger = logging.getLogger("[SURVEILLANCE]")
 
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -691,6 +693,7 @@ class BotSurveillance(QFrame):
             self._filtres_categories.discard(category)
         self._apply_filters()
 
+    @log_action("Mettre en pause/reprendre la surveillance")
     def _on_pause_toggled(self, paused: bool) -> None:
         """Bascule la pause (collection + affichage)."""
         self._paused = paused
@@ -762,6 +765,7 @@ class BotSurveillance(QFrame):
                 )
             )
 
+    @log_action("Vider le flux d'événements")
     def _clear_feed(self) -> None:
         """Vide le flux affiché (pas la base SQLite)."""
         for card in self._feed_cards:
@@ -775,6 +779,7 @@ class BotSurveillance(QFrame):
         popup = DetailPopup(event, self)
         popup.exec()
 
+    @log_action("Ouvrir l'historique")
     def _show_history(self) -> None:
         """Ouvre la modal d'historique."""
         modal = HistoryModal(self)
@@ -1060,11 +1065,13 @@ class HistoryModal(QDialog):
         self._result_count_lbl.setText(f"{total} résultat{'s' if total != 1 else ''}")
         self._load_more_btn.setEnabled(self._has_more)
 
+    @log_action("Charger plus d'événements")
     def _load_more(self) -> None:
         """Charge la page suivante."""
         self._page += 1
         self._load_page()
 
+    @log_action("Rechercher dans l'historique")
     def _rechercher(self) -> None:
         """Réinitialise la recherche (page 0)."""
         self._page = 0
@@ -1116,6 +1123,7 @@ class HistoryModal(QDialog):
 
     # ── Export ──────────────────────────────────────────────────────────
 
+    @log_action("Exporter en CSV")
     def _export_csv(self) -> None:
         """Exporte les événements affichés en CSV."""
         path, _ = QFileDialog.getSaveFileName(self, "Exporter en CSV", "historique.csv", "CSV (*.csv)")
@@ -1145,6 +1153,7 @@ class HistoryModal(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Erreur CSV", f"Échec de l'export : {e}")
 
+    @log_action("Exporter en JSON")
     def _export_json(self) -> None:
         """Exporte les événements affichés en JSON."""
         path, _ = QFileDialog.getSaveFileName(self, "Exporter en JSON", "historique.json", "JSON (*.json)")
@@ -1162,6 +1171,7 @@ class HistoryModal(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Erreur JSON", f"Échec de l'export : {e}")
 
+    @log_action("Supprimer la sélection")
     def _delete_selected(self) -> None:
         """Supprime les événements cochés."""
         ids: list[int] = []
@@ -1435,6 +1445,7 @@ class DetailPopup(QDialog):
         }
         return CATEGORY_PAGES.get(self._event.category)
 
+    @log_action("Copier les détails d'événement")
     def _copy_details(self) -> None:
         """Copie les détails formatés dans le presse-papier."""
         from PySide6.QtGui import QGuiApplication
@@ -1457,6 +1468,7 @@ class DetailPopup(QDialog):
         text = "\n".join(lines)
         QGuiApplication.clipboard().setText(text)
 
+    @log_action("Naviguer depuis les détails")
     def _navigate_to_source(self) -> None:
         """Émet un signal pour naviguer vers la page correspondante."""
         target = self._get_navigation_target()

@@ -8,8 +8,12 @@ et l'historique des consultations.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
+
+logger = logging.getLogger("[AIDE-DB]")
+
 from pathlib import Path
 from typing import Any
 

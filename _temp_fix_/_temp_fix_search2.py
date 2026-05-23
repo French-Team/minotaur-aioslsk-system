@@ -1,5 +1,9 @@
 """Correction des ajouts echoues pour la barre de recherche."""
-import pathlib, re
+import logging
+import pathlib
+import re
+
+logger = logging.getLogger("[TEMP-FIX-SEARCH2]")
 
 f = pathlib.Path('src/gui/devtool/qss_inspector.py')
 raw = f.read_bytes()

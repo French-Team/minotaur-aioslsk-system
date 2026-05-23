@@ -4,7 +4,12 @@ Point d'entree qui aggrege les fragments CSS du dossier theme_fragments/.
 Les couleurs sont centralisees dans theme_fragments/colors.py.
 """
 
+import logging
+
 from src.gui.theme_fragments import COLORS, TEMPLATE
+
+logger = logging.getLogger("[THEME]")
+
 
 # --- Generation du theme final -----------------------------------
 # Remplace les placeholders @KEY@ par les valeurs hex dans COLORS.

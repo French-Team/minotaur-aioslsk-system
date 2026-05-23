@@ -4,8 +4,10 @@
 - supprimer QTimer inutilise
 - corriger double appel _toggle_pick_mode
 """
+import logging
 import pathlib
 
+logger = logging.getLogger("[TEMP-FIX-REVIEW]")
 f = pathlib.Path('src/gui/devtool/qss_inspector.py')
 text = f.read_text(encoding='utf-8-sig')
 

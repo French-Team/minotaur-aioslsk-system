@@ -6,7 +6,12 @@ Peut être utilisé pour programmer des actions ultérieurement.
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt, QTime, QTimer, Signal
+
+logger = logging.getLogger("[CLOCK]")
+
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
 
 

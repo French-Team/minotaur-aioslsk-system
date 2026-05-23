@@ -6,6 +6,8 @@ Dashboard, barre d'actions rapides, statistiques live, liste des actions.
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
@@ -33,6 +35,9 @@ from src.services.planificateur_service import (
     ACTION_TYPES,
     PlanificateurService,
 )
+from src.utils.log_action import log_action
+
+logger = logging.getLogger("[PLANIFICATEUR]")
 
 # ── Constantes ──────────────────────────────────────────────────────────────
 
@@ -951,6 +956,7 @@ class BotPlanificateur(QFrame):
             if target:
                 self.page_changed.emit(target)
 
+    @log_action("Basculer la pause du planificateur")
     def _on_pause_toggled(self, checked: bool) -> None:
         """Bascule la pause globale du service."""
         self._style_pause_btn(checked)
@@ -961,6 +967,7 @@ class BotPlanificateur(QFrame):
             self._svc.resume()
             self._pause_btn.setText("⏸ Pause")
 
+    @log_action("Planifier une nouvelle action")
     def _on_new_action(self) -> None:
         """Ouvre le modal de création d'une nouvelle action vide."""
         modal = ActionModal(parent=self)
@@ -977,6 +984,7 @@ class BotPlanificateur(QFrame):
                 )
                 self._refresh_all()
 
+    @log_action("Exécuter une action rapide")
     def _on_quick_action(self, action_type: str) -> None:
         """Clic sur un bouton d'action rapide — ouvre le modal pré-rempli.
 
@@ -996,6 +1004,7 @@ class BotPlanificateur(QFrame):
                 )
                 self._refresh_all()
 
+    @log_action("Modifier le filtre")
     def _on_filter_changed(self) -> None:
         """Un filtre (statut ou type) a changé → rafraîchir la liste."""
         self._filter_statut = self._filter_statut_cb.currentData() or ""
@@ -1011,11 +1020,13 @@ class BotPlanificateur(QFrame):
         """Applique le filtre texte après le debounce."""
         self._refresh_list()
 
+    @log_action("Exécuter une action")
     def _on_executer_action(self, action_id: int) -> None:
         """Exécute manuellement une action."""
         self._svc.execute_manual(action_id)
         self._refresh_list()
 
+    @log_action("Mettre en pause / reprendre une action")
     def _on_pause_action(self, action_id: int) -> None:
         """Bascule le statut pause d'une action individuelle."""
         action = self._svc.get_action(action_id)
@@ -1027,6 +1038,7 @@ class BotPlanificateur(QFrame):
         elif action["statut"] in ("en_attente", "planifiee"):
             self._svc.update_action(action_id, statut="pause")
 
+    @log_action("Supprimer une action")
     def _on_supprimer_action(self, action_id: int) -> None:
         """Supprime une action."""
         self._svc.delete_action(action_id)
@@ -1034,6 +1046,7 @@ class BotPlanificateur(QFrame):
 
     # ── Rafraîchissement ──────────────────────────────────────────────────
 
+    @log_action("Rafraîchir le planificateur")
     def _refresh_all(self) -> None:
         """Rafraîchit tout (stats + liste)."""
         self._refresh_stats()

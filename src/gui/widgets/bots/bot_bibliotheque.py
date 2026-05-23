@@ -12,7 +12,9 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from src.utils.log_action import log_action
+
+logger = logging.getLogger("[BIBLIOTHEQUE-UI]")
 
 from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QDesktopServices
@@ -179,6 +181,7 @@ class _Toolbar(QFrame):
     def _on_search_changed(self, text: str) -> None:
         self.search_requested.emit(text)
 
+    @log_action("Re-scanner (barre d'outils)")
     def _on_rescan_clicked(self) -> None:
         self.rescan_requested.emit()
 
@@ -303,6 +306,7 @@ class _FileInfoPopup(QDialog):
 
     # ── Slots ───────────────────────────────────────────────────────
 
+    @log_action("Lire le fichier (popup)")
     def _on_lire(self) -> None:
         """Ouvre le fichier avec l'application système par défaut."""
         path = self._file.get("path", "")
@@ -310,8 +314,9 @@ class _FileInfoPopup(QDialog):
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
         self.accept()
 
+    @log_action("Supprimer le fichier (popup)")
     def _on_supprimer(self) -> None:
-        """Ouvre la confirmation de suppression."""
+        """Supprime le fichier via le parent BotBibliotheque."""
         self.accept()
         parent = self.parent()
         if parent and hasattr(parent, "_on_delete_file"):
@@ -808,7 +813,12 @@ class BotBibliotheque(QFrame):
             logger.info("Dossier partagé synchronisé : %s", path)
 
     def _on_rescan(self) -> None:
-        """Déclenche un re-scan threadé de la bibliothèque."""
+        """Déclenche un re-scan threadé de la bibliothèque.
+
+        Appelé par le bouton "Re-scanner" (via ``rescan_requested``, déjà loggué
+        par ``@log_action("Re-scanner (barre d'outils)")`` sur ``_on_rescan_clicked``)
+        ou par le timer d'auto-scan au démarrage (pas de log volontairement).
+        """
         # Créer le scanner paresseusement
         if self._scanner is None:
             db = self._get_db()
@@ -972,17 +982,20 @@ class BotBibliotheque(QFrame):
 
         menu.exec(self._table_widget.viewport().mapToGlobal(pos))
 
+    @log_action("Voir les infos du fichier")
     def _on_view_info(self, file_data: dict) -> None:
         """Ouvre la popup d'informations détaillées du fichier."""
         popup = _FileInfoPopup(file_data, self)
         popup.exec()
 
+    @log_action("Lire le fichier")
     def _on_read_file(self, file_data: dict) -> None:
         """Ouvre le fichier avec l'application système par défaut."""
         path = file_data.get("path", "")
         if path:
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
+    @log_action("Supprimer un fichier")
     def _on_delete_file(self, file_data: dict) -> None:
         """Affiche la confirmation de suppression et exécute l'action.
 

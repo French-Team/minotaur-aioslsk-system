@@ -13,8 +13,12 @@ Singleton gérant une base SQLite (data/planificateur.db) avec :
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
+
+logger = logging.getLogger("[PLANIFICATEUR-SRV]")
+
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -712,9 +716,7 @@ class PlanificateurService(QObject):
         """Purge automatique des actions de plus de 7 jours."""
         deleted = self._db.purge_old()
         if deleted:
-            import logging
-
-            logging.getLogger(__name__).info(f"Purge planificateur : {deleted} action(s) supprimée(s)")
+            logger.info(f"Purge planificateur : {deleted} action(s) supprimée(s)")
 
     def force_purge(self) -> int:
         """Déclenche une purge manuelle. Retourne le nombre supprimé."""

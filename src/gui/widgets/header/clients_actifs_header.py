@@ -9,6 +9,10 @@ Composants :
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger("[CLIENTS-ACTIFS-HDR]")
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
@@ -19,6 +23,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from src.utils.log_action import log_action
 
 # ── Constantes ───────────────────────────────────────────────────
 _OFF = "#3a3a4a"
@@ -134,15 +140,30 @@ class ClientRow(QFrame):
         self._btn_favoris = self._make_action_btn("⭐  Favoris", "clientsActionBtn")
         self._btn_bannir = self._make_action_btn("🚫  Bannir", "clientsActionBtnDanger")
 
-        self._btn_explorer.clicked.connect(lambda: self.explorer_requested.emit(nom))
-        self._btn_favoris.clicked.connect(lambda: self.favoris_requested.emit(nom))
-        self._btn_bannir.clicked.connect(lambda: self.bannir_requested.emit(nom))
+        self._btn_explorer.clicked.connect(self._on_explorer)
+        self._btn_favoris.clicked.connect(self._on_favoris)
+        self._btn_bannir.clicked.connect(self._on_bannir)
 
         layout.addWidget(self._btn_explorer)
         layout.addWidget(self._btn_favoris)
         layout.addWidget(self._btn_bannir)
 
     # ── Privé ────────────────────────────────────────────────────
+
+    @log_action("Explorer le client")
+    def _on_explorer(self) -> None:
+        """Émet la demande d'exploration du client."""
+        self.explorer_requested.emit(self._nom)
+
+    @log_action("Ajouter le client aux favoris")
+    def _on_favoris(self) -> None:
+        """Émet la demande d'ajout aux favoris."""
+        self.favoris_requested.emit(self._nom)
+
+    @log_action("Bannir le client")
+    def _on_bannir(self) -> None:
+        """Émet la demande de bannissement."""
+        self.bannir_requested.emit(self._nom)
 
     @staticmethod
     def _make_led(on: bool) -> QLabel:

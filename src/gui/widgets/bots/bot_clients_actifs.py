@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.theme_fragments.colors import COLORS
+from src.utils.log_action import log_action
 from PySide6.QtCore import Qt
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
         ClientsActifsService,
     )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[CLIENTS-ACTIFS-UI]")
 
 # ── Couleurs (depuis la palette centralisée) ─────────────────────
 
@@ -427,6 +428,7 @@ class BotClientsActifs(QFrame):
 
         menu.exec(self._table.viewport().mapToGlobal(pos))
 
+    @log_action("Appliquer un filtre sur la colonne")
     def _appliquer_filtre(self, col: int, value: str) -> None:
         """Applique un filtre par valeur de colonne et re-remplit le tableau."""
         if self._service is None:
@@ -443,6 +445,7 @@ class BotClientsActifs(QFrame):
         self._initialiser_tableau(actifs)
         logger.info("Filtre appliqué : colonne %s = %s", nom_col, value)
 
+    @log_action("Effacer le filtre actif")
     def _effacer_filtre(self) -> None:
         """Efface le filtre actif et re-remplit le tableau."""
         if self._service is None:
@@ -744,6 +747,7 @@ class BotClientsActifs(QFrame):
             self._show_etat("prêt")
         logger.warning("Timeout Rafraîchir — pipeline non terminé après 60s")
 
+    @log_action("Rafraîchir les clients actifs")
     def _on_rafraichir_click(self) -> None:
         """L'utilisateur a cliqué sur Rafraîchir → désactive le bouton et émet le signal."""
         self._btn_rafraichir.setEnabled(False)

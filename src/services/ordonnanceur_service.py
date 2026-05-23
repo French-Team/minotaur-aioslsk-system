@@ -26,7 +26,7 @@ from mutagen.easyid3 import EasyID3
 
 from src.config import settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[ORDONNANCEUR]")
 
 
 # ── Corbeille dédiée ──────────────────────────────────────────────────

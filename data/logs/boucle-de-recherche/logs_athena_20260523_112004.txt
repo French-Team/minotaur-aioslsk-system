@@ -1,0 +1,52 @@
+[11:18:49] 🔌 En attente du gestionnaire de connexion…
+[11:19:03] 🔌 Connecté à Soulseek (EliBeats)
+[11:19:03] 👥 1 client actif détecté
+[11:19:03] → 1 client(s) dans le sélecteur Arès
+[11:19:03] 🔌 Connecté à Soulseek (EliBeats)
+[11:19:03] 👥 1 client actif détecté
+[11:19:03] → 1 client(s) dans le sélecteur Arès
+[11:19:33] 🔌 Connecté à Soulseek (EliBeats)
+[11:19:33] 👥 872 clients actifs détectés
+[11:19:33] → 872 client(s) dans le sélecteur Arès
+[11:19:38] 👥 873 client(s) actif(s) disponible(s) — recherche lancée
+[11:19:38] 🔍 Dénichage de « house » chez 873 client(s) actifs (175 lot(s) de 5)…
+[11:19:39] ⚠️ 500 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:39] ✅ Recherche terminée — tous les résultats reçus
+[11:19:41] ⚠️ 74 résultat(s) reçu(s) mais tous filtrés (extensions : a26, a78, flac, gb, gbc, lrc, mp3, nds)
+[11:19:42] ⚠️ 50 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:42] ⚠️ 176 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:43] ⚠️ 300 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:43] ⚠️ 59 résultat(s) reçu(s) mais tous filtrés (extensions : flac, jpg, mp3, png)
+[11:19:44] ⚠️ 561 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:45] ⚠️ 3 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:45] ⚠️ 71 résultat(s) reçu(s) mais tous filtrés (extensions : flac, jpg, lrc, m4a, txt)
+[11:19:46] ⚠️ 300 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:47] ⚠️ 73 résultat(s) reçu(s) mais tous filtrés (extensions : flac, lrc, nfo, txt, xml)
+[11:19:47] ⚠️ 3 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:48] ⚠️ 1 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:49] ⚠️ 7 résultat(s) reçu(s) mais tous filtrés (extensions : mp3)
+[11:19:49] ⚠️ 300 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:49] ⚠️ 2 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:50] ⚠️ 1 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:51] ⚠️ 11 résultat(s) reçu(s) mais tous filtrés (extensions : flac, mp3)
+[11:19:51] ⚠️ 2 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:52] ⚠️ 70 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:52] ⚠️ 1 résultat(s) reçu(s) mais tous filtrés (extensions : jpg)
+[11:19:52] ⚠️ 52 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:55] ⚠️ 6 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:55] ⚠️ 14 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:56] ⚠️ 107 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:57] ⚠️ 455 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:58] ⚠️ 300 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:58] ⚠️ 33 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:58] ⚠️ 4 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:19:59] ⚠️ 64 résultat(s) reçu(s) mais tous filtrés (extensions : flac, m4a, mkv)
+[11:19:59] ⚠️ 35 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:20:00] ⚠️ 4 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext), mp3)
+[11:20:00] ⚠️ 5 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:20:02] ⚠️ 11 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:20:04] 🔌 Connecté à Soulseek (EliBeats)
+[11:20:04] 👥 2069 clients actifs détectés
+[11:20:04] → 2069 client(s) dans le sélecteur Arès
+[11:20:04] ⚠️ 300 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))
+[11:20:04] ⚠️ 837 résultat(s) reçu(s) mais tous filtrés (extensions : (sans ext))

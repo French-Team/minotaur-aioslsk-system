@@ -1,5 +1,8 @@
 """Correction finale de main_window.py pour intégrer QSS Inspector."""
+import logging
 import pathlib
+
+logger = logging.getLogger("[TEMP-FIX-MW2]")
 
 f = pathlib.Path('src/gui/main_window.py')
 text = f.read_text(encoding='utf-8')

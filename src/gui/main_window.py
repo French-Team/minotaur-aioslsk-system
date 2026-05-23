@@ -25,7 +25,7 @@ from src.services.app_config import get as cfg_get
 from src.services.connexion_manager import ConnexionManager
 from src.services.event_bus import EventBus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[MAIN-WINDOW]")
 
 # ── Buffer Qt QSS Warnings ────────────────────────────────────────────────
 # Intercepte les "Could not parse stylesheet" de Qt pour diagnostic

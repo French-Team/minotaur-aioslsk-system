@@ -11,7 +11,14 @@ Composants :
 
 from __future__ import annotations
 
+import logging
+
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import Qt, Signal
+
+logger = logging.getLogger("[CONFIG-UI]")
+
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -595,6 +602,7 @@ class ConfigFilePicker(QFrame):
 
     # ── Interne ─────────────────────────────────────────────────
 
+    @log_action("Sélecteur fichier : parcourir")
     def _on_browse(self) -> None:
         from PySide6.QtWidgets import QFileDialog
 
@@ -607,6 +615,7 @@ class ConfigFilePicker(QFrame):
         if path:
             self.set_file_path(path)
 
+    @log_action("Sélecteur fichier : effacer")
     def _on_clear(self) -> None:
         self.set_file_path("")
 
@@ -725,6 +734,7 @@ class ConfigDirectoryPicker(QFrame):
 
     # ── Interne ─────────────────────────────────────────────────
 
+    @log_action("Sélecteur dossier : parcourir")
     def _on_browse(self) -> None:
         from PySide6.QtWidgets import QFileDialog
 
@@ -736,6 +746,7 @@ class ConfigDirectoryPicker(QFrame):
         if path:
             self.set_directory(path)
 
+    @log_action("Sélecteur dossier : effacer")
     def _on_clear(self) -> None:
         self.set_directory("")
 
@@ -754,6 +765,7 @@ class ConfigResetBtn(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clicked.connect(self._on_click)
 
+    @log_action("Réinitialiser les paramètres")
     def _on_click(self) -> None:
         from PySide6.QtWidgets import QMessageBox
 

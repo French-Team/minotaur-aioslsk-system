@@ -1,0 +1,167 @@
+{
+  "⚡ Debug Réseau": {
+    "levels": {
+      "error": true,
+      "warning": false,
+      "info": false,
+      "debug": true
+    },
+    "services": {},
+    "limit": "200"
+  },
+  "🔴 Erreurs uniquement": {
+    "levels": {
+      "error": true,
+      "warning": false,
+      "info": false,
+      "debug": false
+    },
+    "services": {},
+    "limit": "100"
+  },
+  "📊 Surveillance complète": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": true,
+      "debug": true
+    },
+    "services": {},
+    "limit": "200"
+  },
+  "🐌 Performance": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": false,
+      "debug": false
+    },
+    "services": {},
+    "limit": "50"
+  },
+  "🌐 Connexion & Réseau": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": true,
+      "debug": true
+    },
+    "services": {
+      "[CONNEXION]": true,
+      "[SOULSEEK]": true,
+      "[EVENTBUS]": true,
+      "[CONNEXION-WEB]": true,
+      "[CONNEXION-MONITOR]": true
+    },
+    "limit": "200"
+  },
+  "🔍 Recherche & Téléchargement": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": true,
+      "debug": true
+    },
+    "services": {
+      "[RECHERCHE]": true,
+      "[TELECHARGEMENT]": true,
+      "[WISHLIST]": true,
+      "[RECHERCHE-HIST]": true,
+      "[RECHERCHE-MODES]": true,
+      "[TELECHARGEMENT-HIST]": true
+    },
+    "limit": "200"
+  },
+  "🤖 Bots uniquement": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": true,
+      "debug": true
+    },
+    "services": {
+      "[ACCUEIL]": true,
+      "[SURVEILLANCE]": true,
+      "[PLANIFICATEUR]": true,
+      "[OPTIMISEUR]": true,
+      "[AIDE]": true,
+      "[ASSISTANT]": true,
+      "[ORDONNANCEUR]": true,
+      "[ORDONNANCEUR-UI]": true,
+      "[CLIENTS-ACTIFS]": true,
+      "[CLIENTS-ACTIFS-UI]": true,
+      "[BIBLIOTHEQUE]": true,
+      "[BIBLIOTHEQUE-DB]": true,
+      "[BIBLIOTHEQUE-UI]": true
+    },
+    "limit": "200"
+  },
+  "⚠️ Erreurs + Warnings": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": false,
+      "debug": false
+    },
+    "services": {},
+    "limit": "Tout"
+  },
+  "DIAG": {
+    "levels": {
+      "error": true,
+      "warning": true,
+      "info": true,
+      "debug": true
+    },
+    "services": {
+      "[CONNEXION]": false,
+      "[SOULSEEK]": false,
+      "[EVENTBUS]": false,
+      "[ROOMS-LOOP]": false,
+      "[CLIENTS-ACTIFS]": false,
+      "[RECHERCHE]": false,
+      "[TELECHARGEMENT]": false,
+      "[SURVEILLANCE]": false,
+      "[WISHLIST]": false,
+      "[PLANIFICATEUR]": false,
+      "[ACCUEIL]": false,
+      "[OPTIMISEUR]": false,
+      "[ROOMS-SERVICE]": false,
+      "[BIBLIOTHEQUE]": false,
+      "[WORKFLOW]": false,
+      "[APP-CONFIG]": false,
+      "[CONNEXION-WEB]": false,
+      "[BIBLIOTHEQUE-DB]": false,
+      "[ORDONNANCEUR]": false,
+      "[MAIN-WINDOW]": false,
+      "[RECHERCHE-HIST]": false,
+      "[QSS-INSPECTOR]": false,
+      "[SERVICE-INSPECTOR]": false,
+      "[CENTER-ZONE]": false,
+      "[CLIENTS-ACTIFS-UI]": false,
+      "[PLANIFICATEUR-SRV]": false,
+      "[TOAST]": false,
+      "[TELECHARGEMENT-HIST]": false,
+      "[ASYNCIO-INSPECTOR]": false,
+      "[ORDONNANCEUR-UI]": false,
+      "[CONNEXION-MONITOR]": false,
+      "[TIMEOUT-CTRL]": false,
+      "[SYSINTERNALS]": false,
+      "[AIDE]": false,
+      "[ASSISTANT]": false,
+      "[BIBLIOTHEQUE-UI]": false,
+      "[RECHERCHE-MODES]": false,
+      "[ACTION-LOG]": false,
+      "[DIAG]": true,
+      "asyncio": false,
+      "aioslsk.shares.manager": false,
+      "aioslsk.tasks": false,
+      "aioslsk.transfer.manager": false,
+      "aioslsk.distributed": false,
+      "aioslsk.room.manager": false,
+      "aioslsk.search.manager": false,
+      "[FOOTER]": false
+    },
+    "limit": "Tout"
+  }
+}

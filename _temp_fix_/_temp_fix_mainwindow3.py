@@ -1,5 +1,9 @@
 """Correction complète et finale de main_window.py."""
+import logging
 import pathlib
+import re
+
+logger = logging.getLogger("[TEMP-FIX-MW3]")
 
 f = pathlib.Path('src/gui/main_window.py')
 text = f.read_text(encoding='utf-8-sig')

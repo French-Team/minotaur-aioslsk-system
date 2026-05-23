@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[TOAST]")
 
 # ── Couleurs par sévérité ────────────────────────────────────────────────
 

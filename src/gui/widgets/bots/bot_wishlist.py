@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import datetime
 import json
+import logging
 
 from PySide6.QtCore import Qt, QTimer, Signal
+
+from src.utils.log_action import log_action
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -31,6 +34,8 @@ from src.gui.theme_fragments.colors import COLORS, rgba
 from src.services import app_config
 from src.services.event_bus import EventBus
 from src.services.soulseek_client import soulseek_service
+
+logger = logging.getLogger("[WISHLIST]")
 
 # ── Constantes ──────────────────────────────────────────────────
 
@@ -164,6 +169,7 @@ class WishlistCard(QFrame):
 
         layout.addLayout(row3)
 
+    @log_action("Basculer un souhait")
     def _on_toggle(self) -> None:
         """Bascule l'état actif/inactif du souhait."""
         self._enabled = not self._enabled
@@ -751,12 +757,14 @@ class BotWishlist(QFrame):
         self._search_text = text
         self._build_list()
 
+    @log_action("Afficher la barre d'ajout")
     def _on_add_click(self) -> None:
         """Affiche la barre d'ajout rapide."""
         self._add_bar.setVisible(True)
         self._add_field.setFocus()
         self._add_field.clear()
 
+    @log_action("Confirmer l'ajout/modification d'un souhait")
     def _on_add_confirm(self) -> None:
         """Confirme l'ajout ou la modification d'un souhait.
 
@@ -777,6 +785,7 @@ class BotWishlist(QFrame):
         self._add_field.clear()
         self._add_bar.setVisible(False)
 
+    @log_action("Annuler l'ajout/modification")
     def _on_add_cancel(self) -> None:
         """Annule l'ajout ou la modification en cours.
 
@@ -787,6 +796,7 @@ class BotWishlist(QFrame):
         self._add_field.clear()
         self._add_bar.setVisible(False)
 
+    @log_action("Basculer tous les souhaits")
     def _on_toggle_all(self) -> None:
         """Bascule tous les souhaits (actif → inactif ou inactif → actif)."""
         active_count = sum(1 for w in self._wishlist if w.get("status") == "active")
@@ -803,6 +813,7 @@ class BotWishlist(QFrame):
         """Handler quand une carte est activée/désactivée."""
         self.toggle_wish(query, enabled)
 
+    @log_action("Modifier un souhait")
     def _on_card_edit(self, query: str) -> None:
         """Handler quand l'utilisateur clique sur Modifier.
 
@@ -818,6 +829,7 @@ class BotWishlist(QFrame):
         self._add_field.setFocus()
         self._add_field.selectAll()
 
+    @log_action("Supprimer un souhait")
     def _on_card_delete(self, query: str) -> None:
         """Handler quand l'utilisateur clique sur Supprimer.
 
@@ -833,6 +845,7 @@ class BotWishlist(QFrame):
         if reply == QMessageBox.StandardButton.Yes:
             self.remove_wish(query)
 
+    @log_action("Lancer la recherche d'un souhait")
     def _on_card_search(self, query: str) -> None:
         """Handler quand l'utilisateur clique sur Chercher."""
         self.search_now(query)

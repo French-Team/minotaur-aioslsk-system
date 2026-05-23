@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from src.services.connexion_manager import ConnexionManager
 from src.services.event_bus import EventBus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[ROOMS-LOOP]")
 
 
 class BoucleRooms(QObject):
@@ -77,7 +77,7 @@ class BoucleRooms(QObject):
 
     def _executer_cycle(self) -> None:
         if self._cm is None:
-            logger.warning("BoucleRooms: ConnexionManager non configuré")
+            logger.warning("ConnexionManager non configuré")
             return
         self._cm.run_coro(self._async_cycle())
 
@@ -85,11 +85,11 @@ class BoucleRooms(QObject):
         try:
             client = self._cm.client
             if client is None:
-                logger.warning("BoucleRooms: client None — cycle ignoré")
+                logger.warning("client None — cycle ignoré")
                 return
 
             if not self._cm.is_connected:
-                logger.debug("BoucleRooms: pas connecté — cycle ignoré")
+                logger.debug("pas connecté — cycle ignoré")
                 return
 
             # 1. Récupérer la liste des rooms publiques
@@ -102,13 +102,13 @@ class BoucleRooms(QObject):
             # 1b. Trier par nombre de membres décroissant pour rejoindre
             #     les 5 rooms les plus peuplées (top 5)
             self._rooms_actuelles.sort(key=lambda r: r["users"], reverse=True)
-            logger.debug("BoucleRooms: %d rooms trouvées", len(self._rooms_actuelles))
+            logger.debug("%d rooms trouvées", len(self._rooms_actuelles))
 
             # 2. Rejoindre les 5 premières rooms (si pas déjà membre)
             # ⚠️ joined_rooms n'existe PAS comme attribut — utiliser get_joined_rooms()
             joined_rooms = client.rooms.get_joined_rooms()
             joined_names = {room.name for room in joined_rooms}
-            logger.debug("BoucleRooms: %d rooms déjà rejointes", len(joined_names))
+            logger.debug("%d rooms déjà rejointes", len(joined_names))
 
             for room_info in self._rooms_actuelles[:5]:
                 name = room_info["name"]
@@ -118,31 +118,26 @@ class BoucleRooms(QObject):
 
                         await client.execute(JoinRoomCommand(name))
                         joined_names.add(name)
-                        logger.debug("Room %s rejointe", name)
+                        logger.debug("Salon #%s rejoint", name)
                     except Exception as e:
                         logger.warning("Impossible de rejoindre #%s : %s", name, e)
 
-            # 3. Collecter les utilisateurs trackés par le client (client.users.users)
-            #    comme source PRINCIPALE — contrairement à room.users qui est vide
-            #    pour les rooms publiques, client.users.users contient TOUS les
-            #    utilisateurs que le client a rencontrés (via UserStatusUpdateEvent,
-            #    PrivateMessageEvent, RoomMessageEvent, etc.).
+            # 3. Collecter les membres des rooms rejointes (source PRINCIPALE)
+            #    Quand on rejoint une room publique, le serveur Soulseek envoie
+            #    la liste complète de ses membres (JoinRoom.Response.users) qui
+            #    est stockée dans room.users par aioslsk.room.manager._on_join_room().
+            #    C'est POUR ÇA qu'on rejoint les rooms — pour avoir la liste des
+            #    utilisateurs qui y sont connectés.
+            #
+            #    En complément, client.users.users contient tous les utilisateurs
+            #    trackés depuis la connexion (messages privés, événements, etc.).
             membres = []
             usernames_vus: set[str] = set()
 
-            # Source A : client.users.users — tous les utilisateurs trackés
-            tracked = client.users.users
-            for username, user in tracked.items():
-                membres.append({
-                    "username": user.name,
-                    "room": "",
-                    "status": str(user.status) if hasattr(user, "status") else "UNKNOWN",
-                })
-                usernames_vus.add(user.name)
-
-            # Source B : room.users des rooms rejointes — best-effort
-            # Note : souvent vide pour les rooms publiques juste après JoinRoom,
-            # mais peut contenir des membres si UserJoinedRoom events sont arrivés.
+            # Source A (PRINCIPALE) : room.users des rooms rejointes
+            #    Contient la liste complète des membres de chaque room rejointe,
+            #    peuplée par aioslsk dès le JoinRoomCommand.
+            membres_depuis_rooms = 0
             for name in joined_names:
                 room = client.rooms.rooms.get(name)
                 if room and hasattr(room, "users"):
@@ -154,16 +149,31 @@ class BoucleRooms(QObject):
                                 "status": str(getattr(user, "status", "UNKNOWN")),
                             })
                             usernames_vus.add(user.name)
+                            membres_depuis_rooms += 1
+
+            # Source B (complément) : client.users.users — utilisateurs trackés
+            #    On prend tous ceux qui ne sont pas déjà dans les rooms.
+            tracked = client.users.users
+            membres_depuis_users = 0
+            for username, user in tracked.items():
+                if user.name not in usernames_vus:
+                    membres.append({
+                        "username": user.name,
+                        "room": "",
+                        "status": str(user.status) if hasattr(user, "status") else "UNKNOWN",
+                    })
+                    usernames_vus.add(user.name)
+                    membres_depuis_users += 1
 
             self._membres_actifs = membres
 
             # 4. Émettre le signal → ClientsActifsService
             self.membres_actualises.emit(membres)
             logger.debug(
-                "BoucleRooms : %d membres récupérés (%d depuis client.users.users, %d depuis rooms)",
+                "%d membres récupérés (%d depuis les rooms, %d depuis client.users.users)",
                 len(membres),
-                len(tracked),
-                len(membres) - len(tracked),
+                membres_depuis_rooms,
+                membres_depuis_users,
             )
 
             # 5. Émettre un événement pour le workflow inspector
@@ -179,13 +189,13 @@ class BoucleRooms(QObject):
                 )
 
         except AttributeError as ae:
-            logger.exception("BoucleRooms: attribut inexistant sur aioslsk — %s", ae)
+            logger.exception("Attribut inexistant sur aioslsk — %s", ae)
             self._emettre_evenement(
                 "Cycle Rooms : erreur API",
                 f"Attribut inexistant : {ae} — l'API aioslsk a peut-être changé",
             )
         except Exception as e:
-            logger.exception("BoucleRooms: erreur inattendue dans _async_cycle — %s", e)
+            logger.exception("Erreur inattendue dans _async_cycle — %s", e)
             self._emettre_evenement(
                 "Cycle Rooms : erreur",
                 f"Exception : {e}",

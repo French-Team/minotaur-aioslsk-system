@@ -46,6 +46,7 @@ COLORS = {
     "TEXT_PLACEHOLDER": "#3a3a4a",
     "TEXT_DARK": "#1a1a1a",
     "SUCCESS": "#00e676",
+    "SUCCESS_HOVER": "#00c96a",
     "SUCCESS_BG": rgba("#00e676", "4D"),
     "SUCCESS_BORDER": rgba("#00e676", "80"),
     "DANGER": "#ff5252",

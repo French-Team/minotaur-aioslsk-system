@@ -14,6 +14,8 @@ import logging
 import re
 from typing import Optional
 
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import (
     QEvent,
     Qt,
@@ -41,7 +43,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[QSS-INSPECTOR]")
 
 # ── Constantes pour la validation QSS ─────────────────────────────────────
 
@@ -683,6 +685,7 @@ class QssInspector(QDockWidget):
 
     # ── API publique ──────────────────────────────────────────────────────
 
+    @log_action("Afficher les Qt Warnings")
     def show_qt_warnings(self) -> None:
         """Affiche les warnings QSS + le log des appels setStyleSheet."""
         warnings = []
@@ -770,11 +773,13 @@ class QssInspector(QDockWidget):
         layout.addWidget(close_btn)
         dialog.exec()
 
+    @log_action("Rafraîchir l'arbre des widgets")
     def refresh(self) -> None:
         """Reconstruit l'arbre des widgets."""
         self._widget_tree.rebuild(self._main_window)
         self._select_widget(self._main_window)
 
+    @log_action("Scanner le QSS de tous les widgets")
     def scan_all(self) -> None:
         """Parcourt TOUS les widgets et liste ceux avec des erreurs QSS.
 
@@ -961,6 +966,7 @@ class QssInspector(QDockWidget):
         self._toggle_pick_mode(False)
         self.inspect_widget(widget)
 
+    @log_action("Réduire l'arbre")
     def _collapse_all(self) -> None:  # type: ignore[name-defined]
         """Réduit tous les nœuds de l'arbre."""
         root = self._widget_tree.invisibleRootItem()

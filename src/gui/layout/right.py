@@ -8,7 +8,14 @@ sur le bouton « ▶ » sur le bord gauche.
 
 from typing import TYPE_CHECKING
 
+import logging
+
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import Qt, Signal
+
+logger = logging.getLogger("[RIGHT]")
+
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -199,6 +206,7 @@ class RightZone(QFrame):
 
     # ── Mécanisme interne ────────────────────────────────────────
 
+    @log_action("Basculer le panneau droit")
     def _toggle_panel(self) -> None:
         self._collapsed = not self._collapsed
         self._apply_state()

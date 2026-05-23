@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QTimer, Signal
+
+from src.utils.log_action import log_action
 from PySide6.QtGui import QAction, QColor, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -39,7 +41,7 @@ from src.gui.theme_fragments.colors import COLORS
 from src.services import telechargement_history
 from src.services.event_bus import EventBus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[TELECHARGEMENT]")
 
 # ── Constantes ──────────────────────────────────────────────────────────────
 
@@ -328,6 +330,7 @@ class HistoryDialog(QDialog):
         """Recharge les données avec le nouveau filtre."""
         self._load_data()
 
+    @log_action("Vider tout l'historique")
     def _on_vider(self) -> None:
         """Vide tout l'historique."""
 
@@ -1165,6 +1168,7 @@ class BotTelechargement(QFrame):
         statut = mapping.get(texte.lower(), "tous")
         self._apply_filter(statut)
 
+    @log_action("Reprendre tous les téléchargements")
     def _on_resume_all(self) -> None:
         """Reprend tous les téléchargements en pause/attente."""
         for identifiant in list(self._downloads.keys()):
@@ -1176,6 +1180,7 @@ class BotTelechargement(QFrame):
                 self._service.resume_transfer(data["user"], identifiant)
                 self.change_statut(identifiant, "attente")
 
+    @log_action("Mettre en pause tous les téléchargements")
     def _on_pause_all(self) -> None:
         """Met en pause tous les téléchargements en cours."""
         for identifiant in list(self._downloads.keys()):
@@ -1184,6 +1189,7 @@ class BotTelechargement(QFrame):
                 self._service.pause_transfer(data["user"], identifiant)
                 self.change_statut(identifiant, "attente")
 
+    @log_action("Annuler tous les téléchargements")
     def _on_cancel_all(self) -> None:
         """Annule tous les téléchargements actifs/attente."""
         for identifiant in list(self._downloads.keys()):
@@ -1192,6 +1198,7 @@ class BotTelechargement(QFrame):
                 self._service.abort_transfer(data["user"], identifiant)
                 self.change_statut(identifiant, "echoue")
 
+    @log_action("Ouvrir le dossier Downloads")
     def _on_ouvrir_dossier(self) -> None:
         """Ouvre le dossier de téléchargement dans l'explorateur."""
         from src.services.app_config import app_config
@@ -1202,11 +1209,13 @@ class BotTelechargement(QFrame):
         if os.path.exists(dossier):
             os.startfile(dossier)
 
+    @log_action("Ouvrir l'historique des téléchargements")
     def _on_show_history(self) -> None:
         """Ouvre le dialogue d'historique des téléchargements."""
         dialog = HistoryDialog(self)
         dialog.exec()
 
+    @log_action("Vider les téléchargements terminés")
     def _on_clear_termines(self) -> None:
         """Supprime tous les téléchargements terminés du tableau."""
         a_supprimer = [

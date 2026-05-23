@@ -41,7 +41,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-logger = logging.getLogger(__name__)
+from src.utils.log_action import log_action
+
+logger = logging.getLogger("[SYSINTERNALS]")
 
 # ── Chemins ──────────────────────────────────────────────────────────────
 
@@ -528,6 +530,7 @@ class SysinternalsLauncherWidget(QFrame):
 
     # ── Lancement GUI ─────────────────────────────────────────────────
 
+    @log_action("Lancer outil GUI")
     def _launch_gui(self, tool: SysinternalsTool) -> None:
         """Lance un outil GUI (détaché, ne bloque pas)."""
         exe = self._find_exe(tool)
@@ -543,6 +546,7 @@ class SysinternalsLauncherWidget(QFrame):
 
     # ── Exécution CLI ─────────────────────────────────────────────────
 
+    @log_action("Exécuter outil CLI")
     def _run_cli(self, tool: SysinternalsTool) -> None:
         """Exécute un outil CLI avec ses arguments par défaut."""
         exe = self._find_exe(tool)
@@ -575,6 +579,7 @@ class SysinternalsLauncherWidget(QFrame):
 
     # ── Analyse Rapide ────────────────────────────────────────────────
 
+    @log_action("Analyse rapide")
     def _run_analyse_rapide(self) -> None:
         """Lance l'analyse rapide du processus Python actuel."""
         pid = os.getpid()
@@ -626,10 +631,12 @@ class SysinternalsLauncherWidget(QFrame):
         # pyrefly: ignore [missing-attribute]
         self._output_console.moveCursor(QTextCursor.End)
 
+    @log_action("Vider console")
     def _clear_output(self) -> None:
         """Vide la console de sortie."""
         self._output_console.clear()
 
+    @log_action("Copier résultats")
     def _copy_results(self) -> None:
         """Copie le contenu de la console dans le presse-papier."""
         text = self._output_console.toPlainText()

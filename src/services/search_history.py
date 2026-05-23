@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[RECHERCHE-HIST]")
 
 HISTORY_FILE = Path("data/bot_recherche_history.json")
 MAX_HISTORY = 20

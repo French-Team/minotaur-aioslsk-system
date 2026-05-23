@@ -1,6 +1,8 @@
-# -*- coding: utf-8 -*-
+import logging
 import sys
 import io
+
+logger = logging.getLogger("[FIX-ACCENTS]")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 with open('specs/bot-recherche-spec.md', 'r', encoding='utf-8') as f:

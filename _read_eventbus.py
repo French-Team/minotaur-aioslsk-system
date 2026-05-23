@@ -1,4 +1,7 @@
+import logging
 import sys
+
+logger = logging.getLogger("[READ-EVENTBUS]")
 sys.stdout.reconfigure(encoding='utf-8')
 
 lines = open('src/services/event_bus.py', 'r', encoding='utf-8').readlines()

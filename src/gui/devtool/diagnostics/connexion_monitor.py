@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 from src.services.app_config import get as cfg_get
 from src.services.soulseek_client import soulseek_service
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[CONNEXION-MONITOR]")
 
 
 class ConnexionMonitorWidget(QFrame):

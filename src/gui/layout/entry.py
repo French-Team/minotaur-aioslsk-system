@@ -13,7 +13,12 @@ Grille principale :
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtWidgets import QGridLayout, QWidget
+
+logger = logging.getLogger("[ENTRY]")
+
 
 from src.gui.layout.center import CenterZone
 from src.gui.layout.footer import FooterZone

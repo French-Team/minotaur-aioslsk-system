@@ -48,7 +48,7 @@ from PySide6.QtCore import QObject, Signal
 from src.services import app_config
 from src.services.event_bus import EventBus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[SOULSEEK]")
 
 
 def _parse_interests(raw: str) -> set[str]:
@@ -164,7 +164,7 @@ def _read_profile_picture(path: str) -> bytes | None:
         with open(path, "rb") as f:
             return f.read()
     except (FileNotFoundError, PermissionError, OSError) as e:
-        logger.warning("Impossible de lire la photo de profil '%s': %s", path, e)
+        logger.warning("[SOULSEEK] Impossible de lire la photo de profil '%s': %s", path, e)
         return None
 
 
@@ -197,6 +197,10 @@ class SoulseekService(QObject):
         self._username: str = ""
         self._running: bool = False
         self._transfer_states: set[str] = set()  # IDs de transferts déjà signalés à l'EventBus
+        # ⚠️  Références fortes pour les callbacks enregistrés dans l'EventBus aioslsk
+        #     L'EventBus utilise weakref.ref() en interne. Les lambdas anonymes
+        #     seraient garbage collectées sans ces références fortes !
+        self._event_callbacks: list = []
 
     @property
     def client(self) -> SoulSeekClient | None:
@@ -232,11 +236,11 @@ class SoulseekService(QObject):
 
         # Nettoyer l'ancien client s'il existe (après un échec ou une connexion partielle)
         if self._client is not None:
-            logger.warning("Nettoyage d'un ancien client avant reconnect")
+            logger.warning("[SOULSEEK] Nettoyage d'un ancien client avant reconnect")
             try:
                 await asyncio.wait_for(self._client.stop(), timeout=5.0)
             except Exception as e:
-                logger.warning("Erreur lors du nettoyage du client précédent: %s", e)
+                logger.warning("[SOULSEEK] Erreur lors du nettoyage du client précédent: %s", e)
             self._client = None
 
         # Lire la configuration utilisateur
@@ -382,77 +386,88 @@ class SoulseekService(QObject):
         self._username = username
 
         # ── Enregistrement des écouteurs d'événements ────────────
-        self._client.events.register(
-            SearchResultEvent,
-            lambda evt: self.search_result_received.emit(evt),
-        )
-        self._client.events.register(
-            TransferAddedEvent,
-            # pyrefly: ignore [bad-argument-type]
-            lambda evt: (
-                self.transfer_added.emit(evt),
-                EventBus().emit_event(
-                    severity="INFO",
-                    category="transfert",
-                    title="Transfert ajouté",
-                    message=f"{evt.transfer.direction} {evt.transfer.remote_path} — {evt.transfer.username}",
-                    source="SoulseekService",
-                ),
-            ),
-        )
-        self._client.events.register(
-            TransferRemovedEvent,
-            # pyrefly: ignore [bad-argument-type]
-            lambda evt: (
-                self.transfer_removed.emit(evt),
-                EventBus().emit_event(
-                    severity="INFO",
-                    category="transfert",
-                    title="Transfert terminé",
-                    message=f"{evt.transfer.direction} {evt.transfer.remote_path} — {evt.transfer.username}",
-                    source="SoulseekService",
-                ),
-            ),
-        )
-        self._client.events.register(
-            TransferProgressEvent,
-            lambda evt: self._on_transfer_progress(evt),
-        )
-        self._client.events.register(
-            PrivateMessageEvent,
-            lambda evt: self.private_message_received.emit(evt),
-        )
-        self._client.events.register(
-            RoomMessageEvent,
-            lambda evt: self.room_message_received.emit(evt),
-        )
-        self._client.events.register(
-            RoomListEvent,
-            lambda evt: self.room_list_received.emit(evt),
-        )
+        # ⚠️  IMPORTANT : stocker chaque callback dans self._event_callbacks
+        #     pour éviter que le GC ne les collecte (l'EventBus aioslsk
+        #     utilise weakref.ref en interne !)
+        self._event_callbacks.clear()
 
-        logger.info("SoulseekService: Tous les écouteurs d'événements ont été enregistrés avec succès.")
+        _on_search_result = lambda evt: (
+            logger.info(
+                "[DIAG] SearchResultEvent reçu — query='%s' | ticket=%s | username='%s' | %d fichiers",
+                evt.query.query if hasattr(evt.query, 'query') else '?',
+                evt.query.ticket if hasattr(evt.query, 'ticket') else '?',
+                evt.result.username if hasattr(evt.result, 'username') else '?',
+                len(evt.result.shared_items) if hasattr(evt.result, 'shared_items') else 0,
+            ),
+            self.search_result_received.emit(evt),
+        )
+        self._client.events.register(SearchResultEvent, _on_search_result)
+        self._event_callbacks.append(_on_search_result)
+
+        _on_transfer_added = lambda evt: (
+            self.transfer_added.emit(evt),
+            EventBus().emit_event(
+                severity="INFO",
+                category="transfert",
+                title="Transfert ajouté",
+                message=f"{evt.transfer.direction} {evt.transfer.remote_path} — {evt.transfer.username}",
+                source="SoulseekService",
+            ),
+        )
+        self._client.events.register(TransferAddedEvent, _on_transfer_added)
+        self._event_callbacks.append(_on_transfer_added)
+
+        _on_transfer_removed = lambda evt: (
+            self.transfer_removed.emit(evt),
+            EventBus().emit_event(
+                severity="INFO",
+                category="transfert",
+                title="Transfert terminé",
+                message=f"{evt.transfer.direction} {evt.transfer.remote_path} — {evt.transfer.username}",
+                source="SoulseekService",
+            ),
+        )
+        self._client.events.register(TransferRemovedEvent, _on_transfer_removed)
+        self._event_callbacks.append(_on_transfer_removed)
+
+        _on_transfer_progress = lambda evt: self._on_transfer_progress(evt)
+        self._client.events.register(TransferProgressEvent, _on_transfer_progress)
+        self._event_callbacks.append(_on_transfer_progress)
+
+        _on_private_message = lambda evt: self.private_message_received.emit(evt)
+        self._client.events.register(PrivateMessageEvent, _on_private_message)
+        self._event_callbacks.append(_on_private_message)
+
+        _on_room_message = lambda evt: self.room_message_received.emit(evt)
+        self._client.events.register(RoomMessageEvent, _on_room_message)
+        self._event_callbacks.append(_on_room_message)
+
+        _on_room_list = lambda evt: self.room_list_received.emit(evt)
+        self._client.events.register(RoomListEvent, _on_room_list)
+        self._event_callbacks.append(_on_room_list)
+
+        logger.info("[SOULSEEK] Tous les écouteurs d'événements ont été enregistrés avec succès (%d callbacks).", len(self._event_callbacks))
         try:
-            logger.info("SoulseekService: Démarrage des sockets et de la boucle réseau du client avec client.start()...")
+            logger.info("[SOULSEEK] Démarrage des sockets et de la boucle réseau du client avec client.start()...")
             await self._client.start()
-            logger.info("SoulseekService: [SUCCÈS] client.start() complété. Connexions d'écoute et d'envoi ouvertes.")
+            logger.info("[SOULSEEK] [SUCCÈS] client.start() complété. Connexions d'écoute et d'envoi ouvertes.")
             
-            logger.info("SoulseekService: Envoi du paquet d'authentification et attente du handshake avec client.login()...")
+            logger.info("[SOULSEEK] Envoi du paquet d'authentification et attente du handshake avec client.login()...")
             await self._client.login()
-            logger.info("SoulseekService: [SUCCÈS] client.login() complété, authentification acceptée par le serveur Soulseek !")
+            logger.info("[SOULSEEK] [SUCCÈS] client.login() complété, authentification acceptée par le serveur Soulseek !")
             
             self._running = True
-            logger.info("SoulseekService: Émission du signal connection_changed(True)...")
+            logger.info("[SOULSEEK] Émission du signal connection_changed(True)...")
             self.connection_changed.emit(True)
-            logger.info("Connecté à Soulseek en tant que %s", username)
+            logger.info("[SOULSEEK] Connecté à Soulseek en tant que %s", username)
             return f"Connecté à Soulseek en tant que {username}"
         except Exception as e:
             self._running = False
-            logger.warning("SoulseekService: Échec de connexion rencontré. Émission de connection_changed(False)...")
+            logger.warning("[SOULSEEK] Échec de connexion rencontré. Émission de connection_changed(False)...")
             self.connection_changed.emit(False)
-            logger.info("SoulseekService: Nettoyage et arrêt des sockets du client...")
+            logger.info("[SOULSEEK] Nettoyage et arrêt des sockets du client...")
             await self._cleanup_client()
-            logger.error("Échec de connexion: %s", e)
+            logger.error("[SOULSEEK] Échec de connexion: %s", e)
             raise
 
     def _on_transfer_progress(self, evt: "TransferProgressEvent") -> None:
@@ -496,7 +511,7 @@ class SoulseekService(QObject):
         self._running = False
         self.connection_changed.emit(False)
         await self._cleanup_client()
-        logger.info("Déconnecté de Soulseek")
+        logger.info("[SOULSEEK] Déconnecté de Soulseek")
         return "Déconnecté de Soulseek"
 
     async def _cleanup_client(self) -> None:
@@ -505,7 +520,7 @@ class SoulseekService(QObject):
             try:
                 await self._client.stop()
             except Exception as e:
-                logger.warning("Erreur lors du cleanup du client: %s", e)
+                logger.warning("[SOULSEEK] Erreur lors du cleanup du client: %s", e)
             self._client = None
 
     # ── Contrôle des transferts ────────────────────────────────────────────
@@ -517,7 +532,7 @@ class SoulseekService(QObject):
         transfer = self._client.transfers.find_transfer(username, remote_path, TransferDirection.DOWNLOAD)
         if transfer:
             asyncio.ensure_future(self._client.transfers.pause(transfer))
-            logger.debug("Transfert mis en pause: %s / %s", username, remote_path)
+            logger.debug("[SOULSEEK] Transfert mis en pause: %s / %s", username, remote_path)
 
     def resume_transfer(self, username: str, remote_path: str) -> None:
         """Reprend un téléchargement (fire-and-forget).
@@ -527,7 +542,7 @@ class SoulseekService(QObject):
         if not self.is_connected or self._client is None:
             return
         asyncio.ensure_future(self._client.transfers.download(username, remote_path, paused=False))
-        logger.debug("Transfert relancé: %s / %s", username, remote_path)
+        logger.debug("[SOULSEEK] Transfert relancé: %s / %s", username, remote_path)
 
     def abort_transfer(self, username: str, remote_path: str) -> None:
         """Annule/abandonne un téléchargement (fire-and-forget)."""
@@ -536,7 +551,7 @@ class SoulseekService(QObject):
         transfer = self._client.transfers.find_transfer(username, remote_path, TransferDirection.DOWNLOAD)
         if transfer:
             asyncio.ensure_future(self._client.transfers.abort(transfer))
-            logger.debug("Transfert annulé: %s / %s", username, remote_path)
+            logger.debug("[SOULSEEK] Transfert annulé: %s / %s", username, remote_path)
 
 
 # Instance globale partagée

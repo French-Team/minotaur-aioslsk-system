@@ -1,144 +1,128 @@
-# Minotaur AIOSLSK System
+<p align="center">
+  <img src="assets/images/MINAUTOR_logo.png" alt="Minautor Logo" width="250">
+</p>
 
-[![CI](https://github.com/French-Team/minotaur-aioslsk-system/actions/workflows/ci.yml/badge.svg)](https://github.com/French-Team/minotaur-aioslsk-system/actions/workflows/ci.yml) [![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)](https://python.org) [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE) [![PySide6](https://img.shields.io/badge/PySide6-6.5+-blue?logo=qt&logoColor=white)]() [![Coverage](https://codecov.io/gh/French-Team/minotaur-aioslsk-system/branch/main/graph/badge.svg)](https://codecov.io/gh/French-Team/minotaur-aioslsk-system)
+# 🏛️ Minautor AIOSLSK System
 
-**Client Soulseek puissant** avec interface graphique (PySide6) et bots de gestion intelligents.
+[![CI](https://github.com/French-Team/minotaur-aioslsk-system/actions/workflows/ci.yml/badge.svg)](https://github.com/French-Team/minotaur-aioslsk-system/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)](https://python.org)
+[![PySide6](https://img.shields.io/badge/PySide6-6.5+-blue?logo=qt&logoColor=white)](https://www.qt.io/qt-for-python)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Coverage](https://codecov.io/gh/French-Team/minotaur-aioslsk-system/branch/main/graph/badge.svg)](https://codecov.io/gh/French-Team/minotaur-aioslsk-system)
+[![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Interface complète pour la recherche, le téléchargement, et l'organisation de fichiers audio via le réseau Soulseek, avec des outils avancés de classement, déduplication, planification, et optimisation.
+**Minautor** est un client Soulseek de nouvelle génération, conçu pour la puissance et l'automatisation. Il combine une interface graphique moderne (PySide6) avec une architecture événementielle robuste et une suite de "bots" intelligents pour gérer votre bibliothèque musicale.
 
 ---
 
-## ✨ Fonctionnalités
+## 🚀 Points Forts
+
+- 🤖 **Multi-Bots** : Gestionnaire de téléchargements, bibliothèque, recherche, surveillance, et plus encore.
+- ⚡ **Architecture Événementielle** : Communication fluide via un `EventBus` centralisé.
+- 💬 **Salons & Social** : Intégration complète des salons de discussion (Rooms) Soulseek.
+- 🧹 **Ordonnanceur Intelligent** : Renommage, classement et dédoublonnage automatique (SHA256).
+- 🛠️ **DevTools Intégrés** : Suite Sysinternals, inspecteur QSS et monitoring asyncio.
+
+---
+
+## ✨ Fonctionnalités détaillées
 
 ### 🔍 Recherche & Téléchargement
-- Recherche multi-critères sur le réseau Soulseek
-- Téléchargements en parallèle avec file d'attente
-- Gestion de la wishlist et surveillance des fichiers rares
-- Bibliothèque de fichiers synchronisée
+- **Moteur de recherche** : Multi-critères, historique des recherches, et filtres avancés.
+- **Gestionnaire de file d'attente** : Téléchargements parallèles avec suivi en temps réel.
+- **Wishlist** : Surveillance automatique pour trouver les fichiers rares dès qu'ils apparaissent.
 
-### 🧹 Ordonnanceur
-- Analyse complète d'un dossier de fichiers audio
-- **Renommage** via template personnalisable (`{artist} - {album} - {track:02d} {title}`)
-- **Classement** en structure `{artist}/{album}/...`
-- **Dédoublonnage** par hash SHA256 (passe rapide + passe sûre)
-- **Nettoyage** des fichiers temporaires
-- **Corbeille dédiée** : suppression sécurisée avec horodatage
-- Mode simulation (dry-run) par défaut — preview avant exécution
-- Interface en 4 étapes : Choix → Aperçu → Exécution → Rapport
-- CLI complète pour usage automatisé
+### 🏠 Système de Bots
+- **Bot Accueil** : Vue d'ensemble et accès rapide aux modules.
+- **Bot Bibliothèque** : Gestion et scan de vos fichiers locaux.
+- **Bot Clients Actifs** : Monitoring des pairs connectés.
+- **Bot Assistant & Aide** : Base de connaissances intégrée pour vous guider.
+- **Bot Optimiseur** : Profils de performance (Défaut, Puissance Max, Extrême).
 
-### 📅 Planificateur
-- Planification d'actions récurrentes
-- Intégration avec l'Ordonnanceur pour des nettoyages programmés
+### 🧹 Ordonnanceur & Planificateur
+- **Automatisme** : Classement structurel (`{artist}/{album}/...`) et renommage intelligent.
+- **Dédoublonnage** : Analyse par hash SHA256 pour éliminer les doublons réels.
+- **Planification** : Exécution de tâches de nettoyage ou de scan à intervalles réguliers.
 
-### 📊 Surveillance
-- Surveillance des téléchargements en cours
-- Suivi des performances du réseau
+### 🛠️ Outils de Diagnostic (DevMode)
+- **Sysinternals Suite** : Process Explorer, TCPView, et Process Monitor intégrés.
+- **Inspecteurs** : Analyse des styles (QSS), des services et des workflows en temps réel.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture du Projet
 
-```
-minotaur-aioslsk-system/
+```text
+minautor-aioslsk-system/
 ├── src/
-│   ├── main.py                 # Point d'entrée
-│   ├── config.py               # Configuration
-│   ├── cli_ordonnanceur.py     # CLI Ordonnanceur (432 lignes)
-│   ├── services/               # Backend (12 fichiers, 5 568 lignes)
-│   │   ├── ordonnanceur_service.py   # 1 789 lignes
-│   │   ├── planificateur_service.py  # 712 lignes
-│   │   ├── library_db.py             # 715 lignes
-│   │   ├── library_scanner.py        # 208 lignes
-│   │   ├── soulseek_client.py       # 520 lignes
-│   │   └── ...
-│   ├── gui/                    # Interface Qt (44 fichiers, 18 028 lignes)
-│   │   ├── main_window.py
-│   │   ├── layout/             # Center, Left, Right, Footer, Header
-│   │   ├── widgets/
-│   │   │   ├── bots/           # Tous les bots
-│   │   │   │   ├── bot_ordonnanceur.py     # 1 425 lignes
-│   │   │   │   ├── bot_planificateur.py    # 1 135 lignes
-│   │   │   │   ├── bot_recherche.py        # 2 005 lignes
-│   │   │   │   ├── bot_bibliotheque.py     # 1 120 lignes
-│   │   │   │   ├── bot_telechargement.py   # 1 224 lignes
-│   │   │   │   ├── bot_surveillance.py     # 1 400 lignes
-│   │   │   │   ├── bot_accueil.py          # 652 lignes
-│   │   │   │   ├── bot_wishlist.py         # 807 lignes
-│   │   │   │   └── bot_optimiseur.py       # 889 lignes
-│   │   │   └── ...
-│   │   └── theme_fragments/    # Thème QSS modulaire
-│   └── models/
-│       └── schemas.py
-├── tests/                      # 21 fichiers, 863 tests
-│   ├── test_ordonnanceur_service.py           # 2 060 lignes, 178 tests
-│   ├── test_ordonnanceur_service_mutagen.py   # 652 lignes
-│   ├── test_cli_ordonnanceur.py               # 237 lignes, 16 tests
-│   ├── test_bot_ordonnanceur_integration.py   # 726 lignes, 43 tests
-│   ├── test_integration_planificateur_ordonnanceur.py # 733 lignes, 38 tests
-│   ├── test_bot_accueil.py                   # 554 lignes
-│   ├── test_bot_bibliotheque.py              # 1 426 lignes
-│   └── ...
-├── specs/                      # Spécifications détaillées
-│   ├── bot-ordonnanceur-spec.md
-│   ├── bot-planificateur-spec.md
-│   └── ...
-└── .agents/                    # Agents Codebuff
+│   ├── main.py                 # Point d'entrée (FastAPI/Uvicorn)
+│   ├── gui/                    # Interface PySide6 (44+ fichiers)
+│   │   ├── main_window.py      # Fenêtre principale
+│   │   ├── widgets/bots/       # Logique des 10+ bots spécialisés
+│   │   └── devtool/            # Outils de diagnostic & Sysinternals
+│   ├── services/               # Cœur logique (EventBus, Soulseek, DB)
+│   │   ├── event_bus.py        # Système de messagerie inter-module
+│   │   ├── room_service.py     # Gestion des salons de discussion
+│   │   └── ordonnanceur_service.py # Logique de traitement de fichiers
+│   └── models/                 # Schémas de données (Pydantic)
+├── data/                       # Bases de données SQLite & Knowledge base
+├── tests/                      # Suite de tests massive (860+ tests)
+└── specs/                      # Spécifications techniques détaillées
 ```
 
 ---
 
-## 🚀 Installation
+## 🛠️ Installation & Usage
 
-```bash
+### Prérequis
+- Python 3.11 ou supérieur
+- Windows (recommandé pour les outils Sysinternals)
+
+### Installation rapide
+```powershell
 # Cloner le dépôt
 git clone https://github.com/French-Team/minotaur-aioslsk-system.git
 cd minotaur-aioslsk-system
 
-# Dépendances
+# Installer les dépendances
 pip install -r requirements.txt
 
-# Lancement GUI
+# Lancer l'application
 python run.py
+```
 
-# CLI Ordonnanceur
-python -m src.cli_ordonnanceur DOSSIER [--ops ...] [--executer]
+### CLI Ordonnanceur
+L'ordonnanceur peut également être utilisé sans interface graphique :
+```powershell
+python -m src.cli_ordonnanceur "C:/MaMusique" --ops classement,renommage --executer
 ```
 
 ---
 
-## 🧪 Tests
+## 🧪 Qualité & Tests
 
-```bash
-# Tout lancer
-python -m pytest tests/ --tb=short -q
+Le projet suit des standards de qualité rigoureux :
+- **Tests** : `pytest` (Unitaires, Intégration, E2E).
+- **Linting** : `ruff` pour un code propre et performant.
+- **Typage** : `mypy` pour la sécurité du code.
 
-# Ordonnanceur seulement
-python -m pytest tests/test_ordonnanceur_service.py -v
-
-# Tests GUI intégration
-python -m pytest tests/test_bot_ordonnanceur_integration.py -v
+```powershell
+# Lancer tous les tests
+pytest
 ```
 
-**Couverture :** 863 tests (tout vert ✅)
+---
+
+## 💻 Stack Technique
+
+- **Langage** : Python 3.11+
+- **Interface** : PySide6 (Qt) & FastAPI (Backend Web)
+- **Traitement Audio** : Mutagen (Tags), Hashlib (SHA256)
+- **Base de données** : SQLite (via `aioslsk` et services internes)
+- **Qualité** : Pytest, Ruff, Mypy, Codecov
 
 ---
 
-## 💻 Stack technique
+## � Licence
 
-| Technologie | Usage |
-|-------------|-------|
-| **Python 3.12+** | Langage principal |
-| **PySide6** | Interface graphique Qt |
-| **mutagen** | Lecture des tags audio (ID3, Vorbis, FLAC) |
-| **pathlib / shutil** | Manipulation fichiers système |
-| **hashlib (SHA256)** | Dédoublonnage |
-| **pytest** | Tests unitaires et intégration |
-| **argparse** | CLI |
-| **FastAPI / uvicorn** | Interface web Soulseek |
-
----
-
-## 📜 License
-
-Apache 2.0
+Ce projet est sous licence **Apache 2.0**.

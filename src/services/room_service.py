@@ -17,7 +17,7 @@ from src.services.event_bus import EventBus
 if TYPE_CHECKING:
     from src.services.soulseek_client import SoulseekService
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[ROOMS-SERVICE]")
 
 
 @dataclass

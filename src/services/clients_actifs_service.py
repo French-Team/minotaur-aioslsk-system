@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 from src.services.event_bus import EventBus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[CLIENTS-ACTIFS]")
 
 # ── Paramètres de rate limiting pour le ping par lots ────────────
 
@@ -330,36 +330,57 @@ class ClientsActifsService(QObject):
     # ── Synchronisation ─────────────────────────────────────────
 
     def _synchroniser(self) -> None:
-        """Synchronise l'état interne avec le UserManager d'aioslsk."""
+        """Synchronise l'état interne avec le UserManager d'aioslsk.
+
+        ⚠️ FUSIONNE au lieu de remplacer : préserve les clients ajoutés
+        via ``ingest_membres_rooms()`` (membres des salons) qui ne sont
+        pas forcément dans ``client.users.users``. Sans cette précaution,
+        le minuteur 30s vide la liste Arès toutes les 30 secondes.
+        """
         client = self._client
         if client is None or client.users is None:
             return
 
         try:
             tracked: dict[str, "User"] = client.users.users
-            nouveaux: dict[str, ClientInfo] = {}
 
             for username, user in tracked.items():
-                info = ClientInfo(
-                    username=username,
-                    statut=user.status,
-                    pays=getattr(user, "country", "") or "",
-                    vitesse=getattr(user, "avg_speed", 0) or 0,
-                    fichiers_partages=getattr(user, "shared_file_count", 0) or 0,
-                    dossiers_partages=getattr(user, "shared_folder_count", 0) or 0,
-                    slots_libres=getattr(user, "slots_free", 0) or 0,
-                    slots_libres_flag=getattr(user, "has_slots_free", False) or False,
-                    file_attente=getattr(user, "queue_length", 0) or 0,
-                    uploads=getattr(user, "uploads", 0) or 0,
-                    privilege=getattr(user, "privileged", False) or False,
-                    description=getattr(user, "description", "") or "",
-                )
-                nouveaux[username] = info
+                if username in self._clients:
+                    # Mettre à jour les champs du client existant
+                    info = self._clients[username]
+                    info.statut = user.status
+                    info.pays = getattr(user, "country", "") or ""
+                    info.vitesse = getattr(user, "avg_speed", 0) or 0
+                    info.fichiers_partages = getattr(user, "shared_file_count", 0) or 0
+                    info.dossiers_partages = getattr(user, "shared_folder_count", 0) or 0
+                    info.slots_libres = getattr(user, "slots_free", 0) or 0
+                    info.slots_libres_flag = getattr(user, "has_slots_free", False) or False
+                    info.file_attente = getattr(user, "queue_length", 0) or 0
+                    info.uploads = getattr(user, "uploads", 0) or 0
+                    info.privilege = getattr(user, "privileged", False) or False
+                    info.description = getattr(user, "description", "") or ""
+                else:
+                    # Nouveau client découvert via UserManager
+                    info = ClientInfo(
+                        username=username,
+                        statut=user.status,
+                        pays=getattr(user, "country", "") or "",
+                        vitesse=getattr(user, "avg_speed", 0) or 0,
+                        fichiers_partages=getattr(user, "shared_file_count", 0) or 0,
+                        dossiers_partages=getattr(user, "shared_folder_count", 0) or 0,
+                        slots_libres=getattr(user, "slots_free", 0) or 0,
+                        slots_libres_flag=getattr(user, "has_slots_free", False) or False,
+                        file_attente=getattr(user, "queue_length", 0) or 0,
+                        uploads=getattr(user, "uploads", 0) or 0,
+                        privilege=getattr(user, "privileged", False) or False,
+                        description=getattr(user, "description", "") or "",
+                    )
+                    self._clients[username] = info
+                    self.client_ajoute.emit(username)
 
-            self._clients = nouveaux
             actifs = self.clients_actifs()
             self.clients_synchronises.emit(actifs)
-            logger.info("ClientsActifsService: %d clients synchronisés", len(actifs))
+            logger.info("ClientsActifsService: %d clients synchronisés (fusion)", len(actifs))
 
         except Exception:
             logger.exception("ClientsActifsService: erreur lors de la synchronisation")

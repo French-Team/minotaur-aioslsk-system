@@ -7,9 +7,14 @@ quand l'utilisateur est connecté.
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger("[HEADER]")
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QWidget
 
+from src.utils.log_action import log_action
 from src.gui.widgets.connexions import ConnexionHeaderWidget
 
 
@@ -34,11 +39,18 @@ class HeaderZone(QFrame):
 
         # Connexion — visible seulement quand connecté
         self._connexion = ConnexionHeaderWidget()
-        self._connexion.clicked.connect(lambda: self.page_changed.emit("connexion"))
+        self._connexion.clicked.connect(self._on_connexion_clicked)
         layout.addWidget(self._connexion)
 
         # Header masqué par défaut
         self.setVisible(False)
+
+    # ── Privé ────────────────────────────────────────────────────
+
+    @log_action("Header : naviguer vers la connexion")
+    def _on_connexion_clicked(self) -> None:
+        """Navigue vers la page de connexion."""
+        self.page_changed.emit("connexion")
 
     # ── API publique ─────────────────────────────────────────────
 

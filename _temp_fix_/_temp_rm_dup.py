@@ -1,4 +1,7 @@
+import logging
 import pathlib
+
+logger = logging.getLogger("[TEMP-RM-DUP]")
 f = pathlib.Path('src/gui/main_window.py')
 lines = f.read_text(encoding='utf-8').splitlines()
 

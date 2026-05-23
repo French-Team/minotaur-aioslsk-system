@@ -24,7 +24,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from src.services.library_db import IGNORED_EXTENSIONS, LibraryDB, ScanResult
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[BIBLIOTHEQUE]")
 
 
 # ── Worker interne ──────────────────────────────────────

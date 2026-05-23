@@ -13,6 +13,8 @@ import time
 from collections import defaultdict, deque
 from typing import Any, Optional
 
+from src.utils.log_action import log_action
+
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon
 from PySide6.QtWidgets import (
@@ -37,7 +39,7 @@ from PySide6.QtWidgets import (
 from src.services.event_bus import EventBus, SurveillanceEvent
 from src.services.soulseek_client import soulseek_service
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[WORKFLOW]")
 
 # ── Mapping source EventBus → (nom_affiché, icône) ─────────────────────────
 _SOURCE_MAP: dict[str, tuple[str, str]] = {
@@ -363,6 +365,7 @@ class WorkflowInspector(QDockWidget):
     #  Gestion pause / refresh
     # ─────────────────────────────────────────────────────────────────────────
 
+    @log_action("Workflow : pause/reprise")
     def _toggle_paused(self) -> None:
         self._paused = not self._paused
         if self._paused:
@@ -381,6 +384,7 @@ class WorkflowInspector(QDockWidget):
             logger.info("WorkflowInspector: reprise")
             self._refresh_all()
 
+    @log_action("Workflow : rafraîchir manuellement")
     def _refresh_all(self) -> None:
         """Refresh manuel complet — rescanner bots + mettre à jour les cartes."""
         self._refresh_count += 1
@@ -1059,13 +1063,13 @@ class WorkflowInspector(QDockWidget):
             self._update_matrix()
             self._matrix_dirty = False
 
+    @log_action("Workflow : réinitialiser la matrice")
     def _on_reset_matrix(self) -> None:
         """Remet les compteurs de la matrice à zéro."""
         self._matrix.clear()
         self._event_counters.clear()
         self._matrix_debounce_timer.stop()
         self._update_matrix()
-        logger.info("WorkflowInspector: matrice réinitialisée")
 
     # ─────────────────────────────────────────────────────────────────────────
     #  Section 3 : Timeline
@@ -1079,6 +1083,7 @@ class WorkflowInspector(QDockWidget):
         display = list(self._timeline_buffer)[-100:]
         self._timeline_edit.setPlainText("\n".join(display))
 
+    @log_action("Workflow : défiler la timeline en bas")
     def _scroll_timeline_bottom(self) -> None:
         """Fait défiler la timeline vers le bas."""
         scrollbar = self._timeline_edit.verticalScrollBar()
@@ -1241,6 +1246,7 @@ class WorkflowInspector(QDockWidget):
     #  Boutons d'action
     # ─────────────────────────────────────────────────────────────────────────
 
+    @log_action("Workflow : activer/désactiver un bot")
     def _on_toggle_bot(self, bot_name: str) -> None:
         """Démarre ou arrête un bot individuellement."""
         instance = self._bot_instances.get(bot_name)
@@ -1267,6 +1273,7 @@ class WorkflowInspector(QDockWidget):
         # Mettre à jour la carte
         self._update_card(bot_name)
 
+    @log_action("Workflow : exporter le rapport")
     def _on_export_report(self) -> None:
         """Copie l'état complet (tous les bots + matrice) dans le presse-papier."""
         lines = []
@@ -1310,6 +1317,7 @@ class WorkflowInspector(QDockWidget):
             clipboard.setText(report)
             logger.info("WorkflowInspector: rapport exporté (%d caractères)", len(report))
 
+    @log_action("Workflow : nettoyer les workers")
     def _on_cleanup_workers(self) -> None:
         """Nettoie les références aux workers terminés dans les widgets."""
         cleaned = 0

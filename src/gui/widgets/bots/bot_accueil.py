@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+from src.utils.log_action import log_action
+
+logger = logging.getLogger("[ACCUEIL]")
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, TYPE_CHECKING
@@ -531,6 +533,7 @@ class BotAccueil(QFrame):
 
     # ── Handler de saisie utilisateur ────────────────────────────
 
+    @log_action("Envoyer un message")
     def _on_user_input(self) -> None:
         """Handler appelé quand l'utilisateur envoie un message."""
         text = self._input_field.text().strip()
@@ -848,6 +851,7 @@ class BotAccueil(QFrame):
 
     # ── Routeur d'actions ───────────────────────────────────────
 
+    @log_action("Vider le chat")
     def _on_clear_history(self) -> None:
         """Efface l'historique et revient au message de bienvenue."""
         self.clear_history()
@@ -869,6 +873,7 @@ class BotAccueil(QFrame):
             if actions:
                 QTimer.singleShot(600, lambda: self._execute_actions(actions))
 
+    @log_action("Cliquer sur une suggestion")
     def _on_suggestion(self, action: str) -> None:
         """Route une action utilisateur vers le dialogue ou la redirection appropriée."""
         route: dict[str, Callable[[], None]] = {

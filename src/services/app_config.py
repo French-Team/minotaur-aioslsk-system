@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("[APP-CONFIG]")
 
 # ── Fichier de configuration ─────────────────────────────────────
 _CONFIG_FILE = Path(__file__).resolve().parent.parent.parent / "app_config.json"
