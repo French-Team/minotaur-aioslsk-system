@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/MINAUTOR_logo.png" alt="Minautor Logo" width="250">
+  <img src="assets/images/MINAUTOR_logo.png" alt="Minautor Logo" width="400">
 </p>
 
 # 🏛️ Minautor AIOSLSK System
